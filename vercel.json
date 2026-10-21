@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm --prefix web ci",
+  "buildCommand": "npm --prefix web run build",
+  "outputDirectory": "web/dist",
+  "framework": null,
+  "rewrites": [{ "source": "/((?!assets/|dots-boxes\\.zip).*)", "destination": "/index.html" }]
+}

@@ -1,0 +1,155 @@
+{
+  "date": "2026-10-21",
+  "device": "Pimoroni Tufty 2350, existing pinned badgegotchi_native.mpy, PowerSync core 0.5.4",
+  "method": "Installed source, normal Badgeware managed networking, real five-letter pairing, physical badge against an authenticated RPC test opponent. RAM wrappers record timing, drive test buttons and count checkpoint HTTP calls; no application source overlay.",
+  "configuration": {
+    "schema": 4,
+    "rawTables": [
+      "rooms",
+      "moves"
+    ],
+    "localOnlyTable": "account",
+    "cachePages": 32,
+    "shadowBytes": 131072,
+    "nativeArenaBytes": 262144,
+    "synchronous": "FULL",
+    "journalMode": "DELETE"
+  },
+  "installation": {
+    "verifiedPackageFiles": 17,
+    "changedFiles": [
+      "dots_storage.py",
+      "dots_sync.py"
+    ],
+    "nativeSha256": "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8",
+    "nativeUnchanged": true,
+    "backupCreated": false,
+    "systemReadonlyMountRestored": true,
+    "packageBytes": 558782
+  },
+  "existingSchema3Migration": {
+    "passed": true,
+    "schemaAfter": 4,
+    "movesAfterResync": 49,
+    "scores": [
+      10,
+      10
+    ],
+    "pending": false,
+    "sqlCrud": 0,
+    "checkpointHttpRequests": 0,
+    "databaseBytes": 77824,
+    "freePages": 11,
+    "openMilliseconds": 4383,
+    "firstSyncMilliseconds": 68182
+  },
+  "freshCache": {
+    "pairingSessionRetained": true,
+    "pendingMoveAbsentBeforeReset": true,
+    "reason": "The VFS retains SQLite high-water file size; only the completed synced cache was recreated after successful migration. The original device/session identity stayed in session.json."
+  },
+  "fullGame": {
+    "roomId": "945cec62-fae1-4454-a24d-2d5f0e4fcdc3",
+    "moves": 49,
+    "scores": [
+      10,
+      10
+    ],
+    "finished": true,
+    "winner": 0,
+    "pending": false,
+    "sqlCrud": 0,
+    "canonicalUuidConfirmations": 25,
+    "allExactUuidChecksPassed": true,
+    "checkpointHttpRequests": 0,
+    "databaseBytes": 67584,
+    "freePages": 1,
+    "nativePeakBytes": 133760,
+    "openMilliseconds": 3264,
+    "firstSyncMillisecondsIncludingPairing": 15960,
+    "gameResultElapsedMilliseconds": 161946,
+    "confirmedMilliseconds": [
+      3626,
+      3419,
+      3407,
+      3477,
+      3269,
+      3339,
+      3434,
+      3598,
+      3521,
+      3530,
+      3578,
+      4499,
+      3557,
+      3618,
+      3704,
+      3569,
+      3685,
+      3501,
+      3717,
+      5096,
+      3821,
+      3861,
+      3829,
+      3712,
+      4032
+    ],
+    "medianMilliseconds": 3598,
+    "minimumMilliseconds": 3269,
+    "maximumMilliseconds": 5096,
+    "serverReplay": {
+      "room_id": "945cec62-fae1-4454-a24d-2d5f0e4fcdc3",
+      "moves": 49,
+      "status": "finished",
+      "scores": [
+        10,
+        10
+      ],
+      "boxes": 20,
+      "canonicalMoveIdsUnique": true,
+      "serverReplayPassed": true
+    }
+  },
+  "installedWarmReopen": {
+    "passed": true,
+    "autoplay": false,
+    "sourceOverlay": false,
+    "nativeRawTablesVerified": true,
+    "fullDurabilityVerified": true,
+    "moves": 49,
+    "scores": [
+      10,
+      10
+    ],
+    "pending": false,
+    "sqlCrud": 0,
+    "checkpointHttpRequests": 0,
+    "openMilliseconds": 1037,
+    "firstSyncMilliseconds": 7137,
+    "databaseBytes": 67584,
+    "nativePeakBytes": 102592
+  },
+  "comparisonWithPreviousHardwareRun": {
+    "previousMedianMilliseconds": 4081,
+    "rawMedianMilliseconds": 3598,
+    "medianReductionPercent": 11.8,
+    "previousDatabaseBytes": 77824,
+    "rawDatabaseBytes": 67584
+  },
+  "hostChecks": {
+    "badgeTestsPassed": 103,
+    "fullGameAndReopenPassed": true,
+    "schema1To3MigrationsAndRollbackPassed": true,
+    "accountSwitchAndRemoveAfterReopenPassed": true,
+    "physicalVfsFailureTestsPassed": true,
+    "packageContentsVerified": 17
+  },
+  "limitations": [
+    "One badge and Wi-Fi connection; sequential measurements, not randomized A/B.",
+    "The earlier run used the browser emulator opponent; this run used the same public move RPC through a test opponent.",
+    "Fresh-cache creation and pairing timings do not represent a warm reopen.",
+    "The 68-second migration first sync is recorded separately; wire and checkpoint protocols are unchanged.",
+    "No physical power-cut testing; fixed arena and PSRAM shadow reservations remain unchanged."
+  ]
+}

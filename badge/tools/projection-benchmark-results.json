@@ -1,0 +1,807 @@
+{
+  "methodology": {
+    "scope": "Local actual service compiler and fixed 256 KiB real native core. Synthetic game; no cloud writes or Tufty timing claims.",
+    "reproduce": "node powersync-cloud/tests/benchmark-projection.mjs --output=/private/tmp/dots-projection-benchmark.json",
+    "guarantees": [
+      "Actual compiler checks v2 CASE and base64 output.",
+      "All 49 transformed moves replay exactly, including turn, scores, edge owners and boxes.",
+      "Base64 UUID outputs are padded 24-character TEXT and round-trip to canonical UUID bytes.",
+      "Distinct canonical UUIDs across two rooms produce disjoint move IDs; r decodes to its correct room.",
+      "Native scenarios assert expected published rows, empty SQL CRUD and completed checkpoints."
+    ],
+    "operationBytes": "Exact compact JSON PUT envelope bytes with actual service SHA256 checksum algorithm; excludes HTTP/TLS, bucket envelopes, checkpoint lines and replication metadata.",
+    "history": "One initial room row plus each accepted move and resulting room update, before service oplog compaction. Native cold and live checkpoints reported separately.",
+    "packed": "Packed variants require a backend materialized column/projection; values are derived from actual Game replay, not supported cross-row aggregation inside streams.",
+    "native": "POSIX VFS with the qualified 256 KiB SQLite arena and 32-row wrapper limit; not device LittleFS latency, firmware RSSI or total MicroPython heap.",
+    "fixtures": "/var/folders/g4/djq7_lkd2v3272ykq8__p4zm0000gn/T/dots-projection-8Gfs32/fixtures.json"
+  },
+  "semantics": {
+    "rawBlobId": {
+      "bucket": "probe|0[]",
+      "id": "",
+      "table": "moves",
+      "data": {}
+    },
+    "rawBlobColumn": {
+      "bucket": "probe|0[]",
+      "id": "00000001-1234-4123-8123-123456789abc",
+      "table": "moves",
+      "data": {
+        "id": "00000001-1234-4123-8123-123456789abc"
+      }
+    },
+    "base64Id": {
+      "bucket": "probe|0[]",
+      "id": "AAAAARI0QSOBIxI0VniavA==",
+      "table": "moves",
+      "data": {
+        "id": "AAAAARI0QSOBIxI0VniavA=="
+      }
+    },
+    "numericPayloadsIdentical": true
+  },
+  "projections": [
+    {
+      "name": "audit_move_created_at",
+      "hypotheticalBackend": false,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 9637,
+        "operationBytes": 17319,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 18894,
+        "operationBytes": 34202,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "finished",
+        "cols": 5,
+        "rows": 4,
+        "current_seat": 2,
+        "score_p1": 10,
+        "score_p2": 10,
+        "winner": 0,
+        "move_count": 49,
+        "player_count": 2,
+        "paired_count": 2
+      },
+      "moveSample": {
+        "id": "00000001-1234-4123-8123-123456789abc",
+        "room_id": "550e8400-e29b-41d4-a716-446655440000",
+        "seat": 1,
+        "orientation": "h",
+        "row": 0,
+        "col": 0,
+        "move_index": 1,
+        "created_at": "2026-10-20T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "current_badge",
+      "hypotheticalBackend": false,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 7677,
+        "operationBytes": 15167,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 16934,
+        "operationBytes": 32050,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "finished",
+        "cols": 5,
+        "rows": 4,
+        "current_seat": 2,
+        "score_p1": 10,
+        "score_p2": 10,
+        "winner": 0,
+        "move_count": 49,
+        "player_count": 2,
+        "paired_count": 2
+      },
+      "moveSample": {
+        "id": "00000001-1234-4123-8123-123456789abc",
+        "room_id": "550e8400-e29b-41d4-a716-446655440000",
+        "seat": 1,
+        "orientation": "h",
+        "row": 0,
+        "col": 0,
+        "move_index": 1
+      }
+    },
+    {
+      "name": "base64_move_id_only",
+      "hypotheticalBackend": false,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 7089,
+        "operationBytes": 13990,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 16346,
+        "operationBytes": 30873,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "finished",
+        "cols": 5,
+        "rows": 4,
+        "current_seat": 2,
+        "score_p1": 10,
+        "score_p2": 10,
+        "winner": 0,
+        "move_count": 49,
+        "player_count": 2,
+        "paired_count": 2
+      },
+      "moveSample": {
+        "id": "AAAAARI0QSOBIxI0VniavA==",
+        "room_id": "550e8400-e29b-41d4-a716-446655440000",
+        "seat": 1,
+        "orientation": "h",
+        "row": 0,
+        "col": 0,
+        "move_index": 1
+      }
+    },
+    {
+      "name": "v2_safe_r",
+      "hypotheticalBackend": false,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 3875,
+        "operationBytes": 10354,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 7448,
+        "operationBytes": 20481,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "VQ6EAOKbQdSnFkRmVUQAAA==",
+        "s": 2,
+        "p": 2,
+        "a": 10,
+        "b": 10,
+        "w": 0,
+        "n": 49
+      },
+      "moveSample": {
+        "id": "AAAAARI0QSOBIxI0VniavA==",
+        "e": 0,
+        "n": 1,
+        "r": "VQ6EAOKbQdSnFkRmVUQAAA=="
+      }
+    },
+    {
+      "name": "v2_minimal",
+      "hypotheticalBackend": false,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 2356,
+        "operationBytes": 8641,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 5929,
+        "operationBytes": 18768,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "VQ6EAOKbQdSnFkRmVUQAAA==",
+        "s": 2,
+        "p": 2,
+        "a": 10,
+        "b": 10,
+        "w": 0,
+        "n": 49
+      },
+      "moveSample": {
+        "id": "AAAAARI0QSOBIxI0VniavA==",
+        "e": 0,
+        "n": 1
+      }
+    },
+    {
+      "name": "v2_raw_moves",
+      "hypotheticalBackend": false,
+      "raw": [
+        "moves"
+      ],
+      "fresh": {
+        "payloadBytes": 3875,
+        "operationBytes": 10354,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 7448,
+        "operationBytes": 20481,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "VQ6EAOKbQdSnFkRmVUQAAA==",
+        "s": 2,
+        "p": 2,
+        "a": 10,
+        "b": 10,
+        "w": 0,
+        "n": 49
+      },
+      "moveSample": {
+        "id": "AAAAARI0QSOBIxI0VniavA==",
+        "e": 0,
+        "n": 1,
+        "r": "VQ6EAOKbQdSnFkRmVUQAAA=="
+      }
+    },
+    {
+      "name": "v2_raw_all",
+      "hypotheticalBackend": false,
+      "raw": [
+        "rooms",
+        "moves"
+      ],
+      "fresh": {
+        "payloadBytes": 3875,
+        "operationBytes": 10354,
+        "rowCount": 50
+      },
+      "history": {
+        "payloadBytes": 7448,
+        "operationBytes": 20481,
+        "rowCount": 99
+      },
+      "roomSample": {
+        "id": "VQ6EAOKbQdSnFkRmVUQAAA==",
+        "s": 2,
+        "p": 2,
+        "a": 10,
+        "b": 10,
+        "w": 0,
+        "n": 49
+      },
+      "moveSample": {
+        "id": "AAAAARI0QSOBIxI0VniavA==",
+        "e": 0,
+        "n": 1,
+        "r": "VQ6EAOKbQdSnFkRmVUQAAA=="
+      }
+    },
+    {
+      "name": "packed_history",
+      "hypotheticalBackend": true,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 128,
+        "operationBytes": 265,
+        "rowCount": 1
+      },
+      "history": {
+        "payloadBytes": 5220,
+        "operationBytes": 12098,
+        "rowCount": 50
+      },
+      "roomSample": {
+        "id": "VQ6EAOKbQdSnFkRmVUQAAA==",
+        "s": 2,
+        "p": 2,
+        "a": 10,
+        "b": 10,
+        "w": 0,
+        "n": 49,
+        "h": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm"
+      },
+      "moveSample": null
+    },
+    {
+      "name": "packed_bitsets",
+      "hypotheticalBackend": true,
+      "raw": [],
+      "fresh": {
+        "payloadBytes": 128,
+        "operationBytes": 267,
+        "rowCount": 1
+      },
+      "history": {
+        "payloadBytes": 5318,
+        "operationBytes": 12295,
+        "rowCount": 50
+      },
+      "roomSample": {
+        "id": "VQ6EAOKbQdSnFkRmVUQAAA==",
+        "s": 2,
+        "p": 2,
+        "a": 10,
+        "b": 10,
+        "w": 0,
+        "n": 49,
+        "u": 17321558365525,
+        "v": 545628395055786,
+        "x": 732650187093
+      },
+      "moveSample": null
+    }
+  ],
+  "native": {
+    "arenaBytes": 262144,
+    "library": "/Users/kobie/projects/powersync/skunkworks/badgegotchi/experiments/badgeware-native/powersync-audit/build/fixture-host.dylib",
+    "results": [
+      {
+        "variant": "audit_move_created_at",
+        "scenario": "fresh",
+        "setupPeakBytes": 216192,
+        "syncStartBytes": 181888,
+        "hostMilliseconds": 7.23,
+        "syncPeakBytes": 218560,
+        "syncEndBytes": 184640,
+        "transactions": 9,
+        "databasePages": 84,
+        "freePages": 0,
+        "databaseBytes": 86016,
+        "oplogRows": 50,
+        "oplogJsonBytes": 9637,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "audit_move_created_at",
+        "scenario": "history_cold",
+        "setupPeakBytes": 216192,
+        "syncStartBytes": 181888,
+        "hostMilliseconds": 12.21,
+        "syncPeakBytes": 218560,
+        "syncEndBytes": 184640,
+        "transactions": 17,
+        "databasePages": 92,
+        "freePages": 0,
+        "databaseBytes": 94208,
+        "oplogRows": 50,
+        "oplogJsonBytes": 9637,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "audit_move_created_at",
+        "scenario": "history_live",
+        "setupPeakBytes": 216192,
+        "syncStartBytes": 181888,
+        "hostMilliseconds": 34.75,
+        "syncPeakBytes": 217088,
+        "syncEndBytes": 184640,
+        "transactions": 50,
+        "databasePages": 92,
+        "freePages": 0,
+        "databaseBytes": 94208,
+        "oplogRows": 50,
+        "oplogJsonBytes": 9637,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "current_badge",
+        "scenario": "fresh",
+        "setupPeakBytes": 209728,
+        "syncStartBytes": 179008,
+        "hostMilliseconds": 7.02,
+        "syncPeakBytes": 215680,
+        "syncEndBytes": 181696,
+        "transactions": 9,
+        "databasePages": 81,
+        "freePages": 0,
+        "databaseBytes": 82944,
+        "oplogRows": 50,
+        "oplogJsonBytes": 7677,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "current_badge",
+        "scenario": "history_cold",
+        "setupPeakBytes": 209728,
+        "syncStartBytes": 179008,
+        "hostMilliseconds": 12.73,
+        "syncPeakBytes": 215680,
+        "syncEndBytes": 181696,
+        "transactions": 17,
+        "databasePages": 89,
+        "freePages": 0,
+        "databaseBytes": 91136,
+        "oplogRows": 50,
+        "oplogJsonBytes": 7677,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "current_badge",
+        "scenario": "history_live",
+        "setupPeakBytes": 209728,
+        "syncStartBytes": 179008,
+        "hostMilliseconds": 39.03,
+        "syncPeakBytes": 214208,
+        "syncEndBytes": 181696,
+        "transactions": 50,
+        "databasePages": 89,
+        "freePages": 0,
+        "databaseBytes": 91136,
+        "oplogRows": 50,
+        "oplogJsonBytes": 7677,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "base64_move_id_only",
+        "scenario": "fresh",
+        "setupPeakBytes": 209728,
+        "syncStartBytes": 179008,
+        "hostMilliseconds": 6.65,
+        "syncPeakBytes": 215104,
+        "syncEndBytes": 181696,
+        "transactions": 9,
+        "databasePages": 75,
+        "freePages": 0,
+        "databaseBytes": 76800,
+        "oplogRows": 50,
+        "oplogJsonBytes": 7089,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "base64_move_id_only",
+        "scenario": "history_cold",
+        "setupPeakBytes": 209728,
+        "syncStartBytes": 179008,
+        "hostMilliseconds": 11.47,
+        "syncPeakBytes": 215104,
+        "syncEndBytes": 181696,
+        "transactions": 17,
+        "databasePages": 79,
+        "freePages": 0,
+        "databaseBytes": 80896,
+        "oplogRows": 50,
+        "oplogJsonBytes": 7089,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "base64_move_id_only",
+        "scenario": "history_live",
+        "setupPeakBytes": 209728,
+        "syncStartBytes": 179008,
+        "hostMilliseconds": 33.08,
+        "syncPeakBytes": 214208,
+        "syncEndBytes": 181696,
+        "transactions": 50,
+        "databasePages": 79,
+        "freePages": 0,
+        "databaseBytes": 80896,
+        "oplogRows": 50,
+        "oplogJsonBytes": 7089,
+        "maxReturnedRows": 9,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "v2_safe_r",
+        "scenario": "fresh",
+        "setupPeakBytes": 176320,
+        "syncStartBytes": 160000,
+        "hostMilliseconds": 6.02,
+        "syncPeakBytes": 195712,
+        "syncEndBytes": 162176,
+        "transactions": 9,
+        "databasePages": 65,
+        "freePages": 0,
+        "databaseBytes": 66560,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_safe_r",
+        "scenario": "history_cold",
+        "setupPeakBytes": 176320,
+        "syncStartBytes": 160000,
+        "hostMilliseconds": 11.47,
+        "syncPeakBytes": 195712,
+        "syncEndBytes": 162176,
+        "transactions": 17,
+        "databasePages": 66,
+        "freePages": 0,
+        "databaseBytes": 67584,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_safe_r",
+        "scenario": "history_live",
+        "setupPeakBytes": 176320,
+        "syncStartBytes": 160000,
+        "hostMilliseconds": 35.33,
+        "syncPeakBytes": 194816,
+        "syncEndBytes": 162176,
+        "transactions": 50,
+        "databasePages": 66,
+        "freePages": 0,
+        "databaseBytes": 67584,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "v2_minimal",
+        "scenario": "fresh",
+        "setupPeakBytes": 170624,
+        "syncStartBytes": 156352,
+        "hostMilliseconds": 6.21,
+        "syncPeakBytes": 191936,
+        "syncEndBytes": 158464,
+        "transactions": 9,
+        "databasePages": 61,
+        "freePages": 0,
+        "databaseBytes": 62464,
+        "oplogRows": 50,
+        "oplogJsonBytes": 2356,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_minimal",
+        "scenario": "history_cold",
+        "setupPeakBytes": 170624,
+        "syncStartBytes": 156352,
+        "hostMilliseconds": 13.47,
+        "syncPeakBytes": 191936,
+        "syncEndBytes": 158464,
+        "transactions": 17,
+        "databasePages": 63,
+        "freePages": 0,
+        "databaseBytes": 64512,
+        "oplogRows": 50,
+        "oplogJsonBytes": 2356,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_minimal",
+        "scenario": "history_live",
+        "setupPeakBytes": 170624,
+        "syncStartBytes": 156352,
+        "hostMilliseconds": 36.08,
+        "syncPeakBytes": 191616,
+        "syncEndBytes": 158464,
+        "transactions": 50,
+        "databasePages": 63,
+        "freePages": 0,
+        "databaseBytes": 64512,
+        "oplogRows": 50,
+        "oplogJsonBytes": 2356,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "v2_raw_moves",
+        "scenario": "fresh",
+        "setupPeakBytes": 161472,
+        "syncStartBytes": 135872,
+        "hostMilliseconds": 8.13,
+        "syncPeakBytes": 177536,
+        "syncEndBytes": 141440,
+        "transactions": 9,
+        "databasePages": 60,
+        "freePages": 0,
+        "databaseBytes": 61440,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_raw_moves",
+        "scenario": "history_cold",
+        "setupPeakBytes": 161472,
+        "syncStartBytes": 135872,
+        "hostMilliseconds": 12.66,
+        "syncPeakBytes": 177536,
+        "syncEndBytes": 141440,
+        "transactions": 17,
+        "databasePages": 61,
+        "freePages": 0,
+        "databaseBytes": 62464,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_raw_moves",
+        "scenario": "history_live",
+        "setupPeakBytes": 161472,
+        "syncStartBytes": 135872,
+        "hostMilliseconds": 39.72,
+        "syncPeakBytes": 176640,
+        "syncEndBytes": 141440,
+        "transactions": 50,
+        "databasePages": 61,
+        "freePages": 0,
+        "databaseBytes": 62464,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "v2_raw_all",
+        "scenario": "fresh",
+        "setupPeakBytes": 153408,
+        "syncStartBytes": 97920,
+        "hostMilliseconds": 6.7,
+        "syncPeakBytes": 141888,
+        "syncEndBytes": 104320,
+        "transactions": 9,
+        "databasePages": 56,
+        "freePages": 0,
+        "databaseBytes": 57344,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_raw_all",
+        "scenario": "history_cold",
+        "setupPeakBytes": 153408,
+        "syncStartBytes": 97920,
+        "hostMilliseconds": 12.7,
+        "syncPeakBytes": 141888,
+        "syncEndBytes": 104320,
+        "transactions": 17,
+        "databasePages": 57,
+        "freePages": 0,
+        "databaseBytes": 58368,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "v2_raw_all",
+        "scenario": "history_live",
+        "setupPeakBytes": 153408,
+        "syncStartBytes": 97920,
+        "hostMilliseconds": 38.52,
+        "syncPeakBytes": 142016,
+        "syncEndBytes": 104320,
+        "transactions": 50,
+        "databasePages": 57,
+        "freePages": 0,
+        "databaseBytes": 58368,
+        "oplogRows": 50,
+        "oplogJsonBytes": 3875,
+        "maxReturnedRows": 7,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "packed_history",
+        "scenario": "fresh",
+        "setupPeakBytes": 165504,
+        "syncStartBytes": 135808,
+        "hostMilliseconds": 0.95,
+        "syncPeakBytes": 167488,
+        "syncEndBytes": 137728,
+        "transactions": 1,
+        "databasePages": 39,
+        "freePages": 0,
+        "databaseBytes": 39936,
+        "oplogRows": 1,
+        "oplogJsonBytes": 128,
+        "maxReturnedRows": 8,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "packed_history",
+        "scenario": "history_cold",
+        "setupPeakBytes": 165504,
+        "syncStartBytes": 135808,
+        "hostMilliseconds": 5.03,
+        "syncPeakBytes": 167488,
+        "syncEndBytes": 137728,
+        "transactions": 9,
+        "databasePages": 39,
+        "freePages": 0,
+        "databaseBytes": 39936,
+        "oplogRows": 1,
+        "oplogJsonBytes": 128,
+        "maxReturnedRows": 8,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "packed_history",
+        "scenario": "history_live",
+        "setupPeakBytes": 165504,
+        "syncStartBytes": 135808,
+        "hostMilliseconds": 25.65,
+        "syncPeakBytes": 167616,
+        "syncEndBytes": 137728,
+        "transactions": 50,
+        "databasePages": 39,
+        "freePages": 0,
+        "databaseBytes": 39936,
+        "oplogRows": 1,
+        "oplogJsonBytes": 128,
+        "maxReturnedRows": 8,
+        "completedCheckpoints": 50
+      },
+      {
+        "variant": "packed_bitsets",
+        "scenario": "fresh",
+        "setupPeakBytes": 182016,
+        "syncStartBytes": 145152,
+        "hostMilliseconds": 0.65,
+        "syncPeakBytes": 176832,
+        "syncEndBytes": 147328,
+        "transactions": 1,
+        "databasePages": 39,
+        "freePages": 0,
+        "databaseBytes": 39936,
+        "oplogRows": 1,
+        "oplogJsonBytes": 128,
+        "maxReturnedRows": 10,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "packed_bitsets",
+        "scenario": "history_cold",
+        "setupPeakBytes": 182016,
+        "syncStartBytes": 145152,
+        "hostMilliseconds": 4.72,
+        "syncPeakBytes": 176832,
+        "syncEndBytes": 147328,
+        "transactions": 9,
+        "databasePages": 39,
+        "freePages": 0,
+        "databaseBytes": 39936,
+        "oplogRows": 1,
+        "oplogJsonBytes": 128,
+        "maxReturnedRows": 10,
+        "completedCheckpoints": 1
+      },
+      {
+        "variant": "packed_bitsets",
+        "scenario": "history_live",
+        "setupPeakBytes": 182016,
+        "syncStartBytes": 145152,
+        "hostMilliseconds": 25.21,
+        "syncPeakBytes": 176960,
+        "syncEndBytes": 147328,
+        "transactions": 50,
+        "databasePages": 39,
+        "freePages": 0,
+        "databaseBytes": 39936,
+        "oplogRows": 1,
+        "oplogJsonBytes": 128,
+        "maxReturnedRows": 10,
+        "completedCheckpoints": 50
+      }
+    ]
+  },
+  "sources": {
+    "powersyncFunctions": "https://docs.powersync.com/sync/rules/supported-sql",
+    "sqliteUuidExtension": "https://github.com/sqlite/sqlite/blob/master/ext/misc/uuid.c",
+    "postgresNumeric": "https://www.postgresql.org/docs/current/datatype-numeric.html",
+    "sqliteRecordFormat": "https://sqlite.org/fileformat2.html#record_format",
+    "powersyncRawTables": "https://docs.powersync.com/client-sdks/advanced/raw-tables"
+  }
+}

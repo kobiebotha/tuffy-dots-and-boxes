@@ -1,0 +1,93 @@
+{
+  "device": "Tufty 2350, existing pinned badgegotchi_native.mpy",
+  "date": "2026-10-21",
+  "method": "Normal Badgeware managed networking; actual Supabase RPC and PowerSync stream; RAM overlay of final storage/sync code; real /emulate opponent; exact UUID verified after full checkpoint",
+  "limitations": [
+    "Single badge and Wi-Fi connection",
+    "Timing includes network and flash; no physical power-cut test",
+    "First-sync timing includes real five-letter pairing"
+  ],
+  "before": {
+    "description": "32-page cache with direct random LittleFS database I/O",
+    "confirmed_ms": [
+      13127,
+      15546,
+      15796,
+      15875
+    ],
+    "median_ms": 15671.0
+  },
+  "after": {
+    "moves": 49,
+    "scores": [
+      10,
+      10
+    ],
+    "finished": true,
+    "winner": 0,
+    "pending": false,
+    "sql_crud": "0",
+    "open_ms": 1148,
+    "first_sync_ms": 14659,
+    "confirmed_ms": [
+      3982,
+      4081,
+      3910,
+      4010,
+      4153,
+      3873,
+      5430,
+      4018,
+      3849,
+      4805,
+      4024,
+      3935,
+      4018,
+      4206,
+      4292,
+      3954,
+      3889,
+      4124,
+      4242,
+      4164,
+      4178,
+      4096,
+      4197,
+      4186,
+      4051
+    ],
+    "checkpoint_http_requests": 0,
+    "page_count": "76",
+    "free_pages": "2",
+    "heap_free": 1040992,
+    "median_ms": 4081,
+    "min_ms": 3849,
+    "max_ms": 5430,
+    "native_peak_bytes": 166848
+  },
+  "installed_warm_reopen": {
+    "moves": 49,
+    "scores": [
+      10,
+      10
+    ],
+    "finished": true,
+    "pending": false,
+    "sql_crud": "0",
+    "open_ms": 1201,
+    "first_sync_ms": 7827,
+    "checkpoint_http_requests": 0,
+    "heap_free": 4199936,
+    "cache_pages": 32,
+    "psram_shadow_bytes": 131072,
+    "native_peak_bytes": 159552,
+    "autoplay": false,
+    "source_overlay": false
+  },
+  "installation": {
+    "package_files_verified": 17,
+    "unrelated_files_preserved": 220,
+    "native_artifact_sha256": "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8",
+    "zip_bytes": 558268
+  }
+}

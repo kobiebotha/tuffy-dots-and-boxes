@@ -1,0 +1,11 @@
+.vercel
+.env
+.env.local
+.env*.local
+node_modules
+dist
+web/dist
+web/public/assets/powersync/
+**/__pycache__
+.DS_Store
+supabase/.temp

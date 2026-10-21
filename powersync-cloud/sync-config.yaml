@@ -1,0 +1,198 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_config.json
+config:
+  edition: 3
+
+streams:
+  # Browsers keep the open board list. Badges disable defaults and subscribe to
+  # badge_game explicitly, so unrelated rooms never consume their flash budget.
+  lobby:
+    auto_subscribe: true
+    query: |
+      SELECT
+        id,
+        host_user_id,
+        status,
+        cols,
+        rows,
+        current_seat,
+        score_p1,
+        score_p2,
+        winner,
+        move_count,
+        player_count,
+        paired_count,
+        created_at,
+        started_at,
+        finished_at
+      FROM rooms
+      WHERE status = 'waiting' OR status = 'playing'
+
+  # The room this person created or joined, including their own pairing code.
+  active_game:
+    auto_subscribe: true
+    with:
+      my_rooms: |
+        SELECT room_id FROM room_players WHERE user_id = auth.user_id()
+    queries:
+      - |
+        SELECT
+          id,
+          host_user_id,
+          status,
+          cols,
+          rows,
+          current_seat,
+          score_p1,
+          score_p2,
+          winner,
+          move_count,
+          player_count,
+          paired_count,
+          created_at,
+          started_at,
+          finished_at
+        FROM rooms
+        WHERE id IN my_rooms
+          AND (status = 'waiting' OR status = 'playing' OR status = 'finished')
+      - |
+        SELECT
+          id,
+          room_id,
+          user_id,
+          seat,
+          pairing_code,
+          device_id,
+          paired_at,
+          created_at
+        FROM room_players
+        WHERE user_id = auth.user_id()
+          AND room_id IN my_rooms
+      - |
+        SELECT
+          id,
+          room_id,
+          seat,
+          orientation,
+          row,
+          col,
+          move_index
+        FROM moves
+        WHERE room_id IN my_rooms
+
+  # Spectators pass a room id. Pairing codes stay on the owning member only.
+  # The parameter is client-supplied on purpose: any signed-in person may watch.
+  watch_room:
+    accept_potentially_dangerous_queries: true
+    queries:
+      - |
+        SELECT
+          id,
+          host_user_id,
+          status,
+          cols,
+          rows,
+          current_seat,
+          score_p1,
+          score_p2,
+          winner,
+          move_count,
+          player_count,
+          paired_count,
+          created_at,
+          started_at,
+          finished_at
+        FROM rooms
+        WHERE id = subscription.parameter('room_id')
+          AND status <> 'cancelled'
+      - |
+        SELECT
+          id,
+          room_id,
+          user_id,
+          seat,
+          pairing_code,
+          device_id,
+          paired_at,
+          created_at
+        FROM room_players
+        WHERE room_id = subscription.parameter('room_id')
+          AND user_id = auth.user_id()
+      - |
+        SELECT
+          id,
+          room_id,
+          seat,
+          orientation,
+          row,
+          col,
+          move_index
+        FROM moves
+        WHERE room_id = subscription.parameter('room_id')
+
+  # One bounded board for the badge, including its terminal state. Membership
+  # checks use the signed user id; the room parameter alone grants no access.
+  # The fixed 5x4 board has at most 49 moves. Avoid browser-only pairing details
+  # and timestamps in the native SQLite cache.
+  badge_game:
+    auto_subscribe: false
+    queries:
+      - |
+        SELECT
+          id,
+          status,
+          cols,
+          rows,
+          current_seat,
+          score_p1,
+          score_p2,
+          winner,
+          move_count,
+          player_count,
+          paired_count
+        FROM rooms
+        WHERE id = subscription.parameter('room_id')
+          AND id IN (SELECT room_id FROM room_players WHERE user_id = auth.user_id())
+      - |
+        SELECT
+          id,
+          room_id,
+          seat,
+          orientation,
+          row,
+          col,
+          move_index
+        FROM moves
+        WHERE room_id = subscription.parameter('room_id')
+          AND room_id IN (SELECT room_id FROM room_players WHERE user_id = auth.user_id())
+
+  # Schema 3 badge protocol. Keep badge_game for already installed badges.
+  # UUIDs stay text on the JSON wire: raw uuid_blob() results are not serialized.
+  # The backend enforces a fixed 5x4 board; e encodes its 49 possible edges.
+  # Short names shrink both the download JSON and the core's stored JSON rows.
+  badge_game_v2:
+    auto_subscribe: false
+    queries:
+      - |
+        SELECT
+          base64(uuid_blob(id)) AS id,
+          CASE WHEN status = 'waiting' THEN 0
+               WHEN status = 'playing' THEN 1
+               WHEN status = 'finished' THEN 2 ELSE 3 END AS s,
+          current_seat AS p,
+          score_p1 AS a,
+          score_p2 AS b,
+          winner AS w,
+          move_count AS n
+        FROM rooms
+        WHERE id = subscription.parameter('room_id')
+          AND id IN (SELECT room_id FROM room_players WHERE user_id = auth.user_id())
+      - |
+        SELECT
+          base64(uuid_blob(id)) AS id,
+          base64(uuid_blob(room_id)) AS r,
+          CASE WHEN orientation = 'h' THEN row * 5 + col
+               ELSE 25 + row * 6 + col END AS e,
+          move_index AS n
+        FROM moves
+        WHERE room_id = subscription.parameter('room_id')
+          AND room_id IN (SELECT room_id FROM room_players WHERE user_id = auth.user_id())
