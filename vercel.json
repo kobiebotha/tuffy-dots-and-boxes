@@ -4,5 +4,5 @@
   "buildCommand": "npm --prefix web run build",
   "outputDirectory": "web/dist",
   "framework": null,
-  "rewrites": [{ "source": "/((?!assets/|dots-boxes\\.zip).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!assets/|badge-app/|dots-boxes\\.zip).*)", "destination": "/index.html" }]
 }

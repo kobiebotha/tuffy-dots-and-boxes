@@ -1,5 +1,7 @@
 """320 x 240 renderer using Badgeware's small raster drawing API."""
 
+from logos import Logos
+
 
 class View:
     STEP = 34
@@ -8,15 +10,16 @@ class View:
     def __init__(self, screen, color, font):
         self.screen = screen
         self.screen.font = font.sins
-        self.bg = color.rgb(14, 20, 30)
-        self.panel = color.rgb(23, 32, 46)
-        self.guide = color.rgb(43, 55, 71)
-        self.white = color.rgb(238, 244, 250)
-        self.muted = color.rgb(159, 177, 196)
-        self.yellow = color.rgb(255, 220, 93)
+        self.bg = color.rgb(16, 24, 21)
+        self.panel = color.rgb(25, 36, 30)
+        self.guide = color.rgb(48, 67, 56)
+        self.white = color.rgb(234, 244, 237)
+        self.muted = color.rgb(153, 177, 161)
+        self.yellow = color.rgb(245, 203, 104)
         self.error = color.rgb(255, 112, 108)
-        self.players = (self.guide, color.rgb(61, 220, 204), color.rgb(249, 134, 180))
-        self.fills = (self.bg, color.rgb(21, 68, 70), color.rgb(72, 37, 59))
+        self.players = (self.guide, color.rgb(62, 207, 142), color.rgb(109, 169, 255))
+        self.fills = (self.bg, color.rgb(24, 59, 42), color.rgb(23, 45, 72))
+        self.logos = Logos(screen, color)
 
     def rect(self, x, y, width, height, pen):
         self.screen.pen = pen
@@ -41,7 +44,15 @@ class View:
         else:
             self.rect(x - half, y, thickness, self.STEP, pen)
 
-    def draw(self, controller):
+    def brand(self, y, scale=1):
+        words = (("DOTS", self.players[1]), (" & ", self.muted), ("BOXES", self.players[2]))
+        widths = [int(self.screen.measure_text(word, scale)[0]) for word, _ in words]
+        x = (320 - sum(widths)) // 2
+        for (word, pen), width in zip(words, widths):
+            self.text(word, x, y, pen, scale)
+            x += width
+
+    def draw(self, controller, local_seat=None):
         game = controller.game
         screen = self.screen
         screen.pen = self.bg
@@ -49,21 +60,29 @@ class View:
         left = (320 - game.cols * self.STEP) // 2
 
         # Scores keep their player labels as well as their colors.
-        for player, x in ((1, 8), (2, 230)):
-            self.rect(x, 3, 82, 31, self.panel)
+        for player, x in ((1, 8), (2, 220)):
+            self.rect(x, 3, 92, 31, self.panel)
             active = not game.finished and game.current_player == player
             if active:
-                self.rect(x, 33, 82, 3, self.players[player])
-            self.text("P%d" % player, x + 8, 11, self.players[player])
-            self.text("%02d" % game.scores[player - 1], x + 38, 6, self.white, 2)
-        self.text("DOTS & BOXES", 160, 4, self.muted, center=True)
+                self.rect(x, 33, 92, 3, self.players[player])
+            label = "P%d (ME)" % player if local_seat == player else "P%d" % player
+            score = "%02d" % game.scores[player - 1]
+            score_width, _ = screen.measure_text(score, 2)
+            self.text(label, x + 8, 11, self.players[player])
+            self.text(score, x + 84 - int(score_width), 6, self.white, 2)
         if game.finished:
             turn = "DRAW" if game.winner == 0 else "P%d WINS!" % game.winner
             turn_color = self.white if game.winner == 0 else self.players[game.winner]
         else:
             turn = "P%d'S TURN" % game.current_player
             turn_color = self.players[game.current_player]
-        self.text(turn, 160, 22, turn_color, center=True)
+        turn_scale = 2
+        turn_width, turn_height = screen.measure_text(turn, turn_scale)
+        if turn_width > 112 or turn_height > 31:
+            turn_scale = 1
+            turn_width, turn_height = screen.measure_text(turn, turn_scale)
+        self.text(turn, 160 - int(turn_width) // 2,
+                  3 + (31 - int(turn_height)) // 2, turn_color, turn_scale)
 
         for row in range(game.rows):
             for col in range(game.cols):
@@ -140,23 +159,33 @@ class View:
         if status_line:
             help_text = status_line
         self.text(message, 160, 198, self.white, center=True)
-        self.text(help_text, 160, 220, self.muted, center=True)
+        self.text(help_text, 160, 210, self.muted, center=True)
+        self.text("HOLD UP 2s: LEAVE ROOM", 160, 230, self.muted, center=True)
+        self.logos.draw()
 
     def pairing(self, code, status):
         self.screen.pen = self.bg
         self.screen.clear()
+        self.brand(8, 2)
         self.text("ENTER PAIRING CODE", 160, 36, self.muted, center=True)
         shown = (code + "_____")[:5]
-        self.text(" ".join(shown), 160, 88, self.yellow, 3, center=True)
+        self.rect(26, 74, 268, 50, self.panel)
+        self.rect(26, 123, 134, 2, self.players[1])
+        self.rect(160, 123, 134, 2, self.players[2])
+        self.text(" ".join(shown), 160, 88, self.players[1], 3, center=True)
         self.text(status or "A  B  C ADD A LETTER", 160, 150, self.white, center=True)
         self.text("UP DELETES    FIFTH LETTER SENDS", 160, 190, self.muted, center=True)
+        self.text("THE TUFTY ARCADE", 160, 220, self.muted, center=True)
+        self.logos.draw()
 
     def message(self, title, body):
         self.screen.pen = self.bg
         self.screen.clear()
+        self.brand(12, 2)
         self.text(title, 160, 80, self.white, center=True)
         self.text(body, 160, 120, self.muted, center=True)
         self.text("HOME: EXIT", 160, 200, self.muted, center=True)
+        self.logos.draw()
 
     def outline(self, x, y, width, height, pen):
         self.rect(x, y, width, 2, pen)

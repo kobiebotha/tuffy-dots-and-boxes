@@ -76,7 +76,7 @@ def update():
     if client.mode == "pair":
         view.pairing(client.entry.code, client.entry.status)
     else:
-        view.draw(client.controller)
+        view.draw(client.controller, local_seat=client.records.record["seat"])
 
 
 def on_exit():

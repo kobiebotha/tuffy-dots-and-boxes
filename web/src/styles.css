@@ -157,7 +157,7 @@ button.dismiss { min-width: 30px; min-height: 32px; border: 0; background: trans
 .archive-room > .error { margin: 10px 0 0; }
 .install > h1 { font-size: 37px; margin-top: 18px; }
 .install-intro { color: #a4b5a9; font-size: 14px; margin: 0 0 36px; }
-.install-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; }
+.install-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; align-items: start; gap: 48px; }
 .install-steps h2 { font-size: 23px; margin-bottom: 24px; }
 .install ol { list-style: none; padding: 0; margin: 0; counter-reset: install-step; }
 .install li { counter-increment: install-step; position: relative; padding: 0 0 28px 46px; font-size: 13px; line-height: 1.9; color: #a8b9ad; }
@@ -168,6 +168,21 @@ button.dismiss { min-width: 30px; min-height: 32px; border: 0; background: trans
 .download-panel > p:not(.kicker) { color: #9cb4a4; font-size: 12px; line-height: 1.9; }
 .download-panel .button { width: 100%; margin-top: 5px; }
 .download-meta { display: block; text-align: center; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: #84a38d; margin-top: 15px; }
+.install-tip { padding: 14px 16px; border-left: 2px solid #496b53; background: #172019; color: #a8b9ad; font-size: 12px; line-height: 1.8; }
+.install-action { margin: 24px 0; }
+.install-action > button, .install-success > button { width: 100%; margin-top: 12px; }
+.install-status, .install-selected { font-size: 12px; line-height: 1.8; color: #b4c9bb; overflow-wrap: anywhere; }
+.install-selected strong { color: #e7eeea; }
+.install-progress p, .install-success p { font-size: 12px; line-height: 1.8; color: #b4c9bb; }
+.install-progress progress { display: block; width: 100%; height: 10px; accent-color: var(--green); margin-bottom: 14px; }
+.install-progress .install-file { font-family: var(--mono); font-size: 10px; overflow-wrap: anywhere; }
+.install-success { border: 1px solid #41694e; background: #142c1d; padding: 16px; }
+.install-success h3 { color: #8ae4ae; font-size: 17px; margin-bottom: 12px; }
+.install-error { margin-top: 18px; }
+.install-manual { border-top: 1px solid #334637; padding-top: 22px; }
+.install-manual > p:last-child { font-size: 11px; line-height: 1.9; color: #a7bbad; margin: 16px 0 0; }
+.install-manual .button { background: transparent; }
+a[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 .control-notes { padding-top: 25px; margin-top: 25px; border-top: 1px solid #334637; }
 .control-notes > p { font-size: 11px; color: #a7bbad; margin-bottom: 13px; }
 .control-notes > .kicker { font-size: 9px; margin-bottom: 18px; }

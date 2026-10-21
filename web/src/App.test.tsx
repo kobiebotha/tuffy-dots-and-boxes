@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Lobby, RoomPage } from "./App";
+import { Lobby, RoomPage } from "./DashboardApp";
 
 const state = vi.hoisted(() => ({ rooms: [] as Record<string, unknown>[], players: [] as Record<string, unknown>[] }));
 vi.mock("@powersync/react", () => ({

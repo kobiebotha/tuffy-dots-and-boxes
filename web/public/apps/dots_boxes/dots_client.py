@@ -5,7 +5,7 @@ import time
 from controls import Controller
 from dots_http import PENDING, Gateway
 from dots_pairing import CodeEntry
-from dots_session import uuid4, validate_session
+from dots_session import fresh_session, uuid4, validate_session
 from dots_sync import Sync
 from game import Game
 
@@ -36,6 +36,8 @@ class Records:
 
 
 class Client:
+    LEAVE_HOLD_MS = 2000
+
     def __init__(self, store, session_file, heartbeat=None, entropy=None):
         from dots_config import (
             AUTH_URL, CA_FILES, MOVE_URL, PAIR_URL, POWERSYNC_URL, SUPABASE_ANON_KEY,
@@ -55,6 +57,7 @@ class Client:
         self._remote = None
         self._sending = None
         self._up_ms = 0
+        self._leave_reason = None
         self._move_count = None
         self._room_key = None
         self._room = None
@@ -79,7 +82,7 @@ class Client:
 
     def _queue_move(self, preview):
         record = self.records.record
-        if (not self.controller.can_claim or record["pending_move"] is not None
+        if (self._leave_reason is not None or not self.controller.can_claim or record["pending_move"] is not None
                 or record["room_id"] is None or self.controller.game.edge_owner(*preview)):
             return False
         orientation, row, col = preview
@@ -110,7 +113,7 @@ class Client:
             self.controller.pending_player = 0
             self.controller.can_claim = False
             if self.sync and self.sync.synced:
-                self.controller.status_line = "ROOM GONE - HOLD UP FOR NEW CODE"
+                self.controller.status_line = "ROOM UNAVAILABLE"
             else:
                 self.controller.status_line = self.sync.status if self.sync else "SYNCING"
             return room
@@ -140,19 +143,55 @@ class Client:
         if pending:
             line = "SENDING MOVE"
         elif self.sync.phase == "revoked":
-            line = "HOLD UP FOR A NEW CODE"
+            line = "SIGN IN AGAIN"
         elif self.sync.notice:
             line = self.sync.notice
         elif room["status"] == "waiting":
             line = "WAITING FOR BOTH BADGES"
-        elif room["status"] in ("finished", "cancelled"):
-            line = "HOLD UP FOR A NEW CODE"
+        elif room["status"] == "cancelled":
+            line = "ROOM CLOSED"
         elif self.sync.status != "SYNCED":
             line = self.sync.status
         else:
             line = ""
         self.controller.status_line = line
         return room
+
+    def _leave_room(self):
+        """Detach this badge only after its durable move has been resolved."""
+        record = self.records.record
+        self.controller.can_claim = False
+        if record["pending_move"] is not None:
+            self.controller.status_line = "SAVED MOVE MUST SYNC FIRST"
+            return
+        try:
+            # A reset after this write must open pairing, never the old room.
+            # Save before stopping sync or hiding the previous board.
+            self.records.save(fresh_session(record["device_id"]))
+        except (OSError, ValueError, RuntimeError, MemoryError):
+            self.failure = "Could not leave. Reopen to retry."
+            return
+        try:
+            if self.sync is not None:
+                self.sync.close()
+                self.sync = None
+        except (OSError, ValueError, RuntimeError, MemoryError):
+            self.failure = "Room left. Reopen to finish."
+            return
+        # The inert cache stays bound to its old account. A different user's
+        # successful pairing clears it before any board can be displayed.
+        self.controller = Controller(Game())
+        self.controller.on_claim = self._queue_move
+        self.controller.can_claim = False
+        self._room = self._room_key = self._move_count = None
+        self.entry.clear()
+        self.entry.status = self._leave_reason
+        self.entry.ready = False
+        self.entry.previous = set()
+        self._up_ms = 0
+        self._leave_reason = None
+        self.notice = ""
+        self.mode = "pair"
 
     def _pair_failed(self, code):
         if self._remote is not None:
@@ -246,11 +285,6 @@ class Client:
             return
         held = list(held)
         if self.mode == "pair":
-            if (self._sending is None and self.records.record["refresh_token"]
-                    and held == ["DOWN"] and self.entry.code == "" and self.entry.ready):
-                self.mode = "play"
-                self._open_sync()
-                return
             if self._sending is None:
                 finished = self.entry.step(held)
                 if finished:
@@ -265,24 +299,25 @@ class Client:
         if self.sync.notice:
             self.notice = self.sync.notice
         room = self._apply_room()
-        names = [name for button, name in PLAY_BUTTONS if button in held]
-        needs_pair = (self.sync.phase == "revoked" or (self.sync.synced and room is None)
-                      or (room is not None and room["status"] in ("finished", "cancelled")))
-        counting_new_code = needs_pair and held == ["UP"]
-        if counting_new_code:
+        if self.sync.phase == "revoked":
+            self._leave_reason = "SIGN IN AGAIN"
+        elif self.sync.synced and room is None:
+            self._leave_reason = "ROOM UNAVAILABLE"
+        elif room is not None and room["status"] == "cancelled":
+            self._leave_reason = "ROOM CLOSED"
+        if self._leave_reason is not None:
+            self._leave_room()
+            return
+        if held == ["UP"] and not self.controller.wait_for_release:
             self._up_ms += max(0, elapsed_ms)
-            if self._up_ms >= 800:
-                self.mode = "pair"
-                self.entry.clear()
-                self.entry.status = "DOWN RETURNS TO THE BOARD"
-                self.entry.ready = False
-                self._up_ms = 0
-                self.sync.close()
+            if self._up_ms >= self.LEAVE_HOLD_MS:
+                self._leave_reason = "LEFT ROOM"
+                self._leave_room()
                 return
         else:
             self._up_ms = 0
-        if self.mode == "play" and not counting_new_code:
-            self.controller.step(names, elapsed_ms)
+        names = [name for button, name in PLAY_BUTTONS if button in held]
+        self.controller.step(names, elapsed_ms)
 
     def close(self):
         if self._remote is not None:
