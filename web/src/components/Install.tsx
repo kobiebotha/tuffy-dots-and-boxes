@@ -113,18 +113,37 @@ export function Install({ onBusyChange }: { onBusyChange: (busy: boolean) => voi
     <section className="install" aria-labelledby="install-heading">
       <p className="kicker">FIRST, A LITTLE BADGE MAGIC</p>
       <h1 id="install-heading">New badge.<br /><span>Meet your next game.</span></h1>
-      <p className="install-intro">Choose your badge drive. We’ll copy the game and check every file.</p>
-      <div className="install-layout">
-        <div className="install-steps">
-          <h2>From USB to game on.</h2>
+      <p className="install-intro">First set up Wi-Fi, then copy the game onto your badge.</p>
+      <section className="install-wifi install-steps" aria-labelledby="wifi-heading">
+        <h2 id="wifi-heading">1. Connect your badge to Wi-Fi</h2>
+        <div className="install-wifi-layout">
           <ol>
-            <li>Connect your Tufty 2350 to Wi-Fi from Badgeware settings, then plug it in with a USB data cable.</li>
-            <li>Double-tap the rear <strong>Reset</strong> button to open the Badgeware USB drive. It should contain an <code>apps</code> folder.</li>
-            <li>Choose the badge drive with the button on this page, then copy the game. Keep the badge connected and this page open until verification finishes.</li>
+            <li>Plug your Tufty 2350 into your computer with a USB data cable. Double-tap the rear <strong>Reset</strong> button to enter disk mode.</li>
+            <li>Open the badge’s USB drive on your computer. Open <code>secrets.py</code> in a text editor; it’s at the top level of the drive, alongside the <code>apps</code> folder.</li>
+            <li>Enter your network name (SSID) in <code>WIFI_SSID</code> and your password in <code>WIFI_PASSWORD</code>. Replace the values between the quotes and keep the rest of the file as it is.</li>
+            <li>Save <code>secrets.py</code> and leave the badge in disk mode. You can install the game below before ejecting.</li>
+          </ol>
+          <div className="install-wifi-example">
+            <p className="kicker">IN SECRETS.PY</p>
+            <pre><code>{'WIFI_SSID = "Your network name"\nWIFI_PASSWORD = "Your Wi-Fi password"'}</code></pre>
+            <p>Already set up Wi-Fi? Put your badge in disk mode, then continue to step 2.</p>
+            <a className="text-link" href="https://github.com/pimoroni/tufty2350#configuring-wifi" target="_blank" rel="noreferrer">Badgeware Wi-Fi guide <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <p className="install-tip">Seeing a drive called <code>RP2350</code>? Press Reset once, then double-tap Reset again to open the Badgeware file drive.</p>
+      </section>
+      <section className="install-layout install-app" aria-labelledby="app-heading">
+        <div className="install-steps">
+          <h2 id="app-heading">2. Install Dots &amp; Boxes</h2>
+          <ol>
+            {supported ? (
+              <li>With your badge still in disk mode, click <strong>Choose badge drive</strong> in the install panel and select the badge’s drive. Then click <strong>Copy game to badge</strong> (or <strong>Update game on badge</strong>). Keep the badge connected and this page open until verification finishes.</li>
+            ) : (
+              <li>Click <strong>Download game ZIP</strong> in the install panel and unzip the download. Copy the extracted <code>dots_boxes</code> folder from <code>apps/dots_boxes</code> into the badge drive’s existing <code>apps</code> folder.</li>
+            )}
             <li>Safely eject the drive from your computer, press <strong>Reset</strong> once, then open <strong>Dots &amp; Boxes</strong> from the launcher.</li>
             <li>Create or join a room on this site, then enter its five-letter pairing code with the badge’s A, B, and C buttons.</li>
           </ol>
-          <p className="install-tip">Seeing a drive called <code>RP2350</code>? Press Reset once, then double-tap Reset again to open the Badgeware file drive.</p>
           <div className="control-notes">
             <p className="kicker">KNOW YOUR BUTTONS</p>
             <p><kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd> Enter your pairing code</p>
@@ -135,12 +154,12 @@ export function Install({ onBusyChange }: { onBusyChange: (busy: boolean) => voi
           </div>
         </div>
         <aside className="download-panel" aria-labelledby="copy-heading">
-          <p className="kicker">STRAIGHT TO YOUR BADGE</p>
-          <h2 id="copy-heading">One small copy.<br />A whole new game.</h2>
-          <p>Install directly from your browser. Your other apps and saved game data stay in place.</p>
+          <p className="kicker">{supported ? "STRAIGHT TO YOUR BADGE" : "INSTALL WITH A ZIP"}</p>
+          <h2 id="copy-heading">{supported ? <>One small copy.<br />A whole new game.</> : "Copy the game manually"}</h2>
+          <p>{supported ? "Install directly from your browser. Your other apps and saved game data stay in place." : "Download the ZIP, then copy the game files onto your badge."}</p>
           <div className="install-action">
             {!supported ? (
-              <p className="install-status">Direct copying needs a supported browser such as desktop Chrome or Edge. Use the ZIP download below, or open this page in one of those browsers.</p>
+              <p className="install-status">Direct copying is unavailable in this browser, so the drive picker isn’t shown. Use the ZIP below, or open this page in desktop Chrome or Edge for automatic copying.</p>
             ) : releaseState === "loading" ? (
               <p className="install-status" role="status">Downloading and checking the game files…</p>
             ) : releaseState === "error" ? (
@@ -176,15 +195,15 @@ export function Install({ onBusyChange }: { onBusyChange: (busy: boolean) => voi
             )}
           </div>
           {installError ? <p className="error install-error" role="alert">{installError}</p> : null}
-          <div className="install-manual">
-            <p className="kicker">PREFER TO COPY IT YOURSELF?</p>
-            <a className="button secondary" href="/dots-boxes.zip" download aria-disabled={copying || undefined} onClick={(event) => { if (copying) event.preventDefault(); }}>
+          <div className={supported ? "install-manual" : "install-manual install-manual-primary"}>
+            {supported ? <p className="kicker">PREFER TO COPY IT YOURSELF?</p> : null}
+            <a className={supported ? "button secondary" : "button primary"} href="/dots-boxes.zip" download aria-disabled={copying || undefined} onClick={(event) => { if (copying) event.preventDefault(); }}>
               Download game ZIP <span aria-hidden="true">↓</span>
             </a>
             <p>Unzip the download and copy <code>dots_boxes</code> into the badge’s <code>apps</code> folder. Then safely eject the drive and press Reset once.</p>
           </div>
         </aside>
-      </div>
+      </section>
     </section>
   );
 }

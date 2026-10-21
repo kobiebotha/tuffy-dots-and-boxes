@@ -159,6 +159,12 @@ button.dismiss { min-width: 30px; min-height: 32px; border: 0; background: trans
 .install-intro { color: #a4b5a9; font-size: 14px; margin: 0 0 36px; }
 .install-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; align-items: start; gap: 48px; }
 .install-steps h2 { font-size: 23px; margin-bottom: 24px; }
+.install-wifi { padding-bottom: 30px; margin-bottom: 36px; border-bottom: 1px solid var(--border); }
+.install-wifi-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); align-items: start; gap: 48px; }
+.install-wifi-example { padding: 22px; border: 1px solid var(--border); border-radius: 4px; background: #171c1b; }
+.install-wifi-example pre { margin: 18px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.9; }
+.install-wifi-example > p:not(.kicker) { color: #a7bbad; font-size: 12px; line-height: 1.9; }
+.install-wifi > .install-tip { margin-bottom: 0; }
 .install ol { list-style: none; padding: 0; margin: 0; counter-reset: install-step; }
 .install li { counter-increment: install-step; position: relative; padding: 0 0 28px 46px; font-size: 13px; line-height: 1.9; color: #a8b9ad; }
 .install li::before { content: "0" counter(install-step); position: absolute; left: 0; top: 2px; font-family: var(--pixel); font-size: 18px; color: #6cb18a; }
@@ -180,8 +186,9 @@ button.dismiss { min-width: 30px; min-height: 32px; border: 0; background: trans
 .install-success h3 { color: #8ae4ae; font-size: 17px; margin-bottom: 12px; }
 .install-error { margin-top: 18px; }
 .install-manual { border-top: 1px solid #334637; padding-top: 22px; }
+.install-manual-primary { border-top: 0; padding-top: 0; }
 .install-manual > p:last-child { font-size: 11px; line-height: 1.9; color: #a7bbad; margin: 16px 0 0; }
-.install-manual .button { background: transparent; }
+.install-manual .button.secondary { background: transparent; }
 a[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 .control-notes { padding-top: 25px; margin-top: 25px; border-top: 1px solid #334637; }
 .control-notes > p { font-size: 11px; color: #a7bbad; margin-bottom: 13px; }
@@ -220,7 +227,7 @@ kbd { display: inline-block; border: 1px solid #496351; border-bottom-width: 3px
   .hero-description { font-size: 13px; } .hero-footnote { font-size: 9px; } .hero-actions { gap: 20px; } .game-preview { padding-inline: 16px; }
   .room-card-bottom { padding-inline: 14px; } .room-card-bottom .actions { gap: 7px; } .mini-score { gap: 4px; } .mini-score b { font-size: 14px; }
   .room-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; } .code-panel, .side-panel { padding: 19px; } .code { font-size: 24px; }
-  .install-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 30px; }
+  .install-layout, .install-wifi-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 30px; }
 }
 @media (max-width: 760px) {
   .top { min-height: 94px; margin-bottom: 24px; } .brand-name { font-size: 20px; } nav { gap: 18px; } .nav-link { font-size: 11px; }
@@ -232,7 +239,7 @@ kbd { display: inline-block; border: 1px solid #496351; border-bottom-width: 3px
   .footer { align-items: start; flex-direction: column-reverse; gap: 18px; margin-top: 36px; }
   .room-layout { grid-template-columns: 1fr; } .room-sidebar { grid-template-columns: 1fr 1fr; } .room-actions { grid-column: 1 / -1; }
   .room-heading h1 { font-size: 26px; } .room.waiting.member .room-sidebar { grid-row: 1; } .game-stage { padding-inline: 16px; } .code { font-size: 22px; }
-  .install-layout { grid-template-columns: 1fr; gap: 20px; } .install > h1 { font-size: 30px; } .download-panel { max-width: 500px; }
+  .install-layout, .install-wifi-layout { grid-template-columns: 1fr; gap: 20px; } .install > h1 { font-size: 30px; } .download-panel { max-width: 500px; }
 }
 @media (max-width: 480px) {
   .shell { width: calc(100% - 36px); } .top { flex-wrap: wrap; align-content: center; gap: 17px; padding: 22px 0 17px; }

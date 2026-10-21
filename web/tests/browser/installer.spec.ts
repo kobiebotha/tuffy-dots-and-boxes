@@ -59,6 +59,9 @@ for (const existing of [false, true]) {
     await page.goto("/install");
     const before = await driveSnapshot(page);
     await expect(page.getByRole("button", { name: "Choose badge drive", exact: true })).toBeEnabled();
+    const instructions = page.locator('section[aria-labelledby="app-heading"] ol');
+    await expect(instructions).toContainText("Choose badge drive");
+    await expect(instructions).toContainText("Copy game to badge");
     if (!existing) {
       await screenshotInstaller(page, "ready", 375);
       await page.setViewportSize({ width: 1440, height: 1000 });
@@ -181,24 +184,43 @@ for (const scenario of ["write-failure", "update-failure"] as const) {
   });
 }
 
-test("unsupported folder picker keeps the ZIP download and manual instructions", async ({ page }) => {
-  await page.addInitScript(() => { Object.assign(window, { showDirectoryPicker: undefined }); });
-  const { release } = await realRelease(page);
-  await page.goto("/install");
-  const zip = page.getByRole("link", { name: "Download game ZIP" });
-  await expect(zip).toBeVisible();
-  await expect(page.getByRole("button", { name: "Choose badge drive", exact: true })).toHaveCount(0);
-  await expect(page.getByText(/Chrome|Edge/).first()).toBeVisible();
-  await expect(page.getByText(/Unzip|unzip/).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Game copied and verified", exact: true })).toHaveCount(0);
-  const downloading = page.waitForEvent("download");
-  await zip.click();
-  const download = await downloading;
-  expect(download.suggestedFilename()).toBe("dots-boxes.zip");
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
-  const bytes = Buffer.concat(chunks);
-  expect(bytes.length).toBe(release.zipBytes);
-  expect(createHash("sha256").update(bytes).digest("hex")).toBe(release.zipSha256);
-});
+for (const unavailable of ["folder picker", "Web Locks"] as const) {
+  test(`unsupported ${unavailable} keeps the ZIP download and gives matching manual instructions`, async ({ page }) => {
+    await page.addInitScript((unavailable) => {
+      if (unavailable === "folder picker") {
+        Object.assign(window, { showDirectoryPicker: undefined });
+      } else {
+        Object.defineProperty(navigator, "locks", { value: undefined, configurable: true });
+      }
+    }, unavailable);
+    const { release } = await realRelease(page);
+    await page.goto("/install");
+    const install = page.locator('section[aria-labelledby="app-heading"]');
+    const instructions = install.locator("ol");
+    await expect(instructions).toContainText("Download game ZIP");
+    await expect(instructions).toContainText(/unzip/i);
+    await expect(instructions).toContainText(/copy.*dots_boxes.*apps/i);
+    await expect(instructions).not.toContainText(/choose.*drive|button on this page|verification finishes/i);
+    await expect(install.getByRole("heading", { name: "Copy the game manually", exact: true })).toBeVisible();
+    const zip = install.getByRole("link", { name: "Download game ZIP" });
+    await expect(zip).toBeVisible();
+    await expect(page.getByRole("button", { name: "Choose badge drive", exact: true })).toHaveCount(0);
+    await expect(install.getByText(/Direct copying.*unavailable/i)).toBeVisible();
+    await expect(install.getByText(/desktop Chrome or Edge/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Game copied and verified", exact: true })).toHaveCount(0);
+    if (unavailable === "folder picker") {
+      await screenshotInstaller(page, "ready", 1440);
+      await screenshotInstaller(page, "ready", 375);
+    }
+    const downloading = page.waitForEvent("download");
+    await zip.click();
+    const download = await downloading;
+    expect(download.suggestedFilename()).toBe("dots-boxes.zip");
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+    const bytes = Buffer.concat(chunks);
+    expect(bytes.length).toBe(release.zipBytes);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(release.zipSha256);
+  });
+}
