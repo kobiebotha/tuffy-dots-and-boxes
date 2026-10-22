@@ -146,11 +146,17 @@ class Controller:
             elif not self.b_cancelled:
                 self.tap()
 
-        directions = [key for key in DIRECTIONS if key in held]
-        if b_down or b_was_down or len(directions) != 1:
+        direction = None
+        if not b_down and not b_was_down:
+            for key in DIRECTIONS:
+                if key in held:
+                    if direction is not None:
+                        direction = None
+                        break
+                    direction = key
+        if direction is None:
             self.repeat_direction = None
         else:
-            direction = directions[0]
             if direction != self.repeat_direction:
                 self.direction(direction)
                 self.repeat_direction = direction

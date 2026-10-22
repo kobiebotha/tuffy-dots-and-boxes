@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
 import dots_storage
+from dots_client import Client
 from dots_storage import Store
 from game import Game
 from native_fixture import LIBRARY, HostCore
@@ -69,6 +70,47 @@ class ActualVFSCoreTests(unittest.TestCase):
     assert_legacy_migration = protocol.RealCoreTests.assert_legacy_migration
     test_schema_three_migration_preserves_identity_and_pending_uuid = protocol.RealCoreTests.test_version_three_migration_preserves_identity_pending_and_rebuilds_raw_cache
 
+    def test_native_uuids_create_device_and_durable_move_then_reuse_after_reopen(self):
+        session = protocol.SessionFile(self.store.root)
+        client = Client(self.store, session)
+        device_id = client.records.record["device_id"]
+        self.assertEqual(client.mode, "pair")
+        paired = dict(protocol.Records().record, device_id=device_id)
+        client.records.save(paired)
+        self.store.reconcile_session(paired)
+        client.mode = "play"
+        client.sync = protocol.make_sync(self.store, records=client.records)
+        protocol.start(client.sync)
+        room = {"id": protocol.ROOM, "status": "playing", "cols": 5, "rows": 4,
+                "current_seat": 1, "score_p1": 0, "score_p2": 0,
+                "winner": None, "move_count": 0}
+        self.deliver(client.sync, protocol.checkpoint_records("initial", [
+            protocol.operation(1, "rooms", room)]), client)
+        self.assertTrue(client.controller.can_claim)
+        self.assertTrue(client._queue_move(("h", 0, 0)))
+        pending = client.records.record["pending_move"]
+        for value in (device_id, pending["id"]):
+            self.assertRegex(value, "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+        self.assertNotEqual(device_id, pending["id"])
+        self.assertEqual(session.load(self.store.new_uuid)["pending_move"], pending)
+        client.close()
+        self.store.close()
+        self.store.open()
+        with patch.object(self.store, "new_uuid", side_effect=AssertionError("saved IDs must be reused")):
+            restored = Client(self.store, session)
+            restored.sync = protocol.make_sync(self.store, records=restored.records,
+                                               replies=[{"ok": True, "duplicate": True}])
+            try:
+                with patch.object(restored.sync, "_post", wraps=restored.sync._post) as upload:
+                    protocol.start(restored.sync)
+                self.assertEqual(upload.call_count, 1)
+                self.assertEqual(upload.call_args.args[1]["move_id"], pending["id"])
+                self.assertEqual(restored.records.record["device_id"], device_id)
+                self.assertEqual(restored.records.record["pending_move"], pending)
+                self.assertFalse(self.store.has_local_writes())
+            finally:
+                restored.close()
+
     def test_full49_live_reopen_and_no_sql_crud(self):
         game = Game()
         self.store.bind_account(protocol.USER)
@@ -109,8 +151,77 @@ class ActualVFSCoreTests(unittest.TestCase):
         self.store.open()
         self.assertEqual(self.store.room(protocol.ROOM), before_room)
         self.assertEqual(self.store.moves(protocol.ROOM), expected)
+        self.assertEqual(self.store.moves(protocol.ROOM, after=47), expected[47:])
+        self.assertEqual(self.store.moves(protocol.ROOM, after=49), [])
         self.assertFalse(self.store.has_local_writes())
         self.assertFalse(self.store.bind_account(protocol.USER))
+
+    def install_schema_four_tables(self):
+        # Seed the previous on-disk layout before exercising the production
+        # migrator. Both cached rows and internal native cursors must survive.
+        self.store._exec("DROP TABLE rooms; DROP TABLE moves")
+        for statement in dots_storage.RAW_TABLE_SQL:
+            self.store._exec(statement.replace(" WITHOUT ROWID", ""))
+        self.store._exec("PRAGMA user_version=4")
+
+    def install_schema_four_cache(self):
+        self.install_schema_four_tables()
+        room = self.cached_room()
+        session = protocol.SessionFile(self.store.root)
+        pending = dict(protocol.Records().record, pending_move={"id": protocol.DEVICE,
+                      "orientation": "h", "row": 0, "col": 0})
+        session.save(protocol.Records().record)
+        session.save(pending)
+        self.store.close()
+        return room, pending
+
+    def test_full49_schema_four_relayout_preserves_all_moves_with_fixed_arena(self):
+        self.install_schema_four_tables()
+        self.test_full49_live_reopen_and_no_sql_crud()
+        self.assertEqual(self.native.exec("PRAGMA user_version"), [["5"]])
+        for sql, in self.native.exec("SELECT sql FROM sqlite_master WHERE name IN ('rooms','moves')"):
+            self.assertIn("WITHOUT ROWID", sql)
+
+    def test_schema_four_relayout_retains_published_cache_identity_checkpoint_and_pending_overlay(self):
+        room, pending = self.install_schema_four_cache()
+        original_size = Path(self.store.root, "state.sqlite").stat().st_size
+        self.native.open(self.store.root + "/state.sqlite")
+        native_state = {table: self.native.exec("SELECT * FROM " + table)
+                        for table in ("ps_buckets", "ps_oplog", "ps_kv", "account")}
+        self.native.close()
+        self.store.open()
+        self.assertEqual(self.native.exec("PRAGMA user_version"), [["5"]])
+        for sql, in self.native.exec("SELECT sql FROM sqlite_master WHERE name IN ('rooms','moves')"):
+            self.assertIn("WITHOUT ROWID", sql)
+        self.assertEqual(self.store.room(protocol.ROOM), room)
+        for table, expected in native_state.items():
+            self.assertEqual(self.native.exec("SELECT * FROM " + table), expected)
+        self.assertEqual(protocol.SessionFile(self.store.root).load(None), pending)
+        self.assertGreaterEqual(self.store.io.db_size, original_size)
+        self.assertFalse(self.store.has_local_writes())
+
+    def test_schema_four_relayout_commit_failure_rolls_back_layout_and_cached_game(self):
+        room, pending = self.install_schema_four_cache()
+        original = self.store._exec
+
+        def interrupted(sql):
+            if sql == "COMMIT":
+                raise OSError("interrupted relayout commit")
+            return original(sql)
+
+        with patch.object(self.store, "_exec", side_effect=interrupted), self.assertRaises(OSError):
+            self.store.open()
+        self.native.open(self.store.root + "/state.sqlite")
+        try:
+            self.assertEqual(self.native.exec("PRAGMA user_version"), [["4"]])
+            self.assertEqual(self.native.exec("SELECT name FROM sqlite_master WHERE name LIKE '%_next'"), [])
+            for sql, in self.native.exec("SELECT sql FROM sqlite_master WHERE name IN ('rooms','moves')"):
+                self.assertNotIn("WITHOUT ROWID", sql)
+        finally:
+            self.native.close()
+        self.store.open()
+        self.assertEqual(self.store.room(protocol.ROOM), room)
+        self.assertEqual(protocol.SessionFile(self.store.root).load(None), pending)
 
     def test_short_physical_database_write_rolls_back_checkpoint(self):
         self._physical_fault("write")
@@ -180,7 +291,7 @@ class ActualVFSCoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Interrupted write"):
             interrupted.open()
         self.assertEqual({name.name: name.read_bytes() for name in root.iterdir()}, before)
-        saved = protocol.SessionFile(str(root)).load(lambda count: b"x" * count)
+        saved = protocol.SessionFile(str(root)).load(self.store.new_uuid)
         self.assertEqual(saved["pending_move"], pending["pending_move"])
 
     def test_time_entropy_and_default_vfs_restoration(self):

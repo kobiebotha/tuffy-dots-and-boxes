@@ -3,7 +3,6 @@
 Moves go to PostgREST. The SQL outbox stays empty. A badge subscribes to only
 its paired room; the web lobby and the user's old games never fill LittleFS.
 """
-import json
 import time
 
 from dots_http import PENDING, Gateway, HTTPS, split_https
@@ -14,6 +13,8 @@ from dots_storage import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES
 # bounded wire records in RAM briefly, without opening a SQL transaction, so a
 # network pause does not turn each fragment into a durable flash rewrite.
 MAX_BATCH_DELAY_MS = 1000
+MAX_STREAM_READS = 2
+MAX_STREAM_RECORDS = MAX_SYNC_BATCH_RECORDS
 BADGE_STREAM = "badge_game_v2"
 
 
@@ -39,6 +40,7 @@ class Sync:
         self.target = None
         self.lines = StreamLines()
         self.batch = []
+        self.parsed_batch = []
         self.batch_bytes = self.batch_ms = 0
         self.connected = False
         self.synced = False
@@ -77,6 +79,7 @@ class Sync:
             self.core_started = False
         self.lines = StreamLines()
         self.batch = []
+        self.parsed_batch = []
         self.batch_bytes = self.batch_ms = 0
         self.connected = self.synced = False
         self.checkpoint_seeded = False
@@ -379,12 +382,29 @@ class Sync:
             self.phase, self.status = "stream", "SYNCING"
             return
         if self.phase == "stream":
-            buffered = self._drain()
-            if self.phase != "stream":
-                return
-            if buffered:
+            self._download()
+
+    def _download(self):
+        """Drain available input within fixed transport and core-record budgets.
+
+        A fragment ending midway through a record can be completed by the next
+        immediately available read in this update. No network wait holds a SQL
+        transaction, and six records remain the per-update native-work bound.
+        """
+        reads = 0
+        # A partial batch belongs to this update's eventual native work too.
+        # Counting only newly framed records could commit a carried five plus
+        # six new records before yielding, despite the six-record work budget.
+        processed = len(self.batch)
+        while self.phase == "stream":
+            while processed < MAX_STREAM_RECORDS and self._line():
+                processed += 1
+                if self.phase != "stream":
+                    return
+            if processed >= MAX_STREAM_RECORDS or reads >= MAX_STREAM_READS:
                 return
             data = self.stream.step()
+            reads += 1
             if self.stream.status is not None and not self.connected:
                 if self.stream.status == 401:
                     self._invalidate_token()
@@ -409,29 +429,18 @@ class Sync:
                 self._retry()
                 return
             self.lines.feed(data)
-            self._drain()
-
-    def _drain(self):
-        """Drain a bounded number of already-buffered records before flushing."""
-        processed = False
-        for _ in range(MAX_SYNC_BATCH_RECORDS):
-            if not self._line():
-                break
-            processed = True
-            if self.phase != "stream":
-                break
-        return processed
 
     def _line(self):
-        line = self.lines.pop()
-        if line is None:
+        record = self.lines.pop_record()
+        if record is None:
             return False
+        line, marker = record
         size = len(line.encode())
         if self.batch and self.batch_bytes + size > MAX_SYNC_LINE_BYTES:
             self._flush()
         self.batch.append(line)
+        self.parsed_batch.append(marker)
         self.batch_bytes += size
-        marker = {} if line.startswith('{"data":') else json.loads(line)
         complete = "checkpoint_complete" in marker or "partial_checkpoint_complete" in marker
         # Each completion may publish views. Keep at most one publication in a
         # transaction to bound the qualified native core's fixed 256KB arena.
@@ -443,8 +452,9 @@ class Sync:
     def _flush(self):
         if not self.batch:
             return
-        results = self.store.control_lines(self.batch)
+        results = self.store.control_lines(self.batch, parsed=self.parsed_batch)
         self.batch = []
+        self.parsed_batch = []
         self.batch_bytes = self.batch_ms = 0
         for result in results:
             self._instructions(result["instructions"], full_checkpoint=result["full_checkpoint"])

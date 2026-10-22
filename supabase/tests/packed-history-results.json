@@ -1,0 +1,24 @@
+{
+  "engine": "PGlite 0.5.10 / PostgreSQL WASM",
+  "migration": "supabase/migrations/20261021222547_experimental_packed_history.sql",
+  "limitations": [
+    "Supabase Auth is simulated; no service, replication, device or real concurrent-session qualification."
+  ],
+  "checks": [
+    "Migration backfills empty/live/finished/archived rooms without changing existing rows or results",
+    "Only the duplicate non-unique moves_room index is removed",
+    "784 incremental moves match original SQL replay and independent JS replay, including 59 double-box moves",
+    "Wrong-turn, outsider, out-of-bounds, orientation and nonconsecutive inserts roll back rows and room history",
+    "Exact UUID retries are idempotent; duplicate edges and outsider retries cannot change the board",
+    "Active and completed archives retain packed history; terminal rooms reject new moves and rebuild correctly",
+    "Retained recompute_room rebuilds both derived scores and packed history from canonical moves",
+    "History alphabet/length constraints, internal function ACLs and client write restrictions remain enforced",
+    "Existing rules.sql and archive.sql regression suites pass against the new migration",
+    "Invalid legacy histories reject migration atomically, retaining original columns/functions/indexes/data"
+  ],
+  "success": true,
+  "games": 16,
+  "movesCompared": 784,
+  "doubleBoxes": 59,
+  "postgresVersion": "PostgreSQL 18.6 (PGlite 0.5.10) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.5 (1db513782be24469589d7cb8a1f1834e9a33f271), 32-bit"
+}

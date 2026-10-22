@@ -78,8 +78,8 @@ The native module is the reviewed `badgegotchi_native.mpy` (PowerSync core 0.5.4
 
 The badge disables default subscriptions and requests only `badge_game_v2` for
 its paired room. The browser lobby and previous games never enter its 128 KiB
-database. Schema 4 stores six room values and three move values in native SQLite
-raw tables; `account` remains a local-only PowerSync table. UUIDs are encoded as
+database. Schema 5 stores six room values and three move values in native SQLite
+raw tables without row IDs; `account` remains a local-only PowerSync table. UUIDs are encoded as
 24-character base64 text. RPC requests and saved sessions retain canonical UUIDs.
 Edge codes 0–48 encode the server-enforced 5×4 board. The browser schema is unchanged.
 
@@ -90,7 +90,11 @@ before account reconciliation, and every sync start supplies the raw-table schem
 Incoming data is committed in bounded FULL transactions;
 queries are paged below the native wrapper's 32-row result limit. The board is
 reread only after a completed checkpoint and replayed only when its move count
-changes.
+changes. Increasing move counts read and apply only the new contiguous suffix;
+inconsistent history falls back to a complete replay.
+
+Schema 4 upgrades retain published rows, checkpoints and local state while
+converting the two raw tables in a transaction.
 
 The database uses a fixed 128 KiB PSRAM buffer. Random database reads and writes
 stay in memory; each SQLite database sync writes the complete logical image
@@ -103,10 +107,10 @@ it is not a general-purpose filesystem VFS.
 An upgraded SQLite file retains its previous high-water size because the VFS
 does not support shrinking files. Migration returns old cache pages to SQLite's
 freelist for reuse within the existing 128 KiB cap. A newly created raw cache
-finishes a full 49-move live game at 57 KiB in the host benchmark; an upgraded
+finishes a full 49-move live game at 53 KiB in the current host benchmark; an upgraded
 file may remain larger while using fewer pages.
 
-Startup and migration use an eight-page SQLite cache, then raw schema 4
+Startup and migration use an eight-page SQLite cache, then raw schema 5
 uses 32 pages within the fixed 256 KiB native arena. The stream reader drains
 available data before flushing a batch that is at least one second old and has
 no more bytes available, up to six records / 8 KiB. Full checkpoints remain publication boundaries;
@@ -307,3 +311,23 @@ records the timings, migration check, package verification, and limitations.
 Temporary install/test helpers remain in `/private/tmp/dots-*`; review them
 before reuse, and never print their private session credentials. Do not deploy
 to Vercel without approval or push Git.
+
+
+## Badge performance qualification, 21 October 2026
+
+The current client skips unchanged rendering, caches text measurements and logo
+spans, replays only new moves, reads download fragments in 2 KiB chunks with
+bounded draining, and avoids repeated JSON decoding/native calls. Pending moves
+use a small generation-bound file overlay with the same durability barriers.
+The native module, UUID protocol and default sync stream remain unchanged.
+
+On the Tufty, alternating tests measured idle rendering at 17.55 → 0.21 ms,
+cursor rendering at 17.78 → 11.05 ms, and queueing plus clearing a pending move
+at a median 133.76 → 31.45 ms. These measure separate CPU/file paths, not total
+move latency or physical display refresh. A download-only check of the installed
+client preserved the saved 11-move game through its schema 4 → 5 migration.
+
+See the [current qualification report](badge/tools/performance-qualification.md)
+and [storage experiments](badge/tools/storage-hotpaths.md) for fixtures, device
+measurements, reproduction commands, compatibility limits and local backend
+experiments. The optional RAM profiler is never imported by the packaged app.

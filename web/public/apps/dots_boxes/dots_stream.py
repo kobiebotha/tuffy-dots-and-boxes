@@ -9,7 +9,7 @@ than buffer an unbounded array while waiting for its bucket.
 import json
 
 MAX_LINE = 8192
-MAX_FRAGMENT = 512
+MAX_FRAGMENT = 2048
 MAX_METADATA = 1024
 MAX_DEPTH = 16
 _SPACE = b" \t\r"
@@ -32,6 +32,7 @@ class StreamLines:
         self.key = None
         self.bucket = None
         self.data_prefix = None
+        self.prefix_bytes = 0
         self.data_seen = False
         self.can_end = True
         self.metadata_bytes = 0
@@ -81,7 +82,8 @@ class StreamLines:
             if not isinstance(value, str) or not value:
                 raise ValueError("Invalid PowerSync bucket")
             self.bucket = value
-            self.data_prefix = (b'{"data":{"bucket":' + json.dumps(value).encode() + b',"data":[')
+            self.data_prefix = ('{"data":{"bucket":' + json.dumps(value) + ',"data":[')
+            self.prefix_bytes = len(self.data_prefix.encode())
         if delimiter == 44:
             self.mode, self.can_end = "member", False
         else:
@@ -92,16 +94,18 @@ class StreamLines:
     def _operation(self, delimiter):
         raw = bytes(self.token).strip()
         self.token = bytearray()
-        if not isinstance(json.loads(raw.decode()), dict):
+        text = raw.decode()
+        operation = json.loads(text)
+        if not isinstance(operation, dict):
             raise ValueError("Invalid PowerSync operation")
-        line = self.data_prefix + raw + b']}}'
-        if len(line) > MAX_LINE:
+        if self.prefix_bytes + len(raw) + 3 > MAX_LINE:
             raise ValueError("PowerSync operation exceeds limit")
+        line = self.data_prefix + text + ']}}'
         if delimiter == 44:
             self.mode, self.can_end = "operation_start", False
         else:
             self.mode = "after_array"
-        return line.decode()
+        return line, {"data": {"bucket": self.bucket, "data": [operation]}}
 
     def _newline(self):
         if self.stack or self.quoted:
@@ -111,9 +115,11 @@ class StreamLines:
             if not raw.strip():
                 self._reset_line()
                 return None
-            if not isinstance(json.loads(raw.decode()), dict):
+            text = raw.decode()
+            record = json.loads(text)
+            if not isinstance(record, dict):
                 raise ValueError("Invalid PowerSync line")
-            result = raw.decode()
+            result = text, record
         elif self.mode == "line_end":
             result = None
         else:
@@ -122,8 +128,49 @@ class StreamLines:
         return result
 
     def pop(self):
-        """Return at most one core record, retaining at most one socket fragment."""
+        """Compatibility string interface; pop_record also returns decoded JSON."""
+        record = self.pop_record()
+        return record[0] if record is not None else None
+
+    def pop_record(self):
+        """Return (original text, decoded dict), or None when input is drained.
+
+        Retain at most one socket fragment and one operation. The returned dict
+        is decoded from that exact text; storage may validate it without another
+        JSON parse, while the native core still receives the original operation.
+        """
         while self.offset < len(self.pending):
+            if self.quoted and not self.escaped:
+                # Native searches skip ordinary string bytes in one span. A
+                # string contains no structural JSON boundaries until its next
+                # quote or escape. Keep the explicit control-byte check: ujson
+                # on the badge is more permissive than CPython's decoder.
+                start = self.offset
+                end = len(self.pending)
+                quote = self.pending.find(b'"', start)
+                escape = self.pending.find(b'\\', start)
+                if quote >= 0:
+                    end = quote
+                if escape >= 0 and escape < end:
+                    end = escape
+                if end > start:
+                    span = self.pending[start:end]
+                    if min(span) < 32:
+                        raise ValueError("Control character in PowerSync string")
+                    if self.mode in ("prefix", "control"):
+                        target, limit = self.prefix, MAX_LINE
+                    else:
+                        target = self.token
+                        limit = MAX_LINE - self.prefix_bytes - 3 if self.mode == "operation" else MAX_METADATA
+                        if self.mode != "operation":
+                            self.metadata_bytes += len(span)
+                            if self.metadata_bytes > MAX_METADATA:
+                                raise ValueError("PowerSync envelope exceeds limit")
+                    if len(target) + len(span) > limit:
+                        raise ValueError("PowerSync value exceeds limit")
+                    target.extend(span)
+                    self.offset = end
+                    continue
             value = self.pending[self.offset]
             self.offset += 1
             if value == 10:
@@ -139,8 +186,11 @@ class StreamLines:
             if self.mode in ("prefix", "control"):
                 self._bounded(self.prefix, value, MAX_LINE)
                 if self.mode == "prefix" and value == 58 and depth == 1 and not quoted:
-                    first = json.loads((bytes(self.prefix) + b'null}').decode())
-                    if list(first) == ["data"]:
+                    prefix = bytes(self.prefix)
+                    # The service emits this compact spelling. Retain the
+                    # generic parser for escaped keys and permitted whitespace.
+                    first = None if prefix == b'{"data":' else json.loads((prefix + b'null}').decode())
+                    if first is None or list(first) == ["data"]:
                         self.prefix = bytearray()
                         self.mode = "data_object"
                     else:
@@ -214,7 +264,7 @@ class StreamLines:
             elif self.mode == "operation":
                 if depth == 3 and not quoted and value in (44, 93):
                     return self._operation(value)
-                self._bounded(self.token, value, MAX_LINE - len(self.data_prefix) - 3)
+                self._bounded(self.token, value, MAX_LINE - self.prefix_bytes - 3)
             elif self.mode == "after_array":
                 if value in _SPACE:
                     continue

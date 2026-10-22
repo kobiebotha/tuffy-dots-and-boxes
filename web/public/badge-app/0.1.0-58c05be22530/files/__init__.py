@@ -61,7 +61,7 @@ def update():
     elapsed = ticks_diff(now, last_tick)
     last_tick = now
     if failure or (client is not None and client.failure):
-        view.message("Could not open", failure or client.failure)
+        view.message_if_changed("Could not open", failure or client.failure)
         return
     held = [name for button, name in buttons if badge.held(button)]
     try:
@@ -74,9 +74,9 @@ def update():
     if exit_requested:
         return True
     if client.mode == "pair":
-        view.pairing(client.entry.code, client.entry.status)
+        view.pairing_if_changed(client.entry.code, client.entry.status)
     else:
-        view.draw(client.controller, local_seat=client.records.record["seat"])
+        view.draw_if_changed(client.controller, local_seat=client.records.record["seat"])
 
 
 def on_exit():
@@ -89,9 +89,15 @@ def closed_home(_pin):
     badgeware.reset()
 
 
+previous_clear = badge.default_clear
 try:
+    # Qualified Badgeware clear() skips only its framebuffer clear for None;
+    # display.update() retains that framebuffer. Keep managed polling/VSYNC in
+    # run(), but let View redraw only when the visible state changes.
+    badge.default_clear = None
     run(update)
 finally:
+    badge.default_clear = previous_clear
     try:
         if client is not None:
             client.close()

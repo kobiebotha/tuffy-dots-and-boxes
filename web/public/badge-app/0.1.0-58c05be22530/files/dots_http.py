@@ -6,6 +6,9 @@ PENDING = object()
 HEADER_LIMIT = 4096
 BODY_LIMIT = 16384
 READ_BYTES = 512
+# Only downloads use larger reads. Keep request writes and JSON RPC responses
+# on their qualified 512-byte path, including the second upload connection.
+STREAM_READ_BYTES = 2048
 
 
 def split_https(url):
@@ -83,44 +86,51 @@ class Response:
             self.remaining -= len(output)
             self.done = self.remaining == 0
             return output
-        output = b""
-        while self.buffer:
+        output = []
+        # Advance over the current fragment, retaining only an incomplete
+        # framing suffix. Repeated tail slicing otherwise copies the same body
+        # many times when several HTTP chunks arrive in one TLS read.
+        buffer = self.buffer
+        offset = 0
+        while offset < len(buffer):
             if self.need_crlf:
-                if len(self.buffer) < 2:
+                if len(buffer) - offset < 2:
                     break
-                if self.buffer[:2] != b"\r\n":
+                if buffer[offset:offset + 2] != b"\r\n":
                     raise ValueError("Invalid HTTP chunk boundary")
-                self.buffer = self.buffer[2:]
+                offset += 2
                 self.need_crlf = False
             if self.chunk_remaining is None:
-                position = self.buffer.find(b"\r\n")
+                position = buffer.find(b"\r\n", offset)
                 if position < 0:
-                    if len(self.buffer) > 32:
+                    if len(buffer) - offset > 32:
                         raise ValueError("HTTP chunk header exceeds limit")
                     break
-                size = self.buffer[:position]
+                size = buffer[offset:position]
                 if not size or len(size) > 8 or any(c not in b"0123456789abcdefABCDEF" for c in size):
                     raise ValueError("Unsupported HTTP chunk size")
                 self.chunk_remaining = int(size, 16)
-                self.buffer = self.buffer[position + 2:]
+                offset = position + 2
                 if self.chunk_remaining == 0:
                     self.mode = "trailers"
             if self.mode == "trailers":
-                if len(self.buffer) < 2:
+                if len(buffer) - offset < 2:
                     break
-                if self.buffer != b"\r\n":
+                if buffer[offset:] != b"\r\n":
                     raise ValueError("HTTP trailers unsupported")
-                self.buffer = b""
+                offset = len(buffer)
                 self.done = True
                 break
-            used = min(len(self.buffer), self.chunk_remaining)
-            output += self.buffer[:used]
-            self.buffer = self.buffer[used:]
+            used = min(len(buffer) - offset, self.chunk_remaining)
+            if used:
+                output.append(buffer[offset:offset + used])
+            offset += used
             self.chunk_remaining -= used
             if self.chunk_remaining == 0:
                 self.chunk_remaining = None
                 self.need_crlf = True
-        return output
+        self.buffer = buffer[offset:]
+        return b"".join(output)
 
     def finish(self):
         if self.mode == "close" and self.status is not None:
@@ -260,7 +270,7 @@ class HTTPS:
             self.close()
             return None
         try:
-            chunk = self.secure.read(READ_BYTES)
+            chunk = self.secure.read(STREAM_READ_BYTES if self.streaming else READ_BYTES)
         except OSError as exc:
             if exc.args[0] in (11, 35):
                 return PENDING

@@ -20,6 +20,71 @@ class View:
         self.players = (self.guide, color.rgb(62, 207, 142), color.rgb(109, 169, 255))
         self.fills = (self.bg, color.rgb(24, 59, 42), color.rgb(23, 45, 72))
         self.logos = Logos(screen, color)
+        self._measurements = {}
+        self._state = None
+        self._horizontal = bytearray()
+        self._vertical = bytearray()
+        self._boxes = bytearray()
+
+    def measure(self, value, scale=1):
+        key = (value, scale)
+        size = self._measurements.get(key)
+        if size is None:
+            size = self.screen.measure_text(value, scale)
+            # Network status/error text is unbounded over the app's lifetime.
+            if len(self._measurements) >= 64:
+                self._measurements.clear()
+            self._measurements[key] = size
+        return size
+
+    def draw_if_changed(self, controller, local_seat=None):
+        """Reuse the retained framebuffer while its visible contents match.
+
+        Call only with the app's retained-screen loop. Normal Badgeware run()
+        clears before every callback; draw() remains available for that loop.
+        Compare the tiny bytearrays too, so reset/reconciliation and in-place
+        board changes invalidate the image even when the move count matches.
+        """
+        game = controller.game
+        finished = game.finished
+        pending = controller.pending_edge
+        pending_player = controller.pending_player if pending is not None else 0
+        state = (
+            "game", game, game.cols, game.rows, game.current_player,
+            game.scores[0], game.scores[1], finished, local_seat,
+            controller.col, controller.row, controller.selecting,
+            controller.preview if controller.selecting else None,
+            pending, pending_player, getattr(controller, "can_claim", True),
+            controller.message if controller.message_ms and not finished else None,
+            getattr(controller, "status_line", ""),
+            (controller.flash_ms // 150 % 2, controller.flash_boxes)
+            if controller.flash_ms and controller.flash_boxes else None,
+        )
+        if (state == self._state and game.horizontal == self._horizontal
+                and game.vertical == self._vertical and game.boxes == self._boxes):
+            return False
+        self.draw(controller, local_seat)
+        self._horizontal[:] = game.horizontal
+        self._vertical[:] = game.vertical
+        self._boxes[:] = game.boxes
+        self._state = state
+        return True
+
+    def pairing_if_changed(self, code, status):
+        state = ("pair", code, status)
+        if self._state == state:
+            return False
+        self.pairing(code, status)
+        self._state = state
+        return True
+
+    def message_if_changed(self, title, body):
+        state = ("message", title, body)
+        if self._state == state:
+            return False
+        self.message(title, body)
+        self._state = state
+        return True
 
     def rect(self, x, y, width, height, pen):
         self.screen.pen = pen
@@ -32,7 +97,7 @@ class View:
     def text(self, value, x, y, pen, scale=1, center=False):
         self.screen.pen = pen
         if center:
-            width, _ = self.screen.measure_text(value, scale)
+            width, _ = self.measure(value, scale)
             x -= int(width) // 2
         self.screen.text(value, x, y, scale)
 
@@ -46,13 +111,14 @@ class View:
 
     def brand(self, y, scale=1):
         words = (("DOTS", self.players[1]), (" & ", self.muted), ("BOXES", self.players[2]))
-        widths = [int(self.screen.measure_text(word, scale)[0]) for word, _ in words]
+        widths = [int(self.measure(word, scale)[0]) for word, _ in words]
         x = (320 - sum(widths)) // 2
         for (word, pen), width in zip(words, widths):
             self.text(word, x, y, pen, scale)
             x += width
 
     def draw(self, controller, local_seat=None):
+        self._state = None
         game = controller.game
         screen = self.screen
         screen.pen = self.bg
@@ -67,7 +133,7 @@ class View:
                 self.rect(x, 33, 92, 3, self.players[player])
             label = "P%d (ME)" % player if local_seat == player else "P%d" % player
             score = "%02d" % game.scores[player - 1]
-            score_width, _ = screen.measure_text(score, 2)
+            score_width, _ = self.measure(score, 2)
             self.text(label, x + 8, 11, self.players[player])
             self.text(score, x + 84 - int(score_width), 6, self.white, 2)
         if game.finished:
@@ -77,10 +143,10 @@ class View:
             turn = "P%d'S TURN" % game.current_player
             turn_color = self.players[game.current_player]
         turn_scale = 2
-        turn_width, turn_height = screen.measure_text(turn, turn_scale)
+        turn_width, turn_height = self.measure(turn, turn_scale)
         if turn_width > 112 or turn_height > 31:
             turn_scale = 1
-            turn_width, turn_height = screen.measure_text(turn, turn_scale)
+            turn_width, turn_height = self.measure(turn, turn_scale)
         self.text(turn, 160 - int(turn_width) // 2,
                   3 + (31 - int(turn_height)) // 2, turn_color, turn_scale)
 
@@ -149,7 +215,7 @@ class View:
                 message = "EDGE TAKEN - CHOOSE ANOTHER"
             else:
                 message = "B: CLAIM THIS EDGE"
-            help_text = "A/C + UP/DOWN: EDGE   HOLD B: CANCEL"
+            help_text = "A/C + UP/DOWN: EDGE HOLD B: CANCEL"
         else:
             message = "CHOOSE A DOT"
             help_text = "A/C + UP/DOWN: MOVE   B: SELECT"
@@ -164,6 +230,7 @@ class View:
         self.logos.draw()
 
     def pairing(self, code, status):
+        self._state = None
         self.screen.pen = self.bg
         self.screen.clear()
         self.brand(8, 2)
@@ -179,6 +246,7 @@ class View:
         self.logos.draw()
 
     def message(self, title, body):
+        self._state = None
         self.screen.pen = self.bg
         self.screen.clear()
         self.brand(12, 2)

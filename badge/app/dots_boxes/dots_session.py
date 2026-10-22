@@ -1,10 +1,9 @@
 """Pairing session stored next to the database. Tokens never go in SQLite."""
-import binascii
 import json
 import os
 
 MAX_BYTES = 16384
-FILES = ("session.json", "session.json.next")
+FILES = ("session.json", "session.json.next", "pending.json", "pending.json.next")
 
 
 def is_uuid(value):
@@ -15,16 +14,6 @@ def is_uuid(value):
         return False
     hexits = value.replace("-", "").lower()
     return len(hexits) == 32 and all(char in "0123456789abcdef" for char in hexits)
-
-
-def uuid4(entropy):
-    value = bytearray(entropy(16))
-    if len(value) != 16:
-        raise ValueError("UUID randomness unavailable")
-    value[6] = (value[6] & 15) | 64
-    value[8] = (value[8] & 63) | 128
-    text = binascii.hexlify(value).decode()
-    return text[:8] + "-" + text[8:12] + "-" + text[12:16] + "-" + text[16:20] + "-" + text[20:]
 
 
 def _token(value):
@@ -93,28 +82,87 @@ class SessionFile:
             raise ValueError("Session needs an absolute directory")
         self.root = root
         self.path = root + "/session.json"
+        self.pending_path = root + "/pending.json"
+        self.base = None
+        self.generation = 0
+        self.pending = None
 
-    def load(self, entropy):
-        info = _stat(self.path)
-        if info is None:
-            created = fresh_session(uuid4(entropy))
-            self.save(created)
-            return created
+    def _read(self, path, info):
         if not 0 < info[6] <= MAX_BYTES:
             raise ValueError("Invalid session size; retained")
-        with open(self.path) as source:
-            return validate_session(json.loads(source.read(MAX_BYTES + 1)))
+        with open(path) as source:
+            return json.loads(source.read(MAX_BYTES + 1))
+
+    def _remember(self, value):
+        self.base = dict(value, pending_move=None)
+        self.pending = None if value["pending_move"] is None else dict(value["pending_move"])
+
+    def load(self, new_uuid):
+        info = _stat(self.path)
+        if info is None:
+            if _stat(self.pending_path) is not None:
+                raise ValueError("Pending move has no session; retained")
+            created = fresh_session(new_uuid())
+            self.save(created)
+            return created
+        saved = self._read(self.path, info)
+        if isinstance(saved, dict) and "format" in saved:
+            if (set(saved) != {"format", "generation", "session"} or saved["format"] != 2
+                    or type(saved["generation"]) is not int or not 0 < saved["generation"] < 9223372036854775807):
+                raise ValueError("Unsupported session envelope; retained")
+            self.generation = saved["generation"]
+            value = validate_session(saved["session"])
+        else:
+            # Existing canonical session files are generation zero. Their next
+            # pending move can use the overlay without rewriting saved tokens.
+            self.generation = 0
+            value = validate_session(saved)
+        pending_info = _stat(self.pending_path)
+        if pending_info is not None:
+            overlay = self._read(self.pending_path, pending_info)
+            if (not isinstance(overlay, dict) or set(overlay) != {"version", "generation", "pending_move"}
+                    or overlay["version"] != 1 or type(overlay["generation"]) is not int
+                    or not 0 <= overlay["generation"] < 9223372036854775807):
+                raise ValueError("Unsupported pending move envelope; retained")
+            if overlay["generation"] > self.generation:
+                raise ValueError("Pending move has a newer session; retained")
+            if overlay["generation"] == self.generation:
+                value = validate_session(dict(value, pending_move=overlay["pending_move"]))
+        self._remember(value)
+        return value
 
     def save(self, value):
         validate_session(value)
-        encoded = json.dumps(value)
+        if self.base is None and _stat(self.path) is not None:
+            self.load(None)
+        base = dict(value, pending_move=None)
+        if self.base == base:
+            if self.pending == value["pending_move"]:
+                return
+            # Credentials and account/room binding stay in the base generation.
+            # Each move transition durably replaces only this small overlay.
+            self._replace(self.pending_path, {"version": 1, "generation": self.generation,
+                                             "pending_move": value["pending_move"]})
+        else:
+            if self.generation >= 9223372036854775806:
+                raise ValueError("Session generation exhausted; retained")
+            generation = self.generation + 1
+            self._replace(self.path, {"format": 2, "generation": generation, "session": value})
+            # Advancing the base generation atomically invalidates every older
+            # overlay, including a reset immediately after this rename. No
+            # cross-file deletion needs to be made durable before returning.
+            self.generation = generation
+        self._remember(value)
+
+    def _replace(self, path, value):
+        encoded = json.dumps(value, separators=(",", ":"))
         if len(encoded.encode()) > MAX_BYTES:
             raise ValueError("Session is too large")
-        pending = self.path + ".next"
+        pending = path + ".next"
         with open(pending, "w") as target:
             if target.write(encoded) != len(encoded):
                 raise OSError("Incomplete session write")
             target.flush()
         os.sync()
-        os.rename(pending, self.path)
+        os.rename(pending, path)
         os.sync()

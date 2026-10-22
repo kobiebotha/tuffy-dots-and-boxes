@@ -151,6 +151,14 @@ class ShadowVFSTests(unittest.TestCase):
         self.path.write_bytes(b"replacement")
         handle = self.db()
         self.assertEqual(self.vfs(2, handle, 0, 20), (0, b"replacement"))
+
+    def test_database_read_returns_bounded_buffer_without_copying_page_bytes(self):
+        handle = self.db()
+        code, data = self.vfs(2, handle, 2, 4)
+        self.assertEqual(code, 0)
+        self.assertIsInstance(data, memoryview)
+        self.assertEqual(bytes(data), b"igin")
+        self.assertIs(data.obj, self.vfs.db_buffer)
         self.assertFalse(self.vfs.db_dirty)
 
     def test_readwrite_open_flushes_only_metadata_before_snapshot_space_check(self):

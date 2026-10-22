@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
 from controls import Controller
@@ -13,6 +14,7 @@ class Screen:
     def __init__(self):
         self.pen = None
         self.calls = []
+        self.measurements = []
 
     def clear(self):
         self.calls.append(("clear", self.pen))
@@ -27,6 +29,7 @@ class Screen:
         self.calls.append(("text", value, x, y, scale, self.pen))
 
     def measure_text(self, value, scale):
+        self.measurements.append((value, scale))
         return len(value) * 6 * scale, 8 * scale
 
 
@@ -155,6 +158,189 @@ class ViewTests(unittest.TestCase):
                 box_labels = [call[1] for call in self.screen.calls
                               if call[0] == "text" and self.view.TOP <= call[3] < 192]
                 self.assertEqual(box_labels, ["1", "2"])
+
+    def test_idle_frames_skip_all_drawing_and_text_measurement(self):
+        self.assertTrue(self.view.draw_if_changed(self.controller, local_seat=1))
+        self.screen.calls = []
+        measurements = len(self.screen.measurements)
+        for remaining in range(1700, 1000, -10):
+            self.controller.message_ms = remaining
+            self.assertFalse(self.view.draw_if_changed(self.controller, local_seat=1))
+        self.assertEqual(self.screen.calls, [])
+        self.assertEqual(len(self.screen.measurements), measurements)
+
+    def test_visible_state_and_in_place_board_changes_redraw(self):
+        mutations = (
+            lambda c: setattr(c, "col", c.col + 1),
+            lambda c: setattr(c, "row", c.row + 1),
+            lambda c: setattr(c, "selecting", True),
+            lambda c: setattr(c, "pending_edge", ("h", 0, 0)),
+            lambda c: setattr(c, "pending_player", 2),
+            lambda c: setattr(c, "status_line", "SENDING MOVE"),
+            lambda c: setattr(c, "can_claim", False),
+            lambda c: setattr(c, "message", "A different message"),
+            lambda c: setattr(c, "message_ms", 0),
+            lambda c: setattr(c.game, "current_player", 2),
+            lambda c: c.game.scores.__setitem__(0, 1),
+            lambda c: c.game.horizontal.__setitem__(0, 1),
+            lambda c: c.game.vertical.__setitem__(0, 2),
+            lambda c: c.game.boxes.__setitem__(0, 1),
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                self.setUp()
+                self.controller.pending_edge = ("h", 1, 0)
+                self.view.draw_if_changed(self.controller)
+                self.screen.calls = []
+                mutation(self.controller)
+                self.assertTrue(self.view.draw_if_changed(self.controller))
+                self.assertTrue(self.screen.calls)
+                self.assertFalse(self.view.draw_if_changed(self.controller))
+
+    def test_confirmation_replaces_pending_edge_and_reset_same_count_redraws(self):
+        self.controller.pending_edge = ("h", 0, 0)
+        self.controller.pending_player = 1
+        self.view.draw_if_changed(self.controller)
+        self.controller.game.claim("h", 0, 0)
+        self.controller.pending_edge = None
+        self.controller.pending_player = 0
+        self.screen.calls = []
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+        self.assertEqual(len(self.board_edges()), 49)
+        self.assertIn(("rect", 75, 44, 34, 4, self.view.players[1]), self.board_edges())
+        self.controller.game.reset()
+        self.controller.game.claim("v", 0, 0)
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+
+    def test_only_flash_phase_and_expiration_require_redraw(self):
+        self.controller.game.boxes[0] = 1
+        self.controller.flash_boxes = ((0, 0),)
+        self.controller.flash_ms = 899
+        self.view.draw_if_changed(self.controller)
+        self.controller.flash_ms = 850
+        self.assertFalse(self.view.draw_if_changed(self.controller))
+        self.controller.flash_ms = 749
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+        self.controller.flash_ms = 0
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+
+    def test_pairing_messages_and_returning_to_game_invalidate_the_scene(self):
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+        self.assertTrue(self.view.pairing_if_changed("AB", "ENTER CODE"))
+        self.assertFalse(self.view.pairing_if_changed("AB", "ENTER CODE"))
+        self.assertTrue(self.view.pairing_if_changed("ABC", "ENTER CODE"))
+        self.assertTrue(self.view.message_if_changed("Error", "Press Home"))
+        self.assertFalse(self.view.message_if_changed("Error", "Press Home"))
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+        self.view.message("Forced", "New screen")
+        self.assertTrue(self.view.draw_if_changed(self.controller))
+
+    def test_text_cache_is_bounded_and_reused_for_cursor_frames(self):
+        self.view.draw(self.controller)
+        measurements = len(self.screen.measurements)
+        self.controller.col += 1
+        self.view.draw(self.controller)
+        self.assertEqual(len(self.screen.measurements), measurements)
+        for index in range(100):
+            self.view.measure("Changing error %d" % index)
+        self.assertLessEqual(len(self.view._measurements), 64)
+        measurements = len(self.screen.measurements)
+        self.view.measure("Changing error 99")
+        self.assertEqual(len(self.screen.measurements), measurements)
+
+
+class RetainedLoopTests(unittest.TestCase):
+    def run_app(self, outcome="normal"):
+        screen = Screen()
+        events = []
+        original_clear = object()
+        badge = SimpleNamespace(default_clear=original_clear, mode=lambda _: None,
+                                held=lambda _: False)
+        home = SimpleNamespace(irq=lambda **_: None, value=lambda: True)
+        machine = SimpleNamespace(
+            Pin=SimpleNamespace(board=SimpleNamespace(BUTTON_HOME=home), IRQ_FALLING=1),
+            WDT=lambda **_: SimpleNamespace(feed=lambda: None))
+
+        class Store:
+            root = "/state/test"
+
+            def __init__(self, **_):
+                pass
+
+            def open(self):
+                pass
+
+            def close(self):
+                events.append(("store_close", badge.default_clear))
+
+        class Client:
+            def __init__(self, *_args, **_kwargs):
+                self.failure = "Open failed" if outcome == "failure" else None
+                self.mode = "play"
+                self.controller = Controller()
+                self.records = SimpleNamespace(record={"seat": 1})
+
+            def step(self, *_args):
+                pass
+
+            def close(self):
+                events.append(("client_close", badge.default_clear))
+
+        namespace = {"badge": badge, "HIRES": 1, "VSYNC": 2, "screen": screen,
+                     "color": Color(), "font": SimpleNamespace(sins="font")}
+        namespace.update({name: index for index, name in enumerate(
+            ("BUTTON_A", "BUTTON_B", "BUTTON_C", "BUTTON_UP", "BUTTON_DOWN"))})
+
+        def run(update):
+            self.assertIsNone(badge.default_clear)
+            if outcome == "home":
+                namespace["request_exit"]()
+                self.assertIs(update(), True)
+                return
+            self.assertIsNone(update())
+            count = len(screen.calls)
+            # Model Badgeware's optional clear: default_clear=None retains pixels.
+            if badge.default_clear is not None:
+                screen.clear()
+            self.assertIsNone(update())
+            self.assertEqual(len(screen.calls), count)
+            if outcome == "raise":
+                raise RuntimeError("loop failed")
+
+        namespace["run"] = run
+        modules = {
+            "badgeware": SimpleNamespace(display=SimpleNamespace(update=lambda: None),
+                                         reset=lambda: events.append(("reset", badge.default_clear))),
+            "machine": machine,
+            "time": SimpleNamespace(ticks_ms=lambda: 1, ticks_diff=lambda a, b: a - b,
+                                    sleep_ms=lambda _: None),
+            "dots_client": SimpleNamespace(Client=Client),
+            "dots_storage": SimpleNamespace(Store=Store),
+            "dots_session": SimpleNamespace(SessionFile=lambda _: None),
+        }
+        app = Path(__file__).resolve().parents[1] / "app/dots_boxes/__init__.py"
+        with patch.dict(sys.modules, modules):
+            if outcome == "raise":
+                with self.assertRaisesRegex(RuntimeError, "loop failed"):
+                    exec(compile(app.read_text(), str(app), "exec"), namespace)
+            else:
+                exec(compile(app.read_text(), str(app), "exec"), namespace)
+        self.assertIs(badge.default_clear, original_clear)
+        self.assertEqual(events[:2], [("client_close", original_clear),
+                                      ("store_close", original_clear)])
+        return screen, events
+
+    def test_managed_loop_retains_idle_game_and_failure_frames(self):
+        self.run_app()
+        self.run_app("failure")
+
+    def test_clear_setting_and_cleanup_survive_loop_exception(self):
+        self.run_app("raise")
+
+    def test_home_restores_setting_and_forces_the_final_message(self):
+        screen, events = self.run_app("home")
+        self.assertEqual(events[-1][0], "reset")
+        self.assertIn("Returning home", [call[1] for call in screen.calls if call[0] == "text"])
 
 
 if __name__ == "__main__":

@@ -1,123 +1,123 @@
 {
   "schemaVersion": 1,
   "release": {
-    "version": "0.1.0-dace56d074d2",
+    "version": "0.1.0-58c05be22530",
     "appId": "dots_boxes",
     "name": "Dots & Boxes",
     "board": "tufty2350",
     "runtimeMpy": 7942,
     "description": "Dots & Boxes for Tufty 2350 running Badgeware.",
-    "zipUrl": "/badge-app/0.1.0-dace56d074d2/app.zip",
-    "zipSha256": "43d3c01a5df1f81b505eb23d8769ec182cb73daa8b4e6077050868d560bb6daf",
-    "zipBytes": 560796,
+    "zipUrl": "/badge-app/0.1.0-58c05be22530/app.zip",
+    "zipSha256": "ceea9b44beefc77c5daf73d30abc18e92fd8975d5d9d2d858714731dad908bc0",
+    "zipBytes": 564829,
     "files": [
       {
         "path": "__init__.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/__init__.py",
-        "bytes": 2913,
-        "sha256": "6c5f6607ee1b8449cad47251addbb6b4f49c428f4c54999ddf49880da7853625"
+        "url": "/badge-app/0.1.0-58c05be22530/files/__init__.py",
+        "bytes": 3281,
+        "sha256": "77eea22fc428e6b1c4398ef36528919d1c03ae10d3663cbfda14bd17fc645c78"
       },
       {
         "path": "badgegotchi_native.mpy",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/badgegotchi_native.mpy",
+        "url": "/badge-app/0.1.0-58c05be22530/files/badgegotchi_native.mpy",
         "bytes": 737049,
         "sha256": "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8"
       },
       {
         "path": "ca/sectigo-r46.der",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/ca/sectigo-r46.der",
+        "url": "/badge-app/0.1.0-58c05be22530/files/ca/sectigo-r46.der",
         "bytes": 1422,
         "sha256": "7bb647a62aeeac88bf257aa522d01ffea395e0ab45c73f93f65654ec38f25a06"
       },
       {
         "path": "controls.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/controls.py",
-        "bytes": 5910,
-        "sha256": "7c8d5119565f560d535e8f1716e9d4e793a4bedae35261b47323beba1c504d4c"
+        "url": "/badge-app/0.1.0-58c05be22530/files/controls.py",
+        "bytes": 6068,
+        "sha256": "88eba637c396ed77bad34919c31eddc06e6385aa3b362499bcea517d49a422b8"
       },
       {
         "path": "dots_client.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_client.py",
-        "bytes": 12858,
-        "sha256": "9e520d0a8d72b7e52a586bbcfa10845f83d820278ee551f8e26deaea60b76809"
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_client.py",
+        "bytes": 13836,
+        "sha256": "1c55fce14044212e3557f7b502c24da18eb44a1a9b19ecb4b1b366e47333db43"
       },
       {
         "path": "dots_codec.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_codec.py",
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_codec.py",
         "bytes": 1869,
         "sha256": "80b6a099d3832a42393c1714375a2749bad1c8b6ebca9fb03e578fa092442e89"
       },
       {
         "path": "dots_config.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_config.py",
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_config.py",
         "bytes": 614,
         "sha256": "610700813ab0afad4c8c0d4fea3c6fab7c03217526b0d1aba9be2ae2ea3f3890"
       },
       {
         "path": "dots_http.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_http.py",
-        "bytes": 13116,
-        "sha256": "46df257690a8fc458f887af28ca4c210a74e82606a40856b756bf7cd4838196d"
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_http.py",
+        "bytes": 13685,
+        "sha256": "3ea3aa65c0953770c9116e23209fb39b664da7b7a68b4e208c1d1273f3c79f6b"
       },
       {
         "path": "dots_pairing.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_pairing.py",
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_pairing.py",
         "bytes": 1086,
         "sha256": "32d448fcb07f94890dc3d303fa1bda35e1acf08dd359a71da95fd19fab954331"
       },
       {
         "path": "dots_runtime.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_runtime.py",
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_runtime.py",
         "bytes": 2126,
         "sha256": "ea84de9eff001d4d84a37d79a639773af5e4b5d4576b049b87c123594d6573e8"
       },
       {
         "path": "dots_session.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_session.py",
-        "bytes": 4504,
-        "sha256": "9ad86ce5c2fab6dff56ab39a58ccd21292e408a8ca5993a99e7c837e860f990c"
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_session.py",
+        "bytes": 7408,
+        "sha256": "924d935b4e980c33c1c97724b3f951927b78ebefb222d23d038c26ecede4b12b"
       },
       {
         "path": "dots_storage.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_storage.py",
-        "bytes": 31030,
-        "sha256": "2af8f4a59663cbd8e9df85302db921be3b937af2bf07658e572607638cb04007"
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_storage.py",
+        "bytes": 34704,
+        "sha256": "253bab724d6e56f1e57b5e2441b17cdd354c772ec30f9fd487a674d614e763ba"
       },
       {
         "path": "dots_stream.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_stream.py",
-        "bytes": 9510,
-        "sha256": "271d82a0b005059152196254ba835e4b87ace35066ff584e6800cc599a1ee4b1"
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_stream.py",
+        "bytes": 12155,
+        "sha256": "a33073941e5d7c6deb37466d033daaaed6572bf061b308805268d5ef8baeffd3"
       },
       {
         "path": "dots_sync.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/dots_sync.py",
-        "bytes": 20109,
-        "sha256": "3403193838b80d942911e7187ff91fc9815ebf79773159da3645b75eeebcd4e2"
+        "url": "/badge-app/0.1.0-58c05be22530/files/dots_sync.py",
+        "bytes": 20770,
+        "sha256": "fd3e9be7f5d8e7cf67680a893ac54c67a1c47600262fffc702bc07226101b013"
       },
       {
         "path": "game.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/game.py",
+        "url": "/badge-app/0.1.0-58c05be22530/files/game.py",
         "bytes": 3927,
         "sha256": "760661f95be01aaf9fafa02da1013dcae4433b7cbd17306606a26ffe9a6a9bc0"
       },
       {
         "path": "icon.png",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/icon.png",
+        "url": "/badge-app/0.1.0-58c05be22530/files/icon.png",
         "bytes": 149,
         "sha256": "ca9f4c67cc3c0d2e921979ad7b916585bdf927e50c89cd8940f8cd02656cf17b"
       },
       {
         "path": "logos.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/logos.py",
-        "bytes": 2452,
-        "sha256": "941c32e8d30624eef992423e40ed5452dd7542091881f555490a63192ed6ccee"
+        "url": "/badge-app/0.1.0-58c05be22530/files/logos.py",
+        "bytes": 2625,
+        "sha256": "f9ffbe34a9a5c154a8420136ede3ec026cb225e6c3be2c2b97301adcbae764e7"
       },
       {
         "path": "view.py",
-        "url": "/badge-app/0.1.0-dace56d074d2/files/view.py",
-        "bytes": 8841,
-        "sha256": "13c12056aaa6d653905ac724d8ff9af9dae8350e6730d7cc384e4ff1fb4721f7"
+        "url": "/badge-app/0.1.0-58c05be22530/files/view.py",
+        "bytes": 11621,
+        "sha256": "476f49cfa1ad5dde9cdf23bcaf28098fb105f36cbc321a7d72eb51fbaebfd95d"
       }
     ]
   }

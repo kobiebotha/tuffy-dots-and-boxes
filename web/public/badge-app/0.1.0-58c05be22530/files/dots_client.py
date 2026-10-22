@@ -1,11 +1,10 @@
 """Pair with a web room and show saved local edges while they sync."""
-import os
 import time
 
 from controls import Controller
 from dots_http import PENDING, Gateway
 from dots_pairing import CodeEntry
-from dots_session import fresh_session, uuid4, validate_session
+from dots_session import fresh_session, validate_session
 from dots_sync import Sync
 from game import Game
 
@@ -38,15 +37,14 @@ class Records:
 class Client:
     LEAVE_HOLD_MS = 2000
 
-    def __init__(self, store, session_file, heartbeat=None, entropy=None):
+    def __init__(self, store, session_file, heartbeat=None):
         from dots_config import (
             AUTH_URL, CA_FILES, MOVE_URL, PAIR_URL, POWERSYNC_URL, SUPABASE_ANON_KEY,
         )
         self.store = store
         self.heartbeat = heartbeat
-        self.entropy = entropy or os.urandom
         self.pair_url = PAIR_URL
-        self.records = Records(session_file, session_file.load(self.entropy))
+        self.records = Records(session_file, session_file.load(store.new_uuid))
         self.entry = CodeEntry()
         self.controller = Controller(Game())
         self.controller.on_claim = self._queue_move
@@ -87,7 +85,7 @@ class Client:
             return False
         orientation, row, col = preview
         self.records.save(dict(record, pending_move={
-            "id": uuid4(self.entropy),
+            "id": self.store.new_uuid(),
             "orientation": orientation,
             "row": row,
             "col": col,
@@ -124,7 +122,7 @@ class Client:
             game = self.controller.game
             self._move_count = None
         if room["move_count"] != self._move_count:
-            replay(game, self.store.moves(record["room_id"]))
+            self._update_moves(record["room_id"], room["move_count"])
             self._move_count = room["move_count"]
         game.scores[0] = room["score_p1"] or 0
         game.scores[1] = room["score_p2"] or 0
@@ -156,6 +154,27 @@ class Client:
             line = ""
         self.controller.status_line = line
         return room
+
+    def _update_moves(self, room_id, count):
+        """Append immutable published moves; rebuild after reset or reconciliation.
+
+        A checkpoint can contain several moves. Require an unbroken suffix before
+        using it, and retain the full replay path for a regressed or rebuilt cache.
+        Pending edges are display overlays and never enter this canonical board.
+        """
+        game = self.controller.game
+        previous = self._move_count
+        if previous is not None and previous == game.moves and previous < count:
+            moves = self.store.moves(room_id, after=previous)
+            if (len(moves) == count - previous
+                    and all(move["move_index"] == previous + index + 1
+                            for index, move in enumerate(moves))):
+                for move in moves:
+                    if game.claim(move["orientation"], move["row"], move["col"]) is None:
+                        break
+                else:
+                    return
+        replay(game, self.store.moves(room_id))
 
     def _leave_room(self):
         """Detach this badge only after its durable move has been resolved."""

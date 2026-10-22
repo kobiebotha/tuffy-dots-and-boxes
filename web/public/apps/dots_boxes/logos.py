@@ -53,20 +53,25 @@ _SUPABASE = (
 
 
 class Logos:
-    """Cache pens once, then draw the marks in the screen's bottom corners."""
+    """Cache pens and opaque runs once for repeated full-frame drawing."""
 
     def __init__(self, screen, color):
         self.screen = screen
         self.pens = (None,) + tuple(color.rgb(*rgb) for rgb in _PALETTE)
+        spans = []
+        self._compile(spans, _POWERSYNC, 6, 202, 2)
+        self._compile(spans, _SUPABASE, 274, 198, 4)
+        self.spans = tuple(spans)
 
     def draw(self):
-        # PowerSync: 26 x 18 at (6, 220); Supabase: 20 x 20 at (294, 218).
+        # PowerSync: 52 x 36 at (6, 202); Supabase: 40 x 40 at (274, 198).
         # Both end at y=238 and leave the centered room-exit hint unobstructed.
-        self._draw(_POWERSYNC, 6, 220, 1)
-        self._draw(_SUPABASE, 294, 218, 2)
-
-    def _draw(self, rows, x, y, size):
         screen = self.screen
+        for x, y, width, height, pen in self.spans:
+            screen.pen = pen
+            screen.rectangle(x, y, width, height)
+
+    def _compile(self, spans, rows, x, y, size):
         for row_index, row in enumerate(rows):
             col = 0
             while col < len(row):
@@ -76,6 +81,5 @@ class Logos:
                 while col < len(row) and row[col] == index:
                     col += 1
                 if index != 48:
-                    screen.pen = self.pens[index - 48]
-                    screen.rectangle(x + start * size, y + row_index * size,
-                                     (col - start) * size, size)
+                    spans.append((x + start * size, y + row_index * size,
+                                  (col - start) * size, size, self.pens[index - 48]))

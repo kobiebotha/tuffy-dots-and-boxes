@@ -37,8 +37,8 @@ APP_SCHEMA = (
 SCHEMA = APP_SCHEMA
 RAW_TABLE_SQL = (
     "CREATE TABLE rooms (id TEXT PRIMARY KEY NOT NULL, "
-    "s INTEGER,p INTEGER,a INTEGER,b INTEGER,w INTEGER,n INTEGER)",
-    "CREATE TABLE moves (id TEXT PRIMARY KEY NOT NULL, r TEXT,e INTEGER,n INTEGER)",
+    "s INTEGER,p INTEGER,a INTEGER,b INTEGER,w INTEGER,n INTEGER) WITHOUT ROWID",
+    "CREATE TABLE moves (id TEXT PRIMARY KEY NOT NULL, r TEXT,e INTEGER,n INTEGER) WITHOUT ROWID",
 )
 SYNCED_TYPES = ("rooms", "moves")
 ALLOWED_NAMES = ("owner.txt", DATABASE, DATABASE + "-journal") + SESSION_FILES
@@ -84,6 +84,7 @@ class BadgeVFS:
         self.heartbeat = heartbeat
         self.last_error = None
         self.db_buffer = bytearray(MAX_DATABASE_BYTES)
+        self.db_view = memoryview(self.db_buffer)
         self.db_size = 0
         self.db_dirty = False
         self.db_handle = None
@@ -103,7 +104,7 @@ class BadgeVFS:
         size = os.stat(path)[6]
         if size > MAX_DATABASE_BYTES:
             raise ValueError("Database exceeds storage limit")
-        if size and stream.readinto(memoryview(self.db_buffer)[:size]) != size:
+        if size and stream.readinto(self.db_view[:size]) != size:
             raise OSError("Could not read the complete database")
         if not flags & 1:
             # LittleFS marks read-write opens dirty for their mtime attribute.
@@ -116,7 +117,7 @@ class BadgeVFS:
     def _sync_db(self, stream):
         if self.db_dirty:
             stream.seek(0)
-            if stream.write(memoryview(self.db_buffer)[:self.db_size]) != self.db_size:
+            if stream.write(self.db_view[:self.db_size]) != self.db_size:
                 raise OSError("Incomplete database write; journal retained")
         # LittleFS flush is file_sync, including its data and directory commit.
         # Retain the qualified barrier and keep dirty data until both succeed.
@@ -192,7 +193,9 @@ class BadgeVFS:
                     if arg1 < 0 or arg2 < 0 or arg2 > MAX_DATABASE_BYTES:
                         return (10, 0)
                     end = min(self.db_size, arg1 + arg2)
-                    return (0, bytes(memoryview(self.db_buffer)[arg1:end]))
+                    # The pinned native bridge consumes any readable buffer and
+                    # copies it into SQLite before another callback can run.
+                    return (0, self.db_view[arg1:end])
                 stream.seek(arg1)
                 return (0, stream.read(arg2))
             if op == 3:
@@ -278,6 +281,8 @@ class Store:
         self.sync_schema = {
             "tables": [], "raw_tables": json.loads(self.schema).get("raw_tables", []),
         }
+        self.room_key = None
+        self.room_identity = None
 
     def _feed(self):
         if self.heartbeat:
@@ -294,6 +299,9 @@ class Store:
         if len(rows) != 1 or len(rows[0]) != 1:
             raise ValueError("Unexpected database result")
         return rows[0][0]
+
+    def new_uuid(self):
+        return self._scalar("SELECT uuid()")
 
     def _owned_directory(self):
         marker = self.root + "/owner.txt"
@@ -339,7 +347,7 @@ class Store:
             if self._scalar("SELECT powersync_rs_version()") != "0.5.4/cratesio":
                 raise ValueError("Unsupported PowerSync core")
             schema_version = self._scalar("PRAGMA user_version") if before else None
-            if before and schema_version not in ("1", "2", "3", "4"):
+            if before and schema_version not in ("1", "2", "3", "4", "5"):
                 raise ValueError("Unsupported database schema; retained unchanged")
             if before and self._scalar("PRAGMA quick_check") != "ok":
                 raise ValueError("Database integrity check failed; retained unchanged")
@@ -354,12 +362,18 @@ class Store:
             self._exec("PRAGMA synchronous=FULL")
             if self._scalar("PRAGMA journal_mode=DELETE") != "delete":
                 raise ValueError("DELETE journaling is required")
-            migrating = not before or schema_version in ("1", "2", "3")
+            reset_cache = not before or schema_version in ("1", "2", "3")
+            relayout = before and schema_version == "4"
+            migrating = reset_cache or relayout
             if migrating:
                 self._check_reserve()
+            if relayout:
+                # Rollback may not shrink this VFS. Relayout must reuse pages
+                # in the existing file, rather than extending its high-water.
+                self._exec("PRAGMA max_page_count=%s" % self._scalar("PRAGMA page_count"))
             self._exec("BEGIN IMMEDIATE")
             try:
-                if migrating and before:
+                if reset_cache and before:
                     # Re-download only synchronized cache. The local account,
                     # client id and separate durable pairing/move file survive.
                     # SQLite reuses the old file's pages; this VFS cannot shrink it.
@@ -370,13 +384,32 @@ class Store:
                 self._exec("SELECT powersync_replace_schema(%s)" % _quote(self.schema))
                 if migrating:
                     if self.schema == APP_SCHEMA:
-                        for statement in RAW_TABLE_SQL:
-                            self._exec(statement)
-                    self._exec("PRAGMA user_version=4")
+                        if relayout:
+                            # Retain the complete published cache and native
+                            # checkpoints. Transactional DDL replaces only the
+                            # two raw B-trees; no re-download or identity change.
+                            for table, columns, statement in zip(
+                                    ("rooms", "moves"), ("id,s,p,a,b,w,n", "id,r,e,n"), RAW_TABLE_SQL):
+                                # TEMP lives in native memory. Dropping the old
+                                # B-tree first frees its table and PK-index pages
+                                # before the smaller replacement needs any pages.
+                                self._exec("CREATE TEMP TABLE dots_saved_%s AS SELECT %s FROM %s" %
+                                           (table, columns, table))
+                                self._exec("DROP TABLE " + table)
+                                self._exec(statement)
+                                self._exec("INSERT INTO %s(%s) SELECT %s FROM temp.dots_saved_%s" %
+                                           (table, columns, columns, table))
+                                self._exec("DROP TABLE temp.dots_saved_" + table)
+                        else:
+                            for statement in RAW_TABLE_SQL:
+                                self._exec(statement)
+                    self._exec("PRAGMA user_version=5")
                 self._exec("COMMIT")
             except Exception:
                 self._rollback()
                 raise
+            if relayout:
+                self._exec("PRAGMA max_page_count=%d" % (MAX_DATABASE_BYTES // PAGE_BYTES))
             if self._scalar("SELECT count(*) FROM ps_crud") != "0":
                 raise ValueError("Unexpected SQL outbox; retained unchanged")
             # Register and migrate with the smaller cache first; schema4 then
@@ -446,11 +479,15 @@ class Store:
             raise
         return True
 
+    def _room_key(self, room_id):
+        if self.room_key is None or room_id != self.room_identity:
+            self.room_key = encode_uuid(room_id)
+            self.room_identity = room_id
+        return self.room_key
+
     def room(self, room_id):
-        if not is_uuid(room_id):
-            raise ValueError("Invalid room")
         rows = self._exec(
-            "SELECT s,p,a,b,w,n FROM rooms WHERE id=%s" % _quote(encode_uuid(room_id))
+            "SELECT s,p,a,b,w,n FROM rooms WHERE id=%s" % _quote(self._room_key(room_id))
         )
         if not rows:
             return None
@@ -466,15 +503,22 @@ class Store:
             "move_count": _number(row[5]),
         }
 
-    def moves(self, room_id):
-        if not is_uuid(room_id):
-            raise ValueError("Invalid room")
+    def moves(self, room_id, after=0):
+        if type(after) is not int or not 0 <= after <= MAX_MOVES:
+            raise ValueError("Invalid move cursor")
+        room_key = _quote(self._room_key(room_id))
         rows = []
+        cursor = after
         while True:
             page = self._exec(
-                "SELECT e,n FROM moves WHERE r=%s "
-                "ORDER BY n LIMIT %d OFFSET %d" % (_quote(encode_uuid(room_id)), QUERY_ROWS, len(rows))
+                "SELECT e,n FROM moves WHERE r=%s AND n>%d "
+                "ORDER BY n LIMIT %d" % (room_key, cursor, QUERY_ROWS)
             )
+            for row in page:
+                index = _number(row[1])
+                if index is None or not cursor < index <= MAX_MOVES:
+                    raise ValueError("Invalid published move order")
+                cursor = index
             rows.extend(page)
             if len(rows) > MAX_MOVES:
                 raise ValueError("Too many moves for this board")
@@ -489,10 +533,10 @@ class Store:
 
     def has_move(self, move_id, room_id):
         """Read only the published immutable move, never the internal oplog."""
-        if not is_uuid(move_id) or not is_uuid(room_id):
+        if not is_uuid(move_id):
             raise ValueError("Invalid move identity")
         return self._scalar("SELECT count(*) FROM moves WHERE id=%s AND r=%s" % (
-            _quote(encode_uuid(move_id)), _quote(encode_uuid(room_id)))) == "1"
+            _quote(encode_uuid(move_id)), _quote(self._room_key(room_id)))) == "1"
 
     def control(self, command, payload=None):
         allowed = (
@@ -593,7 +637,9 @@ class Store:
         return str(results[-1])
 
     def _sync_line(self, payload):
-        line = json.loads(payload)
+        return self._validate_sync_line(json.loads(payload))
+
+    def _validate_sync_line(self, line):
         if not isinstance(line, dict):
             raise ValueError("Invalid sync line")
         checkpoint = line.get("checkpoint")
@@ -625,8 +671,12 @@ class Store:
         self._check_reserve()
 
     def _used_pages(self):
-        return (int(self._scalar("PRAGMA page_count"))
-                - int(self._scalar("PRAGMA freelist_count")))
+        # The qualified wrapper accepts multiple statements. Keep both guards,
+        # but cross the Python/native boundary only once for this snapshot.
+        rows = self._exec("PRAGMA page_count; PRAGMA freelist_count")
+        if len(rows) != 2 or len(rows[0]) != 1 or len(rows[1]) != 1:
+            raise ValueError("Unexpected database page counts")
+        return int(rows[0][0]) - int(rows[1][0])
 
     def _apply_control(self, command, payload):
         if command == "start":
@@ -664,41 +714,52 @@ class Store:
             instructions.extend(result["instructions"])
         return instructions
 
-    def control_lines(self, payloads):
+    def control_lines(self, payloads, parsed=None):
         """Commit ordered metadata and data records in one bounded transaction.
 
         Each operation's JSON and checksum reach the native core unchanged.
         Checkpoint completion stays attached to its own instruction result, so
         the caller distinguishes partial progress from a full checkpoint. No
         instructions escape until every record and the FULL commit succeed.
+
+        The stream framer may supply its decoded records in ``parsed``. This is
+        an internal caller contract: each entry is decoded from the corresponding
+        unchanged payload. All shape, table, byte and operation guards still run.
         """
         if not isinstance(payloads, list) or not 1 <= len(payloads) <= MAX_SYNC_BATCH_RECORDS:
             raise ValueError("Sync batch exceeds record limit")
+        if parsed is not None and (not isinstance(parsed, list) or len(parsed) != len(payloads)):
+            raise ValueError("Invalid decoded sync records")
         size = operations = 0
-        for payload in payloads:
+        completions = []
+        for index, payload in enumerate(payloads):
             if not isinstance(payload, str):
                 raise ValueError("Invalid sync batch record")
             size += len(payload.encode())
             if size > MAX_SYNC_LINE_BYTES:
                 raise ValueError("Sync batch exceeds byte limit")
-            line = self._sync_line(payload)
+            line = (self._sync_line(payload) if parsed is None
+                    else self._validate_sync_line(parsed[index]))
             if len(line) != 1:
                 raise ValueError("Invalid sync record envelope")
             operations += len(line.get("data", {}).get("data", []))
             if operations > MAX_SYNC_BATCH_RECORDS:
                 raise ValueError("Sync batch exceeds operation limit")
+            completions.append("checkpoint_complete" in line)
         self._check_sync_budget()
         results = []
         self._exec("BEGIN IMMEDIATE")
         try:
-            for payload in payloads:
-                if self._used_pages() > MAX_SYNC_PAGES:
+            for index, payload in enumerate(payloads):
+                # Admission checked this same snapshot before BEGIN. Later
+                # records still check growth made by the preceding record.
+                if index and self._used_pages() > MAX_SYNC_PAGES:
                     raise ValueError("Sync storage budget reached; retained data needs recovery")
                 result = self._apply_control("line_text", payload)
                 if not isinstance(result, list):
                     raise ValueError("Invalid core batch response")
                 results.append({"instructions": result,
-                                "full_checkpoint": "checkpoint_complete" in json.loads(payload)})
+                                "full_checkpoint": completions[index]})
             self._exec("COMMIT")
         except Exception:
             self._rollback()

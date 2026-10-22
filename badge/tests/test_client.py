@@ -7,6 +7,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
 from dots_client import Client
 from dots_session import fresh_session, validate_session
+from game import Game
 
 ROOM = "11111111-1111-4111-8111-111111111111"
 USER = "22222222-2222-4222-8222-222222222222"
@@ -19,7 +20,7 @@ class Session:
         self.record = dict(fresh_session(DEVICE), room_id=ROOM, user_id=USER, seat=1,
                            access_token="token", refresh_token="refresh", expires_at=10**12)
 
-    def load(self, _entropy):
+    def load(self, _new_uuid):
         return self.record
 
     def save(self, record):
@@ -29,8 +30,14 @@ class Session:
 class Store:
     def __init__(self):
         self.room_reads = self.move_reads = 0
+        self.history = []
+        self.read_after = []
+        self.rows_read = 0
         self.value = {"status": "playing", "cols": 5, "rows": 4, "current_seat": 1,
                       "score_p1": 0, "score_p2": 0, "winner": None, "move_count": 0}
+
+    def new_uuid(self):
+        return "55555555-5555-4555-8555-555555555555"
 
     def reconcile_session(self, record):
         validate_session(record)
@@ -40,9 +47,12 @@ class Store:
         self.room_reads += 1
         return self.value
 
-    def moves(self, _room):
+    def moves(self, _room, after=0):
         self.move_reads += 1
-        return []
+        self.read_after.append(after)
+        rows = [move for move in self.history if move["move_index"] > after]
+        self.rows_read += len(rows)
+        return rows
 
 
 class Sync:
@@ -73,7 +83,7 @@ class PairReply:
 class ClientTests(unittest.TestCase):
     def setUp(self):
         self.store = Store()
-        self.client = Client(self.store, Session(), entropy=lambda size: b"x" * size)
+        self.client = Client(self.store, Session())
         self.client.sync = Sync()
 
     def test_display_frames_read_only_once_until_a_committed_checkpoint(self):
@@ -83,6 +93,77 @@ class ClientTests(unittest.TestCase):
         self.client.sync.generation += 1
         self.client.step([], 16)
         self.assertEqual((self.store.room_reads, self.store.move_reads), (2, 1))
+
+    def publish(self, edges):
+        self.store.history = [dict(orientation=edge[0], row=edge[1], col=edge[2], move_index=index + 1)
+                              for index, edge in enumerate(edges)]
+        canonical = Game()
+        for edge in edges:
+            canonical.claim(*edge)
+        self.store.value.update(move_count=canonical.moves, score_p1=canonical.scores[0],
+                                score_p2=canonical.scores[1], current_seat=canonical.current_player)
+        self.client.sync.generation += 1
+        self.client.step([], 16)
+        self.assertEqual(self.client.controller.game.horizontal, canonical.horizontal)
+        self.assertEqual(self.client.controller.game.vertical, canonical.vertical)
+        self.assertEqual(self.client.controller.game.boxes, canonical.boxes)
+        self.assertEqual(self.client.controller.game.scores, canonical.scores)
+        return canonical
+
+    def test_live_board_appends_only_new_moves_and_keeps_board_buffers(self):
+        self.client.step([], 16)
+        game = self.client.controller.game
+        buffers = (game.horizontal, game.vertical, game.boxes)
+        edges = ([('h', row, col) for row in range(5) for col in range(5)]
+                 + [('v', row, col) for row in range(4) for col in range(6)])
+        for count in range(1, 50):
+            canonical = self.publish(edges[:count])
+            self.assertEqual(game.moves, count)
+            self.assertEqual(game.current_player, canonical.current_player)
+            self.assertIs(game.horizontal, buffers[0])
+            self.assertIs(game.vertical, buffers[1])
+            self.assertIs(game.boxes, buffers[2])
+        self.assertEqual(self.store.read_after, [0] + list(range(49)))
+        self.assertEqual(self.store.rows_read, 49)
+        self.assertEqual(game.scores, [10, 10])
+
+    def test_catch_up_appends_several_moves_in_one_checkpoint(self):
+        self.client.step([], 16)
+        self.publish([('h', 0, 0)])
+        self.publish([('h', 0, 0), ('h', 0, 1), ('h', 0, 2)])
+        self.assertEqual(self.store.read_after, [0, 0, 1])
+        self.assertEqual(self.client.controller.game.moves, 3)
+
+    def test_cache_regression_rebuilds_the_canonical_board(self):
+        self.publish([('h', 0, 0), ('v', 0, 0)])
+        previous = self.client.controller.game.horizontal
+        self.publish([('h', 0, 0)])
+        self.assertIsNot(self.client.controller.game.horizontal, previous)
+        self.assertEqual(self.store.read_after, [0, 0])
+
+    def test_noncontiguous_suffix_falls_back_to_full_replay(self):
+        self.publish([('h', 0, 0)])
+        original = self.store.moves
+        def missing_suffix(room, after=0):
+            rows = original(room, after)
+            return rows[1:] if after else rows
+        self.store.moves = missing_suffix
+        self.publish([('h', 0, 0), ('h', 0, 1), ('h', 0, 2)])
+        self.assertEqual(self.store.read_after, [0, 1, 0])
+        self.assertEqual(self.client.controller.game.moves, 3)
+
+    def test_partial_bad_suffix_rebuilds_after_an_occupied_edge(self):
+        self.publish([('h', 0, 0)])
+        original = self.store.moves
+        def occupied_suffix(room, after=0):
+            rows = original(room, after)
+            if after:
+                rows[-1] = dict(rows[-1], orientation='h', row=0, col=0)
+            return rows
+        self.store.moves = occupied_suffix
+        self.publish([('h', 0, 0), ('h', 0, 1), ('h', 0, 2)])
+        self.assertEqual(self.store.read_after, [0, 1, 0])
+        self.assertEqual(self.client.controller.game.moves, 3)
 
     def test_cached_turn_cannot_claim_before_first_or_covering_sync(self):
         self.client.sync.synced = False
@@ -143,7 +224,7 @@ class ClientTests(unittest.TestCase):
         session.save(dict(session.record, seat=2, pending_move={
             "id": DEVICE, "orientation": "h", "row": 0, "col": 0,
         }))
-        client = Client(self.store, session, entropy=lambda size: b"x" * size)
+        client = Client(self.store, session)
         client.sync = Sync()
         client.sync.synced = False
         client.sync.phase = "token"

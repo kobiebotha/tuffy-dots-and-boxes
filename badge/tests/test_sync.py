@@ -7,12 +7,12 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
-from dots_http import PENDING, Response
+from dots_http import PENDING, Response, HTTPS, READ_BYTES, STREAM_READ_BYTES
 from dots_codec import decode_edge, encode_edge, encode_uuid
 from dots_session import fresh_session, SessionFile
 from dots_storage import Store, MAX_SYNC_BATCH_RECORDS
-from dots_stream import StreamLines
-from dots_sync import Sync, MAX_BATCH_DELAY_MS
+from dots_stream import StreamLines, MAX_FRAGMENT, MAX_LINE, MAX_METADATA, MAX_DEPTH
+from dots_sync import Sync, MAX_BATCH_DELAY_MS, MAX_STREAM_READS, MAX_STREAM_RECORDS
 from game import Game
 from native_fixture import HostCore, LIBRARY
 
@@ -86,10 +86,12 @@ class FakeStore:
         self.batches.append(list(lines))
         return []
 
-    def control_lines(self, lines):
+    def control_lines(self, lines, parsed=None):
         self.batches.append(list(lines))
+        decoded = [json.loads(line) for line in lines] if parsed is None else parsed
         return [{"instructions": self.control("line_text", line),
-                 "full_checkpoint": "checkpoint_complete" in json.loads(line)} for line in lines]
+                 "full_checkpoint": "checkpoint_complete" in record}
+                for line, record in zip(lines, decoded)]
 
     def has_local_writes(self):
         return False
@@ -169,6 +171,59 @@ def checkpoint_records(bucket, operations):
 
 
 class SupervisorTests(unittest.TestCase):
+    def test_download_continues_across_two_available_fragments_without_frame_delay(self):
+        sync = make_sync()
+        start(sync)
+        data = wire({"token_expires_in": "x" * (MAX_FRAGMENT + 10)})
+        sync.stream.parts = [data[:MAX_FRAGMENT], data[MAX_FRAGMENT:]]
+        with patch.object(sync.stream, "step", wraps=sync.stream.step) as reads:
+            sync.step(1)
+        self.assertEqual(reads.call_count, 2)
+        self.assertEqual(len(sync.batch), 1)
+        self.assertEqual(sync.parsed_batch, [json.loads(data)])
+        self.assertEqual(sync.lines.offset, len(sync.lines.pending))
+
+    def test_download_has_fixed_transport_and_record_budgets_per_update(self):
+        sync = make_sync()
+        start(sync)
+        operations = [operation(index) for index in range(1, 50)]
+        data = b"".join(wire(record) for record in checkpoint_records("room", operations))
+        sync.stream.parts = [data[offset:offset + MAX_FRAGMENT] for offset in range(0, len(data), MAX_FRAGMENT)]
+        emitted = steps = 0
+        while not sync.synced and steps < 30:
+            with patch.object(sync.stream, "step", wraps=sync.stream.step) as reads:
+                sync.step(1)
+            self.assertLessEqual(reads.call_count, MAX_STREAM_READS)
+            current = sum(len(batch) for batch in sync.store.batches) + len(sync.batch)
+            self.assertLessEqual(current - emitted, MAX_STREAM_RECORDS)
+            emitted = current
+            steps += 1
+        self.assertTrue(sync.synced)
+        self.assertEqual(emitted, 51)
+        self.assertEqual(steps, 9)
+        self.assertTrue(all(len(batch) <= MAX_SYNC_BATCH_RECORDS for batch in sync.store.batches))
+
+    def test_download_budget_includes_the_batch_carried_from_an_earlier_update(self):
+        sync = make_sync()
+        start(sync)
+        first = [{"token_expires_in": value} for value in range(MAX_STREAM_RECORDS - 1)]
+        sync.stream.parts = [b"".join(wire(record) for record in first)]
+        sync.step(1)
+        self.assertEqual(len(sync.batch), MAX_STREAM_RECORDS - 1)
+        self.assertEqual(sync.store.batches, [])
+        following = [{"token_expires_in": value} for value in range(MAX_STREAM_RECORDS - 1)]
+        following.append({"checkpoint_complete": {}})
+        sync.stream.parts = [b"".join(wire(record) for record in following)]
+        sync.step(1)
+        self.assertEqual([len(batch) for batch in sync.store.batches], [MAX_STREAM_RECORDS])
+        self.assertFalse(sync.synced)
+        self.assertEqual(sync.batch, [])
+        sync.step(1)
+        self.assertEqual([len(batch) for batch in sync.store.batches], [MAX_STREAM_RECORDS, MAX_STREAM_RECORDS - 1])
+        self.assertTrue(sync.synced)
+        actual = [json.loads(line) for batch in sync.store.batches for line in batch]
+        self.assertEqual(actual, first + following)
+
     def test_accepted_move_reconnects_without_uploading_again_in_same_process(self):
         sync = make_sync(replies=[{"accepted": True}])
         start(sync)
@@ -474,20 +529,20 @@ class RealCoreTests(unittest.TestCase):
         move = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
         session = SessionFile(self.store.root)
         session.save(dict(Records().record, pending_move=move))
-        sync = make_sync(self.store, records=SavedRecords(session, session.load(lambda size: b"x" * size)),
+        sync = make_sync(self.store, records=SavedRecords(session, session.load(self.store.new_uuid)),
                          replies=[{"ok": True}])
         with patch.object(sync, "_post", wraps=sync._post) as first_upload, \
                 patch.object(sync, "_checkpoint_request", side_effect=AssertionError("initial replay checkpoint HTTP")):
             start(sync)
         self.assertEqual(first_upload.call_count, 1)
         self.assertEqual(first_upload.call_args.args[1]["move_id"], DEVICE)
-        self.assertEqual(session.load(lambda size: b"x" * size)["pending_move"], move)
+        self.assertEqual(session.load(self.store.new_uuid)["pending_move"], move)
         # Legacy versions could leave an unobserved checkpoint target behind.
         self.store.control("target_checkpoint_request_id", "999")
         sync.close()
         self.store.close()
         self.store.open()
-        restored = make_sync(self.store, records=SavedRecords(session, session.load(lambda size: b"x" * size)),
+        restored = make_sync(self.store, records=SavedRecords(session, session.load(self.store.new_uuid)),
                              replies=[{"ok": True, "duplicate": True}])
         with patch.object(restored, "_post", wraps=restored._post) as replay, \
                 patch.object(restored, "_checkpoint_request", side_effect=AssertionError("resumed replay checkpoint HTTP")):
@@ -496,7 +551,7 @@ class RealCoreTests(unittest.TestCase):
             self.assertEqual(replay.call_args.args[1]["move_id"], DEVICE)
             self.assertEqual(self.native.exec("SELECT count(*) FROM ps_kv WHERE key='target_checkpoint_request_id'"), [["0"]])
             self.deliver(restored, checkpoint_records("empty", []))
-            self.assertEqual(session.load(lambda size: b"x" * size)["pending_move"], move)
+            self.assertEqual(session.load(self.store.new_uuid)["pending_move"], move)
             self.assertFalse(restored.synced)
             body = {"id": DEVICE, "room_id": ROOM, "seat": 1, "orientation": "h", "row": 0, "col": 0, "move_index": 1}
             accepted = dict(operation(1, body=body), object_id=encode_uuid(DEVICE))
@@ -504,7 +559,7 @@ class RealCoreTests(unittest.TestCase):
                 "current_seat": 2, "score_p1": 0, "score_p2": 0, "winner": None, "move_count": 1})
             self.deliver(restored, checkpoint_records("paired", [accepted, room]))
         self.assertTrue(restored.synced)
-        self.assertIsNone(session.load(lambda size: b"x" * size)["pending_move"])
+        self.assertIsNone(session.load(self.store.new_uuid)["pending_move"])
         self.assertTrue(self.store.has_move(DEVICE, ROOM))
         self.assertEqual(self.store.room(ROOM)["move_count"], 1)
         self.assertFalse(self.store.has_local_writes())
@@ -515,7 +570,7 @@ class RealCoreTests(unittest.TestCase):
         self.store.bind_account(USER)
         session = SessionFile(self.store.root)
         session.save(Records().record)
-        client = Client(self.store, session, entropy=lambda size: b"x" * size)
+        client = Client(self.store, session)
         client.sync = make_sync(self.store, records=client.records, replies=[{"ok": True}])
         sync = client.sync
         start(sync)
@@ -557,7 +612,7 @@ class RealCoreTests(unittest.TestCase):
         self.store.bind_account(USER)
         session = SessionFile(self.store.root)
         session.save(Records().record)
-        client = Client(self.store, session, entropy=lambda size: b"x" * size)
+        client = Client(self.store, session)
         client.sync = make_sync(self.store, records=client.records, replies=[
             {"http_status": 409, "message": "Move rejected"},
         ])
@@ -616,7 +671,7 @@ class RealCoreTests(unittest.TestCase):
                 self.assertEqual(self.native.exec("SELECT count(*) FROM " + table), [["0"]])
             self.assertEqual(self.native.exec("SELECT user_id FROM account WHERE id='self'"), [[replacement["user_id"]]])
             self.assertEqual(self.native.exec("SELECT value FROM ps_kv WHERE key='client_id'"), client_id)
-            self.assertEqual(session.load(lambda size: b"x" * size), replacement)
+            self.assertEqual(session.load(self.store.new_uuid), replacement)
             self.assertFalse(self.store.reconcile_session(replacement))
         finally:
             client.close()
@@ -663,7 +718,7 @@ class RealCoreTests(unittest.TestCase):
             self.store.reconcile_session(dict(pending, user_id="44444444-4444-4444-8444-444444444444"))
         self.assertEqual(self.store.room(ROOM), old_room)
         self.assertFalse(self.store.bind_account(USER))
-        self.assertEqual(session.load(lambda size: b"x" * size), pending)
+        self.assertEqual(session.load(self.store.new_uuid), pending)
 
     def test_raw_tables_reopen_sync_updates_and_removes_publish_only_at_checkpoint(self):
         self.store.bind_account(USER)
@@ -681,7 +736,7 @@ class RealCoreTests(unittest.TestCase):
         client_id = self.native.exec("SELECT value FROM ps_kv WHERE key='client_id'")
         self.store.close()
         self.store.open()
-        self.assertEqual(self.native.exec("PRAGMA user_version"), [["4"]])
+        self.assertEqual(self.native.exec("PRAGMA user_version"), [["5"]])
         self.assertEqual(self.native.exec(
             "SELECT name,type FROM sqlite_master WHERE name IN ('rooms','moves') ORDER BY name"),
             [["moves", "table"], ["rooms", "table"]])
@@ -759,7 +814,7 @@ class RealCoreTests(unittest.TestCase):
         self.assertEqual(self.native.exec("SELECT user_id FROM account WHERE id='self'"), [[replacement["user_id"]]])
         self.assertEqual(self.native.exec("SELECT user_id FROM account WHERE id='local-marker'"), [[DEVICE]])
         self.assertEqual(self.native.exec("SELECT value FROM ps_kv WHERE key='client_id'"), client_id)
-        self.assertEqual(session.load(lambda size: b"x" * size), replacement)
+        self.assertEqual(session.load(self.store.new_uuid), replacement)
         self.assertFalse(self.store.has_local_writes())
         self.store.close()
         self.store.open()
@@ -1079,13 +1134,13 @@ class RealCoreTests(unittest.TestCase):
                 session = SessionFile(self.store.root)
                 move = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
                 session.save(dict(Records().record, pending_move=move))
-                before = session.load(lambda size: b"x" * size)
+                before = session.load(self.store.new_uuid)
                 self.store.close()
                 self.store.open()
-                self.assertEqual(self.native.exec("PRAGMA user_version"), [["4"]])
+                self.assertEqual(self.native.exec("PRAGMA user_version"), [["5"]])
                 self.assertFalse(self.store.bind_account(USER))
                 self.assertEqual(self.native.exec("SELECT value FROM ps_kv WHERE key='client_id'"), client_id)
-                self.assertEqual(session.load(lambda size: b"x" * size), before)
+                self.assertEqual(session.load(self.store.new_uuid), before)
                 self.assertIsNone(self.store.room(ROOM))
                 self.assertFalse(self.store.has_move(DEVICE, ROOM))
                 for table in ("ps_buckets", "ps_oplog", "ps_stream_subscriptions", "ps_crud"):
@@ -1101,7 +1156,7 @@ class RealCoreTests(unittest.TestCase):
                             "current_seat": 2, "score_p1": 0, "score_p2": 0, "winner": None, "move_count": 1}),
                     ]))
                 self.assertTrue(sync.synced, sync.last_error)
-                self.assertIsNone(session.load(lambda size: b"x" * size)["pending_move"])
+                self.assertIsNone(session.load(self.store.new_uuid)["pending_move"])
                 self.assertTrue(self.store.has_move(DEVICE, ROOM))
                 self.assertEqual(self.store.moves(ROOM), [{"orientation": "h", "row": 0, "col": 0, "move_index": 1}])
                 sync.close()
@@ -1139,11 +1194,11 @@ class RealCoreTests(unittest.TestCase):
             self.assertEqual(self.native.exec("SELECT type FROM sqlite_master WHERE name='rooms'"), [["view"]])
             self.assertEqual(self.native.exec("SELECT user_id FROM account WHERE id='self'"), [[USER]])
             self.assertEqual(self.native.exec("SELECT value FROM ps_kv WHERE key='client_id'"), client_id)
-            self.assertEqual(session.load(lambda size: b"x" * size), saved)
+            self.assertEqual(session.load(self.store.new_uuid), saved)
         finally:
             self.native.close()
         self.store.open()
-        self.assertEqual(self.native.exec("PRAGMA user_version"), [["4"]])
+        self.assertEqual(self.native.exec("PRAGMA user_version"), [["5"]])
         self.assertIsNone(self.store.room(ROOM))
         self.assertFalse(self.store.bind_account(USER))
 
@@ -1180,6 +1235,102 @@ class RealCoreTests(unittest.TestCase):
 
 
 class FramingTests(unittest.TestCase):
+    def parse_fragments(self, data, size=MAX_FRAGMENT):
+        parser = StreamLines()
+        actual = []
+        for offset in range(0, len(data), size):
+            parser.feed(data[offset:offset + size])
+            while True:
+                record = parser.pop_record()
+                if record is None:
+                    break
+                self.assertEqual(json.loads(record[0]), record[1])
+                actual.append(record)
+        parser.finish()
+        return actual
+
+    def test_only_stream_reads_grow_and_request_writes_keep_the_original_bound(self):
+        class Clock:
+            @staticmethod
+            def ticks_ms():
+                return 1
+            @staticmethod
+            def ticks_diff(now, then):
+                return now - then
+        class Socket:
+            def read(self, size):
+                self.read_size = size
+                return None
+            def write(self, value):
+                self.write_size = len(value)
+                return len(value)
+        for streaming in (False, True):
+            task = HTTPS.__new__(HTTPS)
+            task.time, task.heartbeat, task.streaming = Clock(), None, streaming
+            task.response = Response()
+            task.response.status = 200
+            task.phase, task.started, task.last_data = "read", 0, 0
+            task.secure = Socket()
+            self.assertIs(task.step(), PENDING)
+            self.assertEqual(task.secure.read_size, STREAM_READ_BYTES if streaming else READ_BYTES)
+            task.phase, task.request, task.sent = "send", b"x" * 2048, 0
+            self.assertIs(task.step(), PENDING)
+            self.assertEqual(task.secure.write_size, 512)
+        self.assertEqual(STREAM_READ_BYTES, MAX_FRAGMENT)
+
+    def test_framing_reuses_the_decoded_record_and_preserves_raw_operation_text(self):
+        raw = '{"op_id":"1", "op":"PUT", "object_type":"moves", "object_id":"x", "checksum":1, "data":"λ } , ] \\\""}'
+        data = ('{"data":{"bucket":"λ", "data":[' + raw + ']}}\n').encode()
+        records = self.parse_fragments(data, 7)
+        self.assertEqual(len(records), 1)
+        self.assertIn(raw, records[0][0])
+        self.assertEqual(records[0][1]["data"]["bucket"], "λ")
+        self.assertEqual(records[0][1]["data"]["data"][0], json.loads(raw))
+
+    def test_quoted_spans_keep_escape_boundaries_and_reject_every_raw_control_byte(self):
+        valid = {"text": 'λ' * 40 + ' escaped quote " slash \\ brackets {},[] end'}
+        data = wire({"data": {"bucket": "r", "data": [operation(1, body=valid)]}})
+        for size in (1, 2, 7, MAX_FRAGMENT):
+            records = self.parse_fragments(data, size)
+            self.assertEqual(records[0][1]["data"]["data"][0]["data"], json.dumps(valid))
+        for control in range(32):
+            for prefix, suffix in ((b'{"text":"', b'"}\n'),
+                                   (b'{"data":{"bucket":"r","data":[{"text":"', b'"}]}}\n')):
+                malformed = prefix + b"ordinary span" + bytes([control]) + b"ordinary span" + suffix
+                with self.subTest(control=control, prefix=prefix), self.assertRaises(ValueError):
+                    self.parse_fragments(malformed)
+
+    def test_fragment_buffer_cannot_grow_or_be_overwritten_before_draining(self):
+        parser = StreamLines()
+        with self.assertRaisesRegex(ValueError, "fragment exceeds"):
+            parser.feed(b" " * (MAX_FRAGMENT + 1))
+        parser.feed(b'{}\n{}\n')
+        self.assertEqual(parser.pop(), '{}')
+        with self.assertRaisesRegex(ValueError, "Drain PowerSync"):
+            parser.feed(b'{}\n')
+        self.assertEqual(parser.pop(), '{}')
+        self.assertIsNone(parser.pop())
+        parser.finish()
+
+    def test_malformed_truncated_and_oversized_records_remain_rejected(self):
+        invalid = [b'[]\n', b'{"data":[]}\n', b'{"data":{"data":[],"bucket":"b"}}\n',
+                   b'{"data":{"bucket":"b","bucket":"c","data":[]}}\n',
+                   b'{"data":{"bucket":"b","data":[{},]}}\n',
+                   b'{"data":{"bucket":"b","data":[1]}}\n',
+                   b'{"data":{"bucket":"b","data":[{"x":tru}]}}\n',
+                   b'{"data":{"bucket":"b","data":[]}}x\n',
+                   b'{"x":"bad\\q"}\n', b'{"x":"bad\x01"}\n',
+                   b'{"x":' + b'[' * MAX_DEPTH + b']' * MAX_DEPTH + b'}\n',
+                   wire({"data": {"bucket": "x" * MAX_METADATA, "data": []}}),
+                   wire({"data": {"bucket": "b", "data": [{"x": "y" * MAX_LINE}]}}),
+                   wire({"x": "y" * MAX_LINE})]
+        for data in invalid:
+            with self.subTest(prefix=data[:100]), self.assertRaises((ValueError, OSError)):
+                self.parse_fragments(data, 7)
+        for data in (b'{"x":1}', b'{"data":{"bucket":"b","data":[{}'):
+            with self.subTest(data=data), self.assertRaises(OSError):
+                self.parse_fragments(data)
+
     def test_fragmented_http_chunks_preserve_the_body(self):
         response = Response()
         body = b'{"data":{"bucket":"b","data":[]}}\n'
@@ -1187,17 +1338,53 @@ class FramingTests(unittest.TestCase):
         for part in (body[:10], body[10:]):
             data += ("%x\r\n" % len(part)).encode() + part + b"\r\n"
         data += b"0\r\n\r\n"
-        for size in (1, 7, 512):
+        for size in (1, 7, 512, MAX_FRAGMENT):
             response = Response()
             actual = b"".join(response.feed(data[i:i + size]) for i in range(0, len(data), size))
             response.finish()
             self.assertEqual(actual, body)
 
+    def test_many_http_chunks_in_one_read_keep_only_the_incomplete_suffix(self):
+        body = bytes(range(256)) * 4
+        framed = b"".join(b"1\r\n" + bytes([value]) + b"\r\n" for value in body) + b"0\r\n\r\n"
+        for size in (1, 7, 512, STREAM_READ_BYTES):
+            response = Response()
+            response.feed(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
+            actual = []
+            for offset in range(0, len(framed), size):
+                actual.append(response.feed(framed[offset:offset + size]))
+                self.assertLessEqual(len(response.buffer), 2)
+            response.finish()
+            self.assertEqual(b"".join(actual), body)
+
+    def test_ambiguous_malformed_and_truncated_http_framing_is_rejected(self):
+        invalid = [
+            b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nContent-Length: 1\r\n\r\nx",
+            b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nContent-Length: -1\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\nxx",
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;ext=bad\r\nx\r\n0\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx--0\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nextra\r\n\r\n",
+        ]
+        for data in invalid:
+            for size in (1, STREAM_READ_BYTES):
+                with self.subTest(data=data, size=size), self.assertRaises((ValueError, OSError)):
+                    response = Response()
+                    for offset in range(0, len(data), size):
+                        response.feed(data[offset:offset + size])
+                    response.finish()
+        for suffix in (b"1\r\nx", b"0\r\n\r", b"2\r\nx"):
+            response = Response()
+            response.feed(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + suffix)
+            with self.assertRaises(OSError):
+                response.finish()
+
     def test_large_service_line_preserves_operations_at_every_fragment_size(self):
         operations = [operation(i, body={"text": 'quote " Unicode λ },] ' * 8}) for i in range(30)]
         data = wire({"data": {"bucket": "room", "data": operations}})
         self.assertGreater(len(data), 8192)
-        for size in (1, 7, 512):
+        for size in (1, 7, 512, MAX_FRAGMENT):
             parser = StreamLines()
             actual = []
             for offset in range(0, len(data), size):

@@ -1,0 +1,27 @@
+{
+  "method": "Real SessionFile saves to temporary POSIX files; unchanged flush/sync/rename/sync ordering. Synthetic credentials: 2048-byte access token, 512-byte refresh token. Byte counts measure saved UTF-8 contents, not badge flash programming or latency.",
+  "baselineSource": "/private/tmp/dots-performance-storage-baseline/dots_session.py",
+  "baselineSha256": "756740817e860f03c86e55ad9ae63c1772c74743c80035743c85d3359ed8a244",
+  "candidateSha256": "924d935b4e980c33c1c97724b3f951927b78ebefb222d23d038c26ecede4b12b",
+  "before": {
+    "moveWriteBytes": [
+      2906,
+      2824
+    ],
+    "totalBytes": 5730,
+    "baseBytes": 2824,
+    "baseUnchanged": true,
+    "restartPendingAndClearPassed": true
+  },
+  "after": {
+    "moveWriteBytes": [
+      123,
+      48
+    ],
+    "totalBytes": 171,
+    "baseBytes": 2845,
+    "baseUnchanged": true,
+    "restartPendingAndClearPassed": true
+  },
+  "savedBytesPercent": 97.02
+}

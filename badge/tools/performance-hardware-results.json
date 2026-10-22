@@ -1,0 +1,215 @@
+{
+  "date": "2026-10-21",
+  "device": {
+    "model": "Pimoroni Tufty 2350",
+    "micropython": "1.29.0",
+    "powersync_core": "0.5.4",
+    "native_sha256": "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8"
+  },
+  "source_sha256": {
+    "__init__.py": "77eea22fc428e6b1c4398ef36528919d1c03ae10d3663cbfda14bd17fc645c78",
+    "controls.py": "88eba637c396ed77bad34919c31eddc06e6385aa3b362499bcea517d49a422b8",
+    "dots_client.py": "1c55fce14044212e3557f7b502c24da18eb44a1a9b19ecb4b1b366e47333db43",
+    "dots_http.py": "3ea3aa65c0953770c9116e23209fb39b664da7b7a68b4e208c1d1273f3c79f6b",
+    "dots_session.py": "924d935b4e980c33c1c97724b3f951927b78ebefb222d23d038c26ecede4b12b",
+    "dots_storage.py": "253bab724d6e56f1e57b5e2441b17cdd354c772ec30f9fd487a674d614e763ba",
+    "dots_stream.py": "a33073941e5d7c6deb37466d033daaaed6572bf061b308805268d5ef8baeffd3",
+    "dots_sync.py": "fd3e9be7f5d8e7cf67680a893ac54c67a1c47600262fffc702bc07226101b013",
+    "logos.py": "1e0fae1b6ddfc4e6df056ca03062a70f2582ebb810502f153959b9ba4816369e",
+    "view.py": "6381af4d87f27c1a2645ecbe3b2d52ccb17f6b42c50eb01c587bbb34ba2f80a6"
+  },
+  "render": {
+    "scope": "Real font/framebuffer CPU; excludes physical panel update, VSYNC and network. Same framebuffer for timing; alternating order.",
+    "rounds": 3,
+    "iterations_per_round": 30,
+    "pixel_scenes_verified": 19,
+    "before_idle_us": 17547.04,
+    "after_idle_us": 210.52224,
+    "before_cursor_us": 17781.62,
+    "after_cursor_us": 11054.87,
+    "samples": [
+      {
+        "before_idle_us": 17468.132,
+        "after_idle_us": 192.86668,
+        "before_cursor_us": 17966.93,
+        "after_cursor_us": 11116.1
+      },
+      {
+        "before_idle_us": 17674.1,
+        "after_idle_us": 208.6,
+        "before_cursor_us": 17457.73,
+        "after_cursor_us": 11008.23
+      },
+      {
+        "before_idle_us": 17498.9,
+        "after_idle_us": 230.1,
+        "before_cursor_us": 17920.2,
+        "after_cursor_us": 11040.268
+      }
+    ]
+  },
+  "download": {
+    "scope": "Synthetic checked memory sink. Real framing/scheduling; no Wi-Fi, TLS, native SQL or flash. Three alternating rounds of three repetitions; watchdog fed between cases.",
+    "wire_bytes": 9114,
+    "operations": 50,
+    "commits_each": 9,
+    "before_fragment_bytes": 512,
+    "after_fragment_bytes": 2048,
+    "before_updates": 18,
+    "after_updates": 9,
+    "before_transport_calls": 18,
+    "after_transport_calls": 6,
+    "before_us_by_round": [
+      [
+        1330831,
+        1355851,
+        1408037
+      ],
+      [
+        1295617,
+        1297197,
+        1331205
+      ],
+      [
+        1301873,
+        1324342,
+        1333748
+      ]
+    ],
+    "after_us_by_round": [
+      [
+        714931,
+        724816,
+        744809
+      ],
+      [
+        694076,
+        707058,
+        723930
+      ],
+      [
+        711767,
+        716360,
+        742730
+      ]
+    ],
+    "before_median_us": 1330831,
+    "after_median_us": 716360,
+    "baseline_source_sha256": {
+      "dots_stream.py": "271d82a0b005059152196254ba835e4b87ace35066ff584e6800cc599a1ee4b1",
+      "dots_sync.py": "3403193838b80d942911e7187ff91fc9815ebf79773159da3645b75eeebcd4e2"
+    }
+  },
+  "pending_session": {
+    "scope": "Isolated LittleFS temporary files, synthetic access/refresh tokens of843/12 bytes. Alternating before/after; unchanged durability barriers. No gameplay submissions.",
+    "before_queue_clear_us": [
+      [
+        66650,
+        68114
+      ],
+      [
+        67422,
+        65343
+      ],
+      [
+        155686,
+        65316
+      ],
+      [
+        65824,
+        64138
+      ],
+      [
+        68811,
+        110631
+      ],
+      [
+        65144,
+        65489
+      ]
+    ],
+    "after_queue_clear_us": [
+      [
+        15683,
+        13948
+      ],
+      [
+        16856,
+        14744
+      ],
+      [
+        117823,
+        13542
+      ],
+      [
+        16590,
+        14710
+      ],
+      [
+        17490,
+        63757
+      ],
+      [
+        15874,
+        14025
+      ]
+    ],
+    "before_pair_median_us": 133764.5,
+    "after_pair_median_us": 31450.0,
+    "before_total_app_bytes": 13980,
+    "after_total_app_bytes": 1026,
+    "trials": 6
+  },
+  "optional_profiler": {
+    "normal_app_hooks": 0,
+    "capacity": 32,
+    "stages": 8,
+    "raw_buffer_bytes": 1088,
+    "calibration_eight_marks_us": 238.655,
+    "scope": "Timer and buffer operations only; excludes wrapper/state checks. Last stage is framebuffer draw completion."
+  },
+  "installed_functional_check": {
+    "files_verified": 18,
+    "native_unchanged": true,
+    "schema_before": 4,
+    "schema_after": 5,
+    "moves_before": 11,
+    "moves_after": 11,
+    "score_after": [
+      1,
+      0
+    ],
+    "pending_after": false,
+    "sql_crud": 0,
+    "extra_checkpoint_http_requests": 0,
+    "system_filesystem_readonly_restored": true,
+    "network_runtime": "normal Badgeware managed run",
+    "scope": "Functional qualification only; no new end-to-end move latency claim.",
+    "package": "0.1.0-5d6e566648cc",
+    "open_ms": 945,
+    "first_sync_ms": 9644,
+    "frames": 232,
+    "peak_frame_ms": 1420,
+    "page_count": 66,
+    "free_pages": 25,
+    "native_peak_bytes": 102784,
+    "heap_free_bytes": 4956640
+  },
+  "limitations": [
+    "No physical power-cut qualification.",
+    "Existing SQLite files retain high-water length after migration.",
+    "No new complete match or physical display transfer latency measured.",
+    "Cloud/backend/PowerSync stream experiments are local and undeployed."
+  ],
+  "validation": {
+    "badge_tests": 189,
+    "web_tests": 73,
+    "sync_policy_checks": 13,
+    "sql_reference_moves": 784,
+    "sql_reference_games": 16,
+    "native_packed_proofs": 8,
+    "web_build": true,
+    "package_check": true,
+    "git_diff_check": true
+  }
+}
