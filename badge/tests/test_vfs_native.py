@@ -10,7 +10,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
+sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
+                for path in ("lib", "app/dots_boxes")]
 import dots_storage
 from dots_client import Client
 from dots_storage import Store
@@ -101,7 +102,7 @@ class ActualVFSCoreTests(unittest.TestCase):
             restored.sync = protocol.make_sync(self.store, records=restored.records,
                                                replies=[{"ok": True, "duplicate": True}])
             try:
-                with patch.object(restored.sync, "_post", wraps=restored.sync._post) as upload:
+                with patch.object(restored.sync.connector, "_post", wraps=restored.sync.connector._post) as upload:
                     protocol.start(restored.sync)
                 self.assertEqual(upload.call_count, 1)
                 self.assertEqual(upload.call_args.args[1]["move_id"], pending["id"])
@@ -295,7 +296,7 @@ class ActualVFSCoreTests(unittest.TestCase):
         self.assertEqual(saved["pending_move"], pending["pending_move"])
 
     def test_time_entropy_and_default_vfs_restoration(self):
-        self.assertEqual(self.native.exec("SELECT strftime('%Y','now')"), [[str(dots_storage.time.gmtime()[0])]])
+        self.assertEqual(self.native.exec("SELECT strftime('%Y','now')"), [[str(__import__("time").gmtime()[0])]])
         random_hex = self.native.exec("SELECT lower(hex(randomblob(16)))")[0][0]
         self.assertRegex(random_hex, "^[0-9a-f]{32}$")
         self.assertEqual(len(self.native.probe_randomness(32)), 32)

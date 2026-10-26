@@ -74,7 +74,7 @@ class ProfileTests(unittest.TestCase):
         class Sync:
             def __init__(self):
                 self.stream = Stream()
-            def _after_move(self, accepted=False):
+            def _after_upload(self, accepted=False):
                 return accepted
             def step(self, elapsed):
                 return self.stream.step()
@@ -97,7 +97,7 @@ class ProfileTests(unittest.TestCase):
         original_claim = client.controller.on_claim
         trace, detach = attach(client, view, Trace(2, Clock()))
         self.assertTrue(client.controller.on_claim(('h', 0, 0)))
-        self.assertTrue(client.sync._after_move(accepted=True))
+        self.assertTrue(client.sync._after_upload(accepted=True))
         self.assertEqual(client.sync.step(16), b'checkpoint')
         self.assertEqual(client.store.control_lines(['raw']), ['committed'])
         client.records.save({'pending_move': None})
@@ -180,7 +180,7 @@ class ProfileTests(unittest.TestCase):
             client, _view = self.fixture()
             def complete(_elapsed):
                 client.records.save({'pending_move': None})
-                client.sync._after_move(accepted=accepted)
+                client.sync._after_upload(accepted=accepted)
                 return 'finished'
             client.sync.step = complete
             trace, detach = attach(client, trace=Trace(2, Clock()))

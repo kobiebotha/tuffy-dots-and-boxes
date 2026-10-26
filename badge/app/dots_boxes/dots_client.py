@@ -2,7 +2,7 @@
 import time
 
 from controls import Controller
-from dots_http import PENDING, Gateway
+from powersync.http import PENDING, Gateway
 from dots_pairing import CodeEntry
 from dots_session import fresh_session, validate_session
 from dots_sync import Sync

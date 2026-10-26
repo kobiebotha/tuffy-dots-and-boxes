@@ -155,7 +155,7 @@ def attach(client, view=None, trace=None):
                 trace.outcomes[trace.active] = 1 if accepted else 2
             return original(accepted=accepted)
         return after
-    replace(client.sync, "_after_move", after_wrapper)
+    replace(client.sync, "_after_upload", after_wrapper)
 
     def control_wrapper(original):
         def control(*args, **kwargs):

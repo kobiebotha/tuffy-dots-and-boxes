@@ -61,15 +61,25 @@ def diff(a, b):
 
 def run_case(sources, wire, expected, room, repetitions=3):
     framing = {"__name__": "download_benchmark_framing"}
-    exec(sources["dots_stream.py"], framing)
-    sync_scope = {"__name__": "download_benchmark_sync", "StreamLines": framing["StreamLines"]}
-    exec(sources["dots_sync.py"].replace("from dots_stream import StreamLines", ""), sync_scope)
+    exec(sources["stream"], framing)
+    pending = object()
+    sync_scope = {"__name__": "download_benchmark_sync", "StreamLines": framing["StreamLines"],
+                  "PENDING": pending, "Gateway": object, "HTTPS": object,
+                  "split_https": lambda url: None, "MAX_SYNC_BATCH_RECORDS": 6,
+                  "MAX_SYNC_LINE_BYTES": 8192}
+    body = "\n".join(line for line in sources["sync"].splitlines()
+                     if not line.startswith("from "))
+    exec(body, sync_scope)
     timings = []
     result = None
     for _ in range(repetitions):
         gc.collect()
         sink = Sink()
-        sync = sync_scope["Sync"](sink, Records(room), "https://fixture.invalid", "", "", "", ())
+        if "SyncClient" in sync_scope:
+            sync = sync_scope["SyncClient"](sink, sync_scope["Connector"](), "https://fixture.invalid",
+                                             {"name": "fixture", "params": {}}, ())
+        else:
+            sync = sync_scope["Sync"](sink, Records(room), "https://fixture.invalid", "", "", "", ())
         stream = Stream(wire, framing["MAX_FRAGMENT"], sync_scope["PENDING"])
         sync.stream = stream
         sync.phase, sync.connected, sync.core_started = "stream", True, True
@@ -118,8 +128,14 @@ def main():
     parser.add_argument("--emit-device", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    sources = {label: {name: (root / name).read_text() for name in ("dots_stream.py", "dots_sync.py")}
-               for label, root in (("before", args.before), ("after", args.after))}
+    def load_sources(root):
+        if (root / "dots_stream.py").exists():
+            return {"stream": (root / "dots_stream.py").read_text(),
+                    "sync": (root / "dots_sync.py").read_text()}
+        sdk = root.parents[1] / "lib/powersync"
+        return {"stream": (sdk / "stream.py").read_text(), "sync": (sdk / "sync.py").read_text()}
+
+    sources = {label: load_sources(root) for label, root in (("before", args.before), ("after", args.after))}
     room, expected, wire = fixture()
     if args.emit_device:
         body = Path(__file__).read_text().split("def fixture():")[0]

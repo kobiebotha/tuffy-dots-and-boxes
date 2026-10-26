@@ -5,7 +5,8 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
+sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
+                for path in ("lib", "app/dots_boxes")]
 import dots_storage
 from dots_storage import Store
 
@@ -19,7 +20,7 @@ class StorageHotpathTests(unittest.TestCase):
                   {"partial_checkpoint_complete": {"priority": 3}}]
         payloads = [json.dumps(record) for record in parsed]
         with patch.object(store, "_sync_line", side_effect=AssertionError("record decoded already")), \
-                patch.object(store, "_check_sync_budget"), patch.object(store, "_used_pages", return_value=0), \
+                patch.object(store, "_check_reserve"), patch.object(store, "_used_pages", return_value=0), \
                 patch.object(store, "_apply_control", return_value=[]), patch.object(store, "_exec") as sql:
             events = store.control_lines(payloads, parsed=parsed)
         self.assertEqual([event["full_checkpoint"] for event in events], [False, True, False])

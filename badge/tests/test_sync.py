@@ -6,13 +6,16 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
-from dots_http import PENDING, Response, HTTPS, READ_BYTES, STREAM_READ_BYTES
+sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
+                for path in ("lib", "app/dots_boxes")]
+from powersync.http import PENDING, Response, HTTPS, READ_BYTES, STREAM_READ_BYTES
 from dots_codec import decode_edge, encode_edge, encode_uuid
 from dots_session import fresh_session, SessionFile
-from dots_storage import Store, MAX_SYNC_BATCH_RECORDS
-from dots_stream import StreamLines, MAX_FRAGMENT, MAX_LINE, MAX_METADATA, MAX_DEPTH
-from dots_sync import Sync, MAX_BATCH_DELAY_MS, MAX_STREAM_READS, MAX_STREAM_RECORDS
+from dots_storage import Store
+from powersync.database import MAX_SYNC_BATCH_RECORDS
+from powersync.stream import StreamLines, MAX_FRAGMENT, MAX_LINE, MAX_METADATA, MAX_DEPTH
+from dots_sync import Sync
+from powersync.sync import MAX_BATCH_DELAY_MS, MAX_STREAM_READS, MAX_STREAM_RECORDS
 from game import Game
 from native_fixture import HostCore, LIBRARY
 
@@ -229,24 +232,24 @@ class SupervisorTests(unittest.TestCase):
         start(sync)
         sync.connected = sync.synced = True
         move = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
-        sync.records.save(dict(sync.records.record, pending_move=move))
+        sync.connector.records.save(dict(sync.connector.records.record, pending_move=move))
         sync.step(1)
         sync.step(1)
         self.assertEqual(sync.phase, "stream")
         sync._retry()
-        with patch.object(sync, "_post", side_effect=AssertionError("duplicate same-process upload")), \
+        with patch.object(sync.connector, "_post", side_effect=AssertionError("duplicate same-process upload")), \
                 patch.object(sync, "_checkpoint_request", side_effect=AssertionError("accepted checkpoint HTTP")):
             sync.step(2000)
             start(sync)
             sync.stream.parts = [wire({"checkpoint_complete": {}})]
             sync.step(1)
-            self.assertEqual(sync.records.record["pending_move"], move)
+            self.assertEqual(sync.connector.records.record["pending_move"], move)
             self.assertFalse(sync.synced)
             sync.store.published_moves.add((DEVICE, ROOM))
             sync.stream.parts = [wire({"checkpoint_complete": {}})]
             sync.step(1)
         self.assertTrue(sync.synced)
-        self.assertIsNone(sync.records.record["pending_move"])
+        self.assertIsNone(sync.connector.records.record["pending_move"])
 
     def test_metadata_tail_waits_for_bound_instead_of_flushing_on_would_block(self):
         sync = make_sync()
@@ -347,7 +350,7 @@ class SupervisorTests(unittest.TestCase):
         restored = make_sync(records=records, replies=[
             {"accepted": True},
         ])
-        with patch.object(restored, "_post", wraps=restored._post) as post:
+        with patch.object(restored.connector, "_post", wraps=restored.connector._post) as post:
             start(restored)
         self.assertEqual(post.call_args.args[1]["move_id"], DEVICE)
         self.assertFalse(restored.synced)
@@ -363,16 +366,16 @@ class SupervisorTests(unittest.TestCase):
         start(sync)
         sync.connected = sync.synced = True
         stream = sync.stream
-        sync.records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
+        sync.connector.records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
         sync.step()
-        with patch.object(sync, "_post", side_effect=MemoryError):
+        with patch.object(sync.connector, "_post", side_effect=MemoryError):
             sync.step()
         self.assertFalse(sync.live_upload)
         self.assertTrue(stream.closed)
         self.assertEqual((sync.phase, sync.status), ("token", "OFFLINE"))
-        self.assertEqual(sync.records.record["pending_move"]["id"], DEVICE)
+        self.assertEqual(sync.connector.records.record["pending_move"]["id"], DEVICE)
         sync.step(2000)
-        self.assertEqual(sync.phase, "move")
+        self.assertEqual(sync.phase, "upload")
         self.assertIsNone(sync.stream)
 
     def test_rejected_move_also_waits_for_covering_server_state(self):
@@ -383,13 +386,30 @@ class SupervisorTests(unittest.TestCase):
         ])
         start(sync)
         sync.connected = sync.synced = True
-        sync.records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
+        sync.connector.records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
         sync.step()
         sync.step()
-        self.assertEqual(sync.phase, "move_seed")
+        self.assertEqual(sync.phase, "upload_seed")
         self.assertFalse(sync.synced)
         self.assertIn("not your turn", sync.notice)
-        self.assertIsNone(sync.records.record["pending_move"])
+        self.assertIsNone(sync.connector.records.record["pending_move"])
+
+    def test_rejected_saved_move_before_download_also_uses_checkpoint_barrier(self):
+        records = Records()
+        records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
+        sync = make_sync(records=records, replies=[
+            {"message": "not your turn", "http_status": 400},
+            {"data": {"checkpoint_request_id": "9007199254740993"}},
+            {"data": {"checkpoint_request_id": TARGET}},
+        ])
+        start(sync)
+        self.assertTrue(sync.checkpoint_seeded)
+        self.assertEqual(sync.target, TARGET)
+        self.assertFalse(sync.synced)
+        self.assertIsNone(records.record["pending_move"])
+        sync.stream.parts = [wire({"checkpoint_complete": {}})]
+        sync.step(1)
+        self.assertTrue(sync.synced)
 
     def test_move_reuses_stream_and_waits_for_covering_checkpoint(self):
         sync = make_sync(replies=[{"accepted": True}])
@@ -397,12 +417,12 @@ class SupervisorTests(unittest.TestCase):
         sync.stream.step()
         sync.connected = sync.synced = True
         stream = sync.stream
-        sync.records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
+        sync.connector.records.record["pending_move"] = {"id": DEVICE, "orientation": "h", "row": 0, "col": 0}
         sync.step()
-        self.assertEqual(sync.phase, "move")
+        self.assertEqual(sync.phase, "upload")
         self.assertFalse(sync.synced)
         sync.step()
-        self.assertEqual(sync.records.record["pending_move"]["id"], DEVICE)
+        self.assertEqual(sync.connector.records.record["pending_move"]["id"], DEVICE)
         self.assertEqual(sync.phase, "stream")
         self.assertIs(sync.stream, stream)
         self.assertFalse(stream.closed)
@@ -420,7 +440,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertFalse(sync.synced)
         sync._instructions([{"DidCompleteSync": {}}], full_checkpoint=True)
         self.assertTrue(sync.synced)
-        self.assertIsNone(sync.records.record["pending_move"])
+        self.assertIsNone(sync.connector.records.record["pending_move"])
 
     def test_batches_preserve_raw_operations_and_commit_before_checkpoint(self):
         sync = make_sync()
@@ -454,12 +474,12 @@ class SupervisorTests(unittest.TestCase):
         sync = make_sync(replies=[{"error": "unauthorized", "http_status": 401},
                                  {"access_token": "new-access", "refresh_token": "new-refresh", "expires_in": 3600}])
         start(sync)
-        sync.phase = "move_seed"
+        sync.phase = "upload_seed"
         sync.step(1)
         self.assertEqual(sync.status, "OFFLINE")
-        self.assertIsNone(sync.records.record["access_token"])
+        self.assertIsNone(sync.connector.records.record["access_token"])
         sync.step(2000)
-        self.assertEqual(sync.records.record["access_token"], "new-access")
+        self.assertEqual(sync.connector.records.record["access_token"], "new-access")
         self.assertEqual(sync.phase, "start")
 
     def test_missing_stream_is_visible_and_stops_retry_loop(self):
@@ -531,7 +551,7 @@ class RealCoreTests(unittest.TestCase):
         session.save(dict(Records().record, pending_move=move))
         sync = make_sync(self.store, records=SavedRecords(session, session.load(self.store.new_uuid)),
                          replies=[{"ok": True}])
-        with patch.object(sync, "_post", wraps=sync._post) as first_upload, \
+        with patch.object(sync.connector, "_post", wraps=sync.connector._post) as first_upload, \
                 patch.object(sync, "_checkpoint_request", side_effect=AssertionError("initial replay checkpoint HTTP")):
             start(sync)
         self.assertEqual(first_upload.call_count, 1)
@@ -544,7 +564,7 @@ class RealCoreTests(unittest.TestCase):
         self.store.open()
         restored = make_sync(self.store, records=SavedRecords(session, session.load(self.store.new_uuid)),
                              replies=[{"ok": True, "duplicate": True}])
-        with patch.object(restored, "_post", wraps=restored._post) as replay, \
+        with patch.object(restored.connector, "_post", wraps=restored.connector._post) as replay, \
                 patch.object(restored, "_checkpoint_request", side_effect=AssertionError("resumed replay checkpoint HTTP")):
             start(restored)
             self.assertEqual(replay.call_count, 1)
@@ -585,7 +605,7 @@ class RealCoreTests(unittest.TestCase):
         self.assertFalse(client.controller.can_claim)
         client.step([], 5)
         client.step([], 5)
-        self.assertEqual(sync.uploaded_move_id, pending_id)
+        self.assertEqual(sync.connector.uploaded_move_id, pending_id)
         self.assertEqual(client.controller.pending_edge, ("h", 0, 0))
         self.assertEqual(client.controller.game.edge_owner("h", 0, 0), 0)
         self.assertFalse(client.controller.can_claim)
@@ -961,20 +981,20 @@ class RealCoreTests(unittest.TestCase):
         with patch.object(sync, "_checkpoint_request", side_effect=AssertionError("accepted move checkpoint HTTP")):
             send(empty)
             self.assertTrue(sync.synced)
-            sync.records.save(dict(sync.records.record, pending_move=move))
-            with patch.object(sync, "_post", wraps=sync._post) as upload:
+            sync.connector.records.save(dict(sync.connector.records.record, pending_move=move))
+            with patch.object(sync.connector, "_post", wraps=sync.connector._post) as upload:
                 sync.step(1)
                 sync.step(1)
             self.assertEqual(upload.call_count, 1)
             self.assertEqual(upload.call_args.args[1]["move_id"], DEVICE)
             self.assertEqual(sync.phase, "stream")
             self.assertIsNone(sync.target)
-            self.assertEqual(sync.records.record["pending_move"], move)
+            self.assertEqual(sync.connector.records.record["pending_move"], move)
 
             # A newer complete snapshot without the UUID is not confirmation.
             send(empty)
             self.assertFalse(sync.synced)
-            self.assertEqual(sync.records.record["pending_move"], move)
+            self.assertEqual(sync.connector.records.record["pending_move"], move)
             send([
                 {"checkpoint": {"last_op_id": "1", "buckets": [
                     {"bucket": "other-room", "checksum": 1, "priority": 3, "count": 1}]}},
@@ -995,11 +1015,11 @@ class RealCoreTests(unittest.TestCase):
             ])
             self.assertGreater(int(self.native.exec("SELECT count(*) FROM ps_oplog")[0][0]), 0)
             self.assertFalse(self.store.has_move(DEVICE, ROOM))
-            self.assertEqual(sync.records.record["pending_move"], move)
+            self.assertEqual(sync.connector.records.record["pending_move"], move)
             self.assertFalse(sync.synced)
             send([{"checkpoint_complete": {}}])
             self.assertTrue(sync.synced, sync.last_error)
-            self.assertIsNone(sync.records.record["pending_move"])
+            self.assertIsNone(sync.connector.records.record["pending_move"])
             self.assertTrue(self.store.has_move(DEVICE, ROOM))
             self.assertEqual(self.store.room(ROOM)["move_count"], 1)
             self.assertEqual(self.store.room(ROOM)["current_seat"], 2)

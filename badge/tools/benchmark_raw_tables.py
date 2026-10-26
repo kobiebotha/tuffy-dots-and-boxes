@@ -17,12 +17,13 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'badge/tools'), str(ROOT / 'badge/tests')]
 import benchmark_native as bench
+import powersync.database as database
 from dots_codec import decode_edge
 from game import Game
 from vfs_fixture import PythonVFSCore
 
 original_store = bench.storage.Store
-original_vfs = bench.storage.BadgeVFS
+original_vfs = database.BadgeVFS
 physical = Counter()
 checkpoint_io = []
 checkpoint_physical = []
@@ -140,7 +141,7 @@ def main():
         assert fixture['scenarios'] == fixtures[0]['scenarios']
     bench.HostCore = PythonVFSCore
     bench.storage.Store = CapturedStore
-    bench.storage.BadgeVFS = CountedVFS
+    database.BadgeVFS = CountedVFS
     results = []
     for rep in range(args.repetitions):
         # Alternate candidate order so warm filesystem effects do not privilege one.

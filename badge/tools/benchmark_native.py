@@ -12,8 +12,9 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "badge/app/dots_boxes")]
+sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
 import dots_storage as storage
+from powersync.database import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES
 from native_fixture import HostCore, LIBRARY
 
 
@@ -63,7 +64,7 @@ def run(fixture, scenario_name, scenario, user_id):
                     for operation in group] + [compact({"checkpoint_complete": {"last_op_id": str(offset)}})]
                 batch, size = [], 0
                 for record in records:
-                    if batch and (len(batch) >= storage.MAX_SYNC_BATCH_RECORDS or size + len(record.encode()) > storage.MAX_SYNC_LINE_BYTES):
+                    if batch and (len(batch) >= MAX_SYNC_BATCH_RECORDS or size + len(record.encode()) > MAX_SYNC_LINE_BYTES):
                         for event in store.control_lines(batch):
                             completions += sum("DidCompleteSync" in item for item in event["instructions"])
                             assert not any("CloseSyncStream" in item for item in event["instructions"]), event

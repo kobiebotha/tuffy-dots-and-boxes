@@ -9,7 +9,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "badge/app/dots_boxes"))
+sys.path[:0] = [str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
 
 
 def load(path):

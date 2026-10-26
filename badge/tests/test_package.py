@@ -2,6 +2,8 @@
 import importlib.util
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -32,6 +34,7 @@ class PackageTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
         patch.object(package, "PUBLIC", self.public).start()
         patch.object(package, "APP", self.app).start()
+        patch.object(package, "SDK", self.app / "powersync").start()
         self.release, self.outputs = package.release_outputs(self.sources)
 
     def stage(self):
@@ -66,6 +69,40 @@ class PackageTests(unittest.TestCase):
         updated, _ = package.release_outputs(changed)
         self.assertNotEqual(updated["version"], self.release["version"])
         self.assertNotEqual(updated["zipUrl"], self.release["zipUrl"])
+        changed = {**self.sources, "powersync/sync.py": self.sources["powersync/sync.py"] + b"\n"}
+        updated, _ = package.release_outputs(changed)
+        self.assertNotEqual(updated["version"], self.release["version"])
+
+    def test_zip_imports_the_app_and_its_bundled_dependency_in_isolation(self):
+        destination = Path(self.temporary.name) / "unpacked"
+        with zipfile.ZipFile(io.BytesIO(self.outputs["dots-boxes.zip"])) as archive:
+            archive.extractall(destination)
+        app = destination / "apps/dots_boxes"
+        script = '''
+import sys
+sys.path.insert(0, sys.argv[1])
+from dots_client import Client
+from dots_storage import Store
+from dots_sync import GameConnector
+from powersync.database import Database
+from powersync.sync import Connector
+import powersync
+assert powersync.__file__ == sys.argv[1] + '/powersync/__init__.py'
+assert issubclass(Store, Database)
+assert issubclass(GameConnector, Connector)
+'''
+        result = subprocess.run([sys.executable, "-I", "-c", script, str(app)],
+                                cwd=destination, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_generation_removes_only_explicit_retired_sdk_copies(self):
+        legacy = self.public / "apps/dots_boxes"
+        legacy.mkdir(parents=True)
+        for name in package.RETIRED_FILES:
+            (legacy / name).write_bytes(b"previous generated SDK copy")
+        self.stage()
+        self.assertTrue(all(not (legacy / name).exists() for name in package.RETIRED_FILES))
+        package.check_outputs(self.outputs)
 
     def test_check_rejects_tampered_manifest_file_zip_and_legacy_copy(self):
         for name in ("badge-app/manifest.json", self.release["files"][0]["url"].lstrip("/"),
@@ -113,12 +150,12 @@ class PackageTests(unittest.TestCase):
         self.assertTrue(unknown.exists())
 
     def test_source_check_rejects_native_and_runtime_pin_mismatches(self):
-        native = self.app / "badgegotchi_native.mpy"
-        native.write_bytes(self.sources["badgegotchi_native.mpy"][:-1] + b"!")
+        native = self.app / "powersync/badgegotchi_native.mpy"
+        native.write_bytes(self.sources["powersync/badgegotchi_native.mpy"][:-1] + b"!")
         with self.assertRaisesRegex(SystemExit, "Native module does not match"):
             package.collect()
-        native.write_bytes(self.sources["badgegotchi_native.mpy"])
-        (self.app / "dots_runtime.py").write_text("wrong runtime pin")
+        native.write_bytes(self.sources["powersync/badgegotchi_native.mpy"])
+        (self.app / "powersync/runtime.py").write_text("wrong runtime pin")
         with self.assertRaisesRegex(SystemExit, "Runtime pin does not match"):
             package.collect()
 

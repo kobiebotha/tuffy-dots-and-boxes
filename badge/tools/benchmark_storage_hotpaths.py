@@ -31,13 +31,15 @@ def load_storage(path):
 def run_case(source, fixture, inputs, scenario_name, layout, page, cache, parsed):
     source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
     storage = load_storage(source)
-    storage.PAGE_BYTES = page
-    storage.MAX_SYNC_PAGES = 96 * 1024 // page
-    storage.SQLITE_CACHE_PAGES = cache
-    original_store, original_vfs = storage.Store, storage.BadgeVFS
+    database = sys.modules[storage.Database.__module__] if hasattr(storage, "Database") else storage
+    previous_options = (database.PAGE_BYTES, database.MAX_SYNC_PAGES, database.SQLITE_CACHE_PAGES)
+    database.PAGE_BYTES = page
+    database.MAX_SYNC_PAGES = 96 * 1024 // page
+    database.SQLITE_CACHE_PAGES = cache
+    original_store, original_vfs = storage.Store, database.BadgeVFS
     physical, calls = Counter(), Counter()
     timings = Counter()
-    baseline_json = storage.json
+    baseline_json = database.json
 
     class CountJSON:
         def loads(self, value):
@@ -115,11 +117,17 @@ def run_case(source, fixture, inputs, scenario_name, layout, page, cache, parsed
         candidate["rawSql"] = [sql + " WITHOUT ROWID" for sql in candidate["rawSql"]]
     if layout.endswith("_index"):
         candidate["rawSql"].append("CREATE INDEX moves_room_order ON moves(r,n)")
-    storage.json, storage.Store, storage.BadgeVFS = CountJSON(), Store, VFS
+    previous_bench = bench.storage, bench.HostCore
+    database.json, storage.Store, database.BadgeVFS = CountJSON(), Store, VFS
     bench.storage, bench.HostCore = storage, Core
     result = {}
-    result.update(bench.run(candidate, scenario_name,
-        candidate["scenarios"][scenario_name.removesuffix("_ui")], inputs["userId"]))
+    try:
+        result.update(bench.run(candidate, scenario_name,
+            candidate["scenarios"][scenario_name.removesuffix("_ui")], inputs["userId"]))
+    finally:
+        database.json, storage.Store, database.BadgeVFS = baseline_json, original_store, original_vfs
+        database.PAGE_BYTES, database.MAX_SYNC_PAGES, database.SQLITE_CACHE_PAGES = previous_options
+        bench.storage, bench.HostCore = previous_bench
     result.update({"source": str(source), "sourceSha256": source_sha256,
                    "pageBytes": page, "cachePages": cache, "parsedRecords": parsed})
     return result

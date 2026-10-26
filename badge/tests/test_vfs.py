@@ -5,9 +5,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app/dots_boxes"))
-import dots_storage
-from dots_storage import BadgeVFS, Store, DATABASE, MAX_DATABASE_BYTES, MIN_FREE_BYTES
+sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
+                for path in ("lib", "app/dots_boxes")]
+import powersync.database as database
+import powersync.vfs as vfs
+from dots_storage import Store
+from powersync.vfs import BadgeVFS, DATABASE, MAX_DATABASE_BYTES, MIN_FREE_BYTES
 
 
 class ProbeFile:
@@ -83,8 +86,8 @@ class ShadowVFSTests(unittest.TestCase):
             probe.metadata_dirty = mode != "rb"
             self.probes[name] = probe
             return probe
-        self.open_patch = patch.object(dots_storage, "open", side_effect=open_probe, create=True)
-        self.sync_patch = patch.object(dots_storage.os, "sync", side_effect=lambda: self.events.append(("os", "sync")))
+        self.open_patch = patch.object(vfs, "open", side_effect=open_probe, create=True)
+        self.sync_patch = patch.object(vfs.os, "sync", side_effect=lambda: self.events.append(("os", "sync")))
         self.open_patch.start()
         self.sync_mock = self.sync_patch.start()
         self.vfs = BadgeVFS(root=str(self.root))
@@ -173,7 +176,7 @@ class ShadowVFSTests(unittest.TestCase):
             # Pinned LittleFS statvfs double-counts an open metadata-dirty CTZ.
             duplicate = 8 if self.probes["db"].metadata_dirty else 0
             return MIN_FREE_BYTES + 8 - duplicate
-        with patch.object(dots_storage, "_free_bytes", side_effect=lfs_free):
+        with patch.object(database, "_free_bytes", side_effect=lfs_free):
             store._check_reserve()
             self.probes["db"].metadata_dirty = True
             with self.assertRaisesRegex(OSError, "snapshot"):
@@ -324,7 +327,7 @@ class ShadowVFSTests(unittest.TestCase):
         store = Store(root=str(self.root))
         store.io = self.vfs
         # Use the growing shadow's logical size, not the older physical file.
-        with patch.object(dots_storage, "_free_bytes", return_value=MIN_FREE_BYTES + 19999), \
+        with patch.object(database, "_free_bytes", return_value=MIN_FREE_BYTES + 19999), \
                 patch.object(store, "_exec") as sql, patch.object(store, "_used_pages", return_value=50):
             for action in (lambda: store.control("start", {}),
                            lambda: store.control_group([("start", {})]),
@@ -332,21 +335,21 @@ class ShadowVFSTests(unittest.TestCase):
                 with self.subTest(action=action), self.assertRaisesRegex(OSError, "snapshot"):
                     action()
             sql.assert_not_called()
-        with patch.object(dots_storage, "_free_bytes", return_value=MIN_FREE_BYTES + 20000):
+        with patch.object(database, "_free_bytes", return_value=MIN_FREE_BYTES + 20000):
             store._check_reserve()
 
     def test_unopened_store_reserves_snapshot_from_existing_file_stat(self):
         store = Store(root=str(self.root))
-        with patch.object(dots_storage, "_free_bytes", return_value=MIN_FREE_BYTES + 7):
+        with patch.object(database, "_free_bytes", return_value=MIN_FREE_BYTES + 7):
             with self.assertRaisesRegex(OSError, "snapshot"):
                 store._check_reserve()
-        with patch.object(dots_storage, "_free_bytes", return_value=MIN_FREE_BYTES + 8):
+        with patch.object(database, "_free_bytes", return_value=MIN_FREE_BYTES + 8):
             store._check_reserve()
 
     def test_new_directory_still_requires_full_database_cap_plus_reserve(self):
         destination = self.root / "new_game"
         store = Store(root=str(destination))
-        with patch.object(dots_storage, "_free_bytes", return_value=MAX_DATABASE_BYTES + MIN_FREE_BYTES - 1):
+        with patch.object(database, "_free_bytes", return_value=MAX_DATABASE_BYTES + MIN_FREE_BYTES - 1):
             with self.assertRaisesRegex(OSError, "Not enough free"):
                 store._owned_directory()
         self.assertFalse(destination.exists())

@@ -64,6 +64,21 @@ The app is prepared under `badge/app/dots_boxes`. Package it with:
 python3 badge/tools/package.py
 ```
 
+The local MicroPython SDK dependency lives in `badge/lib/powersync`. The packager
+bundles it as `apps/dots_boxes/powersync`, so imports use `powersync.*` on the
+badge. To reuse it in another Badgeware project, copy that `powersync` directory
+onto the app's import path. The package contains the database/VFS, verified HTTP,
+stream framing, sync loop, and the pinned native module. Its current runtime is
+qualified for Tufty 2350 / Badgeware 1.29.0; it still uses Python orchestration
+over the existing native PowerSync core.
+
+`dots_storage.Store` supplies the game's schema, migrations and queries to the
+SDK's `Database`. `dots_sync.GameConnector` supplies Supabase credentials,
+uploads and published-move confirmation to `SyncClient`; the SDK has no game or
+Supabase imports. Another project supplies its own schema and `Connector`.
+Those boundaries also provide a place to substitute a native implementation
+in a future experiment. Host scripts add `badge/lib` to their import path.
+
 That stages `web/public/dots-boxes.zip` and a manifest with content-versioned app files under `web/public/badge-app/`. It refreshes the original `web/public/apps/dots_boxes` copies and replaces only the generated `badge-app` subtree, keeping one release. Run `python3 badge/tools/package.py --check` to verify every served copy, manifest, and ZIP against the explicit app sources and reviewed native module; the web build runs this check too. Packaging never copies onto a USB drive.
 
 On `/install`, desktop Chrome or Edge can ask you to select the mounted Badgeware drive, copy the app, and read every file back to verify it. An existing `apps/dots_boxes` folder offers **Update game on badge**. Only packaged app paths are replaced; unknown files and `/state/dots_boxes` (pairing, database, pending moves) are retained. The browser snapshots replaced files in memory and attempts verified restoration on failure. If recovery cannot be verified, keep the drive connected and retry before resetting. Avoid editing the app from another program while copying; browser file operations cannot form a transaction against other OS writers. A successful readback does not replace safe OS ejection. Eject the drive in your operating system and press Reset once.

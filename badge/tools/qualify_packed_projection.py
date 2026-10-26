@@ -11,8 +11,9 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "badge/app/dots_boxes")]
+sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
 import dots_storage as storage
+from powersync.database import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES
 from dots_codec import decode_edge, encode_uuid
 from dots_session import fresh_session
 from game import Game
@@ -102,7 +103,7 @@ class Experiment:
         batch, size = [], 0
         for record in records:
             length = len(record.encode())
-            if batch and (len(batch) == storage.MAX_SYNC_BATCH_RECORDS or size + length > storage.MAX_SYNC_LINE_BYTES):
+            if batch and (len(batch) == MAX_SYNC_BATCH_RECORDS or size + length > MAX_SYNC_LINE_BYTES):
                 self.deliver(batch)
                 batch, size = [], 0
             batch.append(record)

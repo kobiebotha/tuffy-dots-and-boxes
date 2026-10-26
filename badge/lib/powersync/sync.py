@@ -1,38 +1,61 @@
-"""Refresh the Supabase session, send one pending move, then download PowerSync.
+"""Stepped PowerSync download, reconnect and checkpoint coordination."""
+from .http import PENDING, Gateway, HTTPS, split_https
+from .stream import StreamLines
+from .database import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES
 
-Moves go to PostgREST. The SQL outbox stays empty. A badge subscribes to only
-its paired room; the web lobby and the user's old games never fill LittleFS.
-"""
-import time
-
-from dots_http import PENDING, Gateway, HTTPS, split_https
-from dots_stream import StreamLines
-from dots_storage import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES
-
-# TCP/TLS can split one checkpoint over multiple nonblocking reads. Keep the
-# bounded wire records in RAM briefly, without opening a SQL transaction, so a
-# network pause does not turn each fragment into a durable flash rewrite.
 MAX_BATCH_DELAY_MS = 1000
 MAX_STREAM_READS = 2
 MAX_STREAM_RECORDS = MAX_SYNC_BATCH_RECORDS
-BADGE_STREAM = "badge_game_v2"
 
 
-class Sync:
-    def __init__(self, store, records, endpoint, auth_url, move_url, anon_key, ca_files,
+class Connector:
+    """App-owned credentials and uploads, advanced once per foreground step.
+
+    fetch_credentials returns a token, PENDING, or None (status/revoked).
+    upload_pending reports unsent work; upload_data returns PENDING, True for
+    acceptance, or False for rejection (requests a fresh checkpoint barrier).
+    checkpoint_applied runs after commit and returns whether app writes are
+    confirmed. close releases in-flight HTTP without discarding durable work.
+    Override credentials_valid when tokens expire. A read-only client needs
+    only fetch_credentials and invalidate_credentials.
+    """
+    status = "NEED AUTH"
+    revoked = False
+    notice = ""
+
+    def fetch_credentials(self):
+        raise NotImplementedError
+
+    def invalidate_credentials(self):
+        raise NotImplementedError
+
+    def credentials_valid(self):
+        return True
+
+    def upload_pending(self):
+        return False
+
+    def upload_data(self):
+        return True
+
+    def checkpoint_applied(self, store, full_checkpoint):
+        return True
+
+    def close(self):
+        pass
+
+
+class SyncClient:
+    def __init__(self, store, connector, endpoint, subscription, ca_files,
                  heartbeat=None, http_factory=HTTPS, json_factory=Gateway):
-        self.store = store
-        self.records = records
-        self.room_id = records.record["room_id"]
+        self.store, self.connector = store, connector
+        self.subscription = subscription
         self.endpoint = endpoint.rstrip("/")
         split_https(self.endpoint)
-        self.auth_url = auth_url
-        self.move_url = move_url
-        self.anon_key = anon_key
         self.ca_files = ca_files
         self.heartbeat = heartbeat
-        self.http_factory = http_factory
-        self.json_factory = json_factory
+        self.http_factory, self.json_factory = http_factory, json_factory
+        self.token = None
         self.phase = "token"
         self.remote = self.stream = None
         self.request = None
@@ -54,16 +77,10 @@ class Sync:
         self.last_error = ""
         self.live_upload = True
         self.checkpoint_seeded = False
-        self.uploaded_move_id = None
         self.needs_write_barrier = False
 
     def _control(self, command, payload=None):
         return self.store.control(command, payload)
-
-    def _headers(self):
-        if not isinstance(self.anon_key, str) or len(self.anon_key) < 20:
-            raise ValueError("Supabase anon key is not configured")
-        return {"apikey": self.anon_key}
 
     def _disconnect(self):
         if self.stream is not None:
@@ -71,6 +88,7 @@ class Sync:
         if self.remote is not None:
             self.remote.close()
         self.stream = self.remote = None
+        self.connector.close()
         if self.core_started:
             try:
                 self._control("stop")
@@ -85,10 +103,10 @@ class Sync:
         self.checkpoint_seeded = False
 
     def close(self):
+        if self.closed:
+            return
         self._disconnect()
-        self._control("subscriptions", {"unsubscribe": {
-            "name": BADGE_STREAM, "params": {"room_id": self.room_id},
-        }})
+        self._control("subscriptions", {"unsubscribe": self.subscription})
         self.closed = True
 
     def _retry(self):
@@ -104,8 +122,8 @@ class Sync:
         for instruction in instructions:
             if "LogLine" in instruction:
                 line = instruction["LogLine"].get("line", "")
-                if line.startswith("Subscription to stream " + BADGE_STREAM + " ") and "could not be resolved" in line:
-                    raise ValueError("PowerSync badge subscription unavailable; update sync configuration")
+                if line.startswith("Subscription to stream " + self.subscription["name"] + " ") and "could not be resolved" in line:
+                    raise ValueError("PowerSync subscription unavailable; update sync configuration")
             elif "EstablishSyncStream" in instruction:
                 establish = instruction["EstablishSyncStream"]
                 self.request = establish["request"]
@@ -126,35 +144,25 @@ class Sync:
                 covered = (self.target is None and full_checkpoint) or (
                     self.target is not None and applied is not None and int(applied) >= int(self.target))
                 if covered:
-                    record = self.records.record
-                    move = record["pending_move"]
-                    # Moves are immutable canonical rows with the client's UUID.
-                    # Seeing this exact room/move in a fully applied checkpoint
-                    # confirms the upload and its derived board atomically.
-                    if (full_checkpoint and move is not None
-                            and self.store.has_move(move["id"], record["room_id"])):
-                        self.records.save(dict(record, pending_move=None))
-                        self.uploaded_move_id = None
+                    if self.connector.checkpoint_applied(self.store, full_checkpoint):
                         self.needs_write_barrier = False
-                    if self.records.record["pending_move"] is None:
                         self.synced = True
                         self.status = "SYNCED"
                         self.backoff_ms = 2000
             elif "CheckpointDelayedDueToLocalData" in instruction:
                 # Core uses this for both SQL CRUD and a checkpoint older than
                 # our accepted upload's target. The latter is normal: keep the
-                # stream and saved UUID until a newer checkpoint applies.
+                # stream and pending upload until a newer checkpoint applies.
                 if self.store.has_local_writes():
                     raise ValueError("Unexpected local SQL writes; retained")
                 self.synced = False
                 self.status = "SYNCING"
 
     def _invalidate_token(self):
-        record = self.records.record
-        if record["access_token"] is not None or record["expires_at"]:
-            self.records.save(dict(record, access_token=None, expires_at=0))
+        self.token = None
+        self.connector.invalidate_credentials()
 
-    def _after_move(self, accepted=False):
+    def _after_upload(self, accepted=False):
         if accepted:
             if self.target is not None:
                 self._control("target_checkpoint_request_id", "0")
@@ -167,31 +175,19 @@ class Sync:
         if self.stream is None:
             self.phase = "start"
             return
-        # Rejected moves can also mean the cached turn is stale. A new target
-        # makes both outcomes wait for the server's current board.
+        # Rejected uploads can also mean the cached data is stale. A new target
+        # makes both outcomes wait for the server's current data.
         if not self.checkpoint_seeded:
-            self.phase, self.status = "move_seed", "SYNCING"
+            self.phase, self.status = "upload_seed", "SYNCING"
             return
         following = str(self._control("next_checkpoint_request_id"))
         self.checkpoint = {"client_id": self.checkpoint["client_id"], "checkpoint_request_id": following}
-        self.phase, self.status = "move_checkpoint", "SYNCING"
-
-    def _post(self, url, body, token=None):
-        if self.remote is None:
-            self.remote = self.json_factory(url, self.ca_files, heartbeat=self.heartbeat,
-                                            token=token, headers=self._headers())
-            self.remote.start(body)
-        result = self.remote.step()
-        if result is PENDING:
-            return PENDING
-        self.remote.close()
-        self.remote = None
-        return result
+        self.phase, self.status = "upload_checkpoint", "SYNCING"
 
     def _checkpoint_request(self, request):
         if self.remote is None:
             self.remote = self.json_factory(self.endpoint + "/sync/checkpoint-request", self.ca_files,
-                                            heartbeat=self.heartbeat, token=self.records.record["access_token"])
+                                            heartbeat=self.heartbeat, token=self.token)
             self.remote.start(request)
         result = self.remote.step()
         if result is PENDING:
@@ -221,10 +217,10 @@ class Sync:
             self._step()
         except MemoryError:
             self.last_error = "Not enough memory for simultaneous HTTPS requests"
-            if self.live_upload and self.stream is not None and self.phase in ("move", "move_seed", "move_checkpoint"):
+            if self.live_upload and self.stream is not None and self.phase in ("upload", "upload_seed", "upload_checkpoint"):
                 # A second TLS connection is optional. Release the download
                 # socket and retry through the one-socket startup path. The
-                # saved move UUID still makes an uncertain upload idempotent.
+                # connector must retain an uncertain upload for idempotent retry.
                 self.live_upload = False
                 self._retry()
             else:
@@ -235,21 +231,19 @@ class Sync:
             self._retry()
         except (ValueError, RuntimeError) as exc:
             self.last_error = str(exc)[:96]
-            print("DOTS_SYNC_ERROR", type(exc).__name__, self.last_error)
+            print("POWERSYNC_ERROR", type(exc).__name__, self.last_error)
             self._disconnect()
             self.phase = "blocked"
             self.status = "SYNC ERROR"
 
     def _step(self):
-        record = self.records.record
-        pending = record["pending_move"]
-        uploaded = pending is not None and pending["id"] == self.uploaded_move_id
-        if pending and not uploaded and self.phase not in ("token", "move"):
+        pending = self.connector.upload_pending()
+        if pending and self.phase not in ("token", "upload"):
             if (self.live_upload and self.phase == "stream" and self.connected and self.core_started
-                    and record["expires_at"] and record["expires_at"] - int(time.time()) > 60):
+                    and self.connector.credentials_valid()):
                 self._flush()
                 self.synced = False
-                self.phase = "move"
+                self.phase = "upload"
                 return
             self._disconnect()
             self.phase = "token"
@@ -257,77 +251,42 @@ class Sync:
         if self.phase == "token":
             if self.core_started:
                 self._disconnect()
-            if not record["refresh_token"]:
-                self.status = "NEED PAIR"
-                return
-            now = int(time.time())
-            if record["access_token"] and record["expires_at"] and record["expires_at"] - now > 60:
-                self.phase = "move" if pending and not uploaded else "start"
-                return
             self.status = "CONNECTING"
-            result = self._post(self.auth_url, {"refresh_token": record["refresh_token"]})
-            if result is PENDING:
+            token = self.connector.fetch_credentials()
+            if token is PENDING:
                 return
-            status = result.get("http_status", 200 if "access_token" in result else 503)
-            if status == 401 or result.get("error") in ("invalid_grant", "invalid_request"):
-                self._disconnect()
-                self.phase, self.status = "revoked", "SIGN IN AGAIN"
+            if token is None:
+                self.status = self.connector.status
+                if self.connector.revoked:
+                    self._disconnect()
+                    self.phase = "revoked"
                 return
-            if "access_token" not in result or "refresh_token" not in result:
-                raise OSError("Session refresh unavailable")
-            updated = dict(record)
-            updated["access_token"] = result["access_token"]
-            updated["refresh_token"] = result["refresh_token"]
-            expires_in = result.get("expires_in", 3600)
-            if type(expires_in) is not int:
-                expires_in = int(expires_in)
-            updated["expires_at"] = int(time.time()) + max(0, expires_in)
-            self.records.save(updated)
-            self.phase = "move" if pending and not uploaded else "start"
+            self.token = token
+            self.phase = "upload" if pending else "start"
             return
-        if self.phase == "move":
-            move = record["pending_move"]
-            if move is None:
-                self.phase = "start"
-                return
-            self.status = "SENDING"
-            result = self._post(self.move_url, {
-                "move_id": move["id"],
-                "target": record["room_id"],
-                "orientation": move["orientation"],
-                "row_i": move["row"],
-                "col_i": move["col"],
-            }, token=record["access_token"])
-            if result is PENDING:
-                return
-            status = result.get("http_status", 200)
-            if status == 401:
-                self._invalidate_token()
+        if self.phase == "upload":
+            if not self.connector.credentials_valid():
                 self.phase = "token"
                 return
-            if status >= 500 or status == 429:
-                raise OSError("Move upload unavailable")
-            if status >= 400:
-                self.notice = str(result.get("message") or result.get("error") or "Move rejected")[:48]
-                updated = dict(record)
-                updated["pending_move"] = None
-                self.records.save(updated)
-                self._after_move()
+            self.status = "SENDING"
+            accepted = self.connector.upload_data()
+            self.notice = self.connector.notice
+            if accepted is PENDING:
+                if not self.connector.credentials_valid():
+                    self.phase = "token"
                 return
-            self.uploaded_move_id = move["id"]
-            self.notice = ""
-            self._after_move(accepted=True)
+            self._after_upload(accepted=accepted)
             return
-        if self.phase == "move_seed":
+        if self.phase == "upload_seed":
             accepted = self._checkpoint_request(self.checkpoint)
             if accepted is PENDING:
                 return
             following = self.store.seed_checkpoint(accepted)
             self.checkpoint_seeded = True
             self.checkpoint = {"client_id": self.checkpoint["client_id"], "checkpoint_request_id": following}
-            self.phase = "move_checkpoint"
+            self.phase = "upload_checkpoint"
             return
-        if self.phase == "move_checkpoint":
+        if self.phase == "upload_checkpoint":
             accepted = self._checkpoint_request(self.checkpoint)
             if accepted is PENDING:
                 return
@@ -337,18 +296,14 @@ class Sync:
             return
         if self.phase == "start":
             self.status = "SYNCING"
-            # Old versions persisted all default streams. Explicitly remove
-            # those TTLs and any previous room before opening the bounded one.
+            # Retire persisted subscriptions before selecting the bounded stream.
             # Native 0.5.4 names the input key `params`; it emits `parameters`
             # in the HTTP request. Unknown input keys are silently ignored.
-            stream = {"name": BADGE_STREAM, "params": {"room_id": self.room_id}}
+            stream = self.subscription
             before = self.phase
             self.core_started = True
-            # A resumed UUID is idempotently uploaded first, then confirmed by
-            # its published move row. Old checkpoint targets must not block it.
-            # Store supplies the registered raw-table schema on every start;
-            # publication and UUID confirmation still wait for a full checkpoint.
-            self.needs_write_barrier = False
+            # The connector resolves durable uploads against published data.
+            # Store supplies the registered raw-table schema on every start.
             self.target = None
             self._instructions(self.store.start_sync(stream, {
                 "checkpoint_mode": "requests",
@@ -378,7 +333,7 @@ class Sync:
             return
         if self.phase == "open_stream":
             self.stream = self.http_factory(self.endpoint + "/sync/stream", self.request, self.ca_files,
-                                            token=record["access_token"], streaming=True, heartbeat=self.heartbeat)
+                                            token=self.token, streaming=True, heartbeat=self.heartbeat)
             self.phase, self.status = "stream", "SYNCING"
             return
         if self.phase == "stream":

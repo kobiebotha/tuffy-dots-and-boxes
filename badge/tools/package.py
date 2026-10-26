@@ -10,13 +10,14 @@ from pathlib import Path
 
 BADGE = Path(__file__).resolve().parents[1]
 APP = BADGE / "app" / "dots_boxes"
+SDK = BADGE / "lib" / "powersync"
 REPO = BADGE.parent
 PUBLIC = REPO / "web" / "public"
 APP_ID = "dots_boxes"
 VERSION = "0.1.0"
 NATIVE_BYTES = 737049
 NATIVE_SHA256 = "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8"
-SOURCE_FILES = (
+APP_FILES = (
     "__init__.py",
     "game.py",
     "controls.py",
@@ -24,9 +25,6 @@ SOURCE_FILES = (
     "logos.py",
     "icon.png",
     "dots_config.py",
-    "dots_http.py",
-    "dots_runtime.py",
-    "dots_stream.py",
     "dots_storage.py",
     "dots_codec.py",
     "dots_session.py",
@@ -34,8 +32,14 @@ SOURCE_FILES = (
     "dots_client.py",
     "dots_pairing.py",
     "ca/sectigo-r46.der",
-    "badgegotchi_native.mpy",
 )
+SDK_FILES = (
+    "__init__.py", "database.py", "vfs.py", "http.py", "stream.py", "sync.py",
+    "runtime.py", "badgegotchi_native.mpy",
+)
+SOURCE_FILES = APP_FILES + tuple("powersync/" + name for name in SDK_FILES)
+# Previous releases copied SDK internals into the game root.
+RETIRED_FILES = ("dots_http.py", "dots_runtime.py", "dots_stream.py", "badgegotchi_native.mpy")
 
 
 def sha(data):
@@ -55,17 +59,18 @@ def refuse_mounted_destination(path):
 def collect():
     files = {}
     for name in SOURCE_FILES:
-        path = APP / name
-        ancestors = [APP]
-        for part in Path(name).parts:
+        root, relative = (SDK, name[len("powersync/"):]) if name.startswith("powersync/") else (APP, name)
+        path = root / relative
+        ancestors = list(root.parents) + [root]
+        for part in Path(relative).parts:
             ancestors.append(ancestors[-1] / part)
         if any(part.is_symlink() for part in ancestors) or not path.is_file():
             raise SystemExit("Missing or symlinked app file: " + name)
         files[name] = path.read_bytes()
-    native = files["badgegotchi_native.mpy"]
+    native = files["powersync/badgegotchi_native.mpy"]
     if len(native) != NATIVE_BYTES or sha(native) != NATIVE_SHA256 or native[:4] != bytes((77, 6, 31, 31)):
         raise SystemExit("Native module does not match the reviewed build")
-    identity = files["dots_runtime.py"].decode("utf-8")
+    identity = files["powersync/runtime.py"].decode("utf-8")
     if NATIVE_SHA256 not in identity or str(NATIVE_BYTES) not in identity:
         raise SystemExit("Runtime pin does not match the native module")
     return files
@@ -158,12 +163,17 @@ def stage_outputs(outputs):
     generated = PUBLIC / "badge-app"
     staged_files(generated)  # Reject links before recursively removing generated data.
     legacy = PUBLIC / "apps" / APP_ID
-    unexpected = staged_files(legacy) - outputs.keys()
+    retired = {"apps/" + APP_ID + "/" + name for name in RETIRED_FILES}
+    unexpected = staged_files(legacy) - outputs.keys() - retired
     if unexpected:
         raise SystemExit("Unexpected public app files; remove explicitly: " +
                          ", ".join(sorted(unexpected)))
     if generated.exists():
         shutil.rmtree(generated)
+    for name in RETIRED_FILES:
+        old = legacy / name
+        if old.is_file():
+            old.unlink()
     for name, data in outputs.items():
         destination = PUBLIC / name
         destination.parent.mkdir(parents=True, exist_ok=True)
