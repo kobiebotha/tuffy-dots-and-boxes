@@ -221,6 +221,13 @@ kbd { display: inline-block; border: 1px solid #496351; border-bottom-width: 3px
 .auto-play { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0; font-size: 13px; }
 .auto-play input { width: 18px; height: 18px; accent-color: var(--green); }
 .emulator-room > .actions { margin-top: 20px; }
+.virtual-badge-join { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 18px; }
+.virtual-badge-join p { font-size: 13px; line-height: 1.6; }
+.embedded-badge .tufty-screen { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; max-width: none; }
+.embedded-badge .emulator-room-top { margin: 18px 0 10px; }
+.embedded-badge .emulator-room-top h2 { font-size: 20px; }
+.embedded-badge > p { font-size: 12px; line-height: 1.6; }
+.embedded-badge .auto-play { flex-wrap: wrap; }
 @media (min-width: 1400px) { .shell { padding-top: 12px; } .hero { padding-block: 28px 48px; } }
 @media (max-width: 1000px) {
   .shell { width: calc(100% - 48px); } .hero { gap: 30px; } .hero h1 { font-size: 36px; }

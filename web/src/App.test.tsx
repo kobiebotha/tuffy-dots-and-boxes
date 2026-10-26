@@ -81,3 +81,40 @@ describe("room archive access", () => {
     expect(html).toContain("Back to rooms");
   });
 });
+
+describe("room badge choices", () => {
+  it("offers one-click virtual joining alongside the host's physical pairing code", () => {
+    state.rooms = [{ ...room(), player_count: 1, paired_count: 0 }];
+    state.players = [{ room_id: "room-123", user_id: "host", seat: 1, pairing_code: "ABCAB" }];
+    const html = page();
+    expect(html).toContain("Join as virtual badge");
+    expect(html).toContain("A B C A B");
+    expect(html).toContain("Archive room");
+    expect(html).not.toContain("Join with a physical badge");
+  });
+
+  it("lets visitors choose a virtual or physical badge on the room page", () => {
+    state.rooms = [{ ...room(), player_count: 1 }];
+    const html = page("visitor");
+    expect(html).toContain("Join as virtual badge");
+    expect(html).toContain("Join with a physical badge");
+    expect(html).not.toContain("Archive room");
+  });
+
+  it("keeps watching read-only and hides new joining for full or finished rooms", () => {
+    state.rooms = [{ ...room(), player_count: 1 }];
+    expect(page("visitor", true)).not.toContain("Join as virtual badge");
+    expect(page("visitor", true)).not.toContain("Join with a physical badge");
+    state.rooms = [room("playing")];
+    expect(page()).not.toContain("Join as virtual badge");
+    state.rooms = [room("finished")];
+    expect(page()).not.toContain("Join as virtual badge");
+  });
+
+  it("keeps full rooms reachable for a returning virtual player from the lobby", () => {
+    state.rooms = [room("playing")];
+    const html = renderToStaticMarkup(<Lobby userId="visitor" go={() => {}} />);
+    expect(html).toContain("Open room");
+    expect(html).toContain("Watch");
+  });
+});

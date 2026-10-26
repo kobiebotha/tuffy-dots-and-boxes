@@ -8,6 +8,7 @@ import { openUserDatabase, startSync } from "./lib/database";
 import { archiveRoom, createRoom, joinRoom, leaveRoom, rememberedCode, rememberCode } from "./lib/rooms";
 import { ensureSession } from "./lib/supabase";
 import { connectionSummary, errorMessage } from "./lib/syncStatus";
+import { VirtualBadge } from "./VirtualBadge";
 
 interface Room {
   id: string;
@@ -145,7 +146,7 @@ export function Lobby({ userId, go }: { userId: string; go: (path: string) => vo
     <section className="lobby" aria-label="Game lobby">
       <div className="hero">
         <div className="hero-copy">
-          <h1>Little badges.<br /><span>Big moves.</span></h1>
+          <h1>don't be a square<br /><span>make some moves</span></h1>
           <div className="actions hero-actions">
             {active ? (
               <button className="primary" onClick={() => go(`/room/${active.room_id}`)}>
@@ -158,7 +159,7 @@ export function Lobby({ userId, go }: { userId: string; go: (path: string) => vo
             )}
             <a className="text-link" href="#open-rooms">Find a game <span aria-hidden="true">↓</span></a>
           </div>
-          <p className="hero-footnote">{active ? "Your board is waiting. Pick up where you left off." : "Two players · 20 boxes · Bragging rights included"}</p>
+          {active ? <p className="hero-footnote">Your board is waiting. Pick up where you left off.</p> : null}
           {error ? <p className="error" role="alert">{error}</p> : null}
         </div>
         <GamePreview />
@@ -168,14 +169,14 @@ export function Lobby({ userId, go }: { userId: string; go: (path: string) => vo
           <span className="step-number">01</span>
           <div>
             <strong>Make a room</strong>
-            <p>Invite a worthy opponent.</p>
+            <p>Play a friend or try both sides.</p>
           </div>
         </li>
         <li>
           <span className="step-number">02</span>
           <div>
-            <strong>Pair your badges</strong>
-            <p>Enter your A / B / C codes.</p>
+            <strong>Choose your badges</strong>
+            <p>Pair a Tufty. Join the other seat here.</p>
           </div>
         </li>
         <li>
@@ -222,9 +223,9 @@ export function Lobby({ userId, go }: { userId: string; go: (path: string) => vo
                   <button className="primary" onClick={() => go(`/room/${room.id}`)}>
                     Your room <span aria-hidden="true">→</span>
                   </button>
-                ) : room.status === "waiting" && room.player_count < 2 && room.host_user_id !== userId && !active ? (
-                  <JoinButton userId={userId} roomId={room.id} go={go} />
-                ) : null}
+                ) : (
+                  <button className="primary" onClick={() => go(`/room/${room.id}`)}>{room.status === "waiting" && room.player_count < 2 ? "Join room" : "Open room"} <span aria-hidden="true">→</span></button>
+                )}
                 <button className="secondary" onClick={() => go(`/watch/${room.id}`)}>
                   Watch <span aria-hidden="true">↗</span>
                 </button>
@@ -265,7 +266,7 @@ function JoinButton({ userId, roomId, go }: { userId: string; roomId: string; go
             .finally(() => setBusy(false));
         }}
       >
-        {busy ? "Joining…" : "Join room"}
+        {busy ? "Joining…" : "Join with a physical badge"}
       </button>
       {error ? <span className="error">{error}</span> : null}
     </>
@@ -357,6 +358,14 @@ export function RoomPage({ userId, roomId, viewOnly, go }: { userId: string; roo
       ? [{ orientation: move.orientation, row: move.row, col: move.col, seat: move.seat }]
       : [],
   );
+  const board = <>
+    <BoardView cols={room.cols} rows={room.rows} moves={boardMoves} />
+    <div className="board-caption">
+      <span className="player-one">P1 / GREEN</span>
+      <span>{viewOnly ? "Watching the badges play" : "Play on a badge or join below"}</span>
+      <span className="player-two">P2 / BLUE</span>
+    </div>
+  </>;
 
   return (
     <section className={`room ${room.status} ${viewOnly ? "spectator" : "member"}`}>
@@ -383,14 +392,14 @@ export function RoomPage({ userId, roomId, viewOnly, go }: { userId: string; roo
             </div>
             <Score seat={2} score={room.score_p2} active={room.status === "playing" && room.current_seat === 2} />
           </div>
-          <BoardView cols={room.cols} rows={room.rows} moves={boardMoves} />
-          <div className="board-caption">
-            <span className="player-one">P1 / GREEN</span>
-            <span>{viewOnly ? "Watching the badges play" : "Make your moves on the badge"}</span>
-            <span className="player-two">P2 / BLUE</span>
-          </div>
+          {viewOnly ? board : <VirtualBadge roomId={roomId} canJoin={room.status === "waiting" && room.player_count < 2} go={go}>{board}</VirtualBadge>}
         </div>
         <aside className="room-sidebar">
+          {!viewOnly && !me && room.status === "waiting" && room.player_count < 2 ? <div className="side-panel">
+            <p className="kicker">HAVE ANOTHER TUFTY?</p>
+            <p>Get a pairing code for your own physical badge.</p>
+            <JoinButton userId={userId} roomId={roomId} go={go} />
+          </div> : null}
           {code && room.status !== "finished" ? (
             <PairingCode code={code} paired={Boolean(me?.paired_at)} />
           ) : (
@@ -505,7 +514,7 @@ function InstallNote() {
     <aside className="note install-note">
       <div>
         <span className="note-label">NEW HERE?</span>
-        <p>Your badge needs the game before its first match.</p>
+        <p>you need to sideload the game onto your badge first</p>
       </div>
       <div className="actions">
         <a className="text-link" href="/install" onClick={() => localStorage.setItem("dots-saw-install", "1")}>
@@ -537,8 +546,7 @@ function GamePreview() {
   return (
     <div className="game-preview" aria-label="Example game board">
       <div className="preview-header">
-        <span className="kicker">A LITTLE FRIENDLY COMPETITION</span>
-        <span className="preview-label">DEMO</span>
+        <span className="kicker">multi-player games on a tufty</span>
       </div>
       <BoardView cols={5} rows={3} moves={PREVIEW_MOVES} />
       <div className="preview-footer">

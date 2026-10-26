@@ -47,7 +47,6 @@ export function PageFrame({ path, go, connection, connectionError, busy = false,
         {children}
       </div>
       <footer className="footer">
-        <span>Small screens. Good company. One more game.</span>
         <div className="powered-by">
           <span>POWERED BY</span>
           <a href="https://supabase.com" target="_blank" rel="noreferrer">

@@ -25,7 +25,15 @@ interface Room {
 }
 interface Player { room_id: string; user_id: string; seat: number; pairing_code: string | null; device_id: string | null; paired_at: string | null }
 interface StoredMove extends Move { id: string; move_index: number }
-interface EmulatorSession { client: SupabaseClient; userId: string; deviceId: string; profile: string; db: PowerSyncDatabase }
+export interface EmulatorSession { client: SupabaseClient; userId: string; deviceId: string; profile: string; db: PowerSyncDatabase }
+
+export async function openEmulatorSession(profile = "default"): Promise<EmulatorSession> {
+  const client = emulatorClient(profile);
+  const session = await ensureSession(client);
+  const deviceId = emulatorDeviceId(profile);
+  const db = await openUserDatabase(session.user.id);
+  return { client, userId: session.user.id, deviceId, profile, db };
+}
 
 export function EmulatorApp() {
   const [application, setApplication] = useState<EmulatorSession | null>(null);
@@ -34,15 +42,10 @@ export function EmulatorApp() {
   useEffect(() => {
     let alive = true;
     async function open() {
-      const profile = emulatorProfile(window.location.search);
-      const client = emulatorClient(profile);
-      const session = await ensureSession(client);
-      const deviceId = emulatorDeviceId(profile);
+      const application = await openEmulatorSession(emulatorProfile(window.location.search));
       if (!alive) return;
-      const db = await openUserDatabase(session.user.id);
-      if (!alive) return;
-      setApplication({ client, userId: session.user.id, db, deviceId, profile });
-      void startSync(db, session.user.id, client).catch((reason: unknown) => {
+      setApplication(application);
+      void startSync(application.db, application.userId, application.client).catch((reason: unknown) => {
         if (alive) setConnectionError(errorMessage(reason));
       });
     }
@@ -113,7 +116,7 @@ function EmulatorShell({ application, connectionError }: { application: Emulator
   );
 }
 
-function EmulatorRoom({ application, roomId, back }: { application: EmulatorSession; roomId: string; back: () => void }) {
+export function EmulatorRoom({ application, roomId, back, embedded = false }: { application: EmulatorSession; roomId: string; back: () => void; embedded?: boolean }) {
   const { client, userId, deviceId } = application;
   const parameters = useMemo(() => ({ room_id: roomId }), [roomId]);
   const stream = useSyncStream({ name: "watch_room", parameters, ttl: 60 });
@@ -222,9 +225,9 @@ function EmulatorRoom({ application, roomId, back }: { application: EmulatorSess
   const turn = finished ? (room.winner === 0 ? "A draw!" : `Player ${room.winner} wins!`) : room.status === "waiting" ? "Waiting for both badges" : canPlay ? "Your turn" : `Player ${room.current_seat}'s turn`;
 
   return (
-    <section className="room emulator-room">
-      <div className="emulator-room-top"><div><p className="kicker">{me ? `You are player ${me.seat}` : "Spectating"} · Room {room.id.slice(0, 8)}</p><h2>{turn}</h2></div><a className="button-link" href={`/watch/${room.id}`} target="_blank" rel="noreferrer">Watch on dashboard ↗</a></div>
-      {me && !pairedHere && !finished ? <section className="code-panel"><p>{me.paired_at ? "This seat belongs to another device." : "Pair this virtual badge with its own code."}</p>{code ? <p className="code">{groupCode(code)}</p> : null}<button className="primary" disabled={!code || pairing || Boolean(me.paired_at) || !live} onClick={() => void pair()}>{pairing ? "Pairing…" : pairRequested ? "Pair again" : "Pair virtual badge"}</button>{pairRequested ? <p role="status">Pairing accepted. Waiting for the synced roster…</p> : null}</section> : null}
+    <section className={embedded ? "emulator-room embedded-badge" : "room emulator-room"} aria-label="Virtual badge">
+      <div className="emulator-room-top"><div><p className="kicker">{me ? `Virtual badge · Player ${me.seat}` : "Spectating"}</p><h2>{turn}</h2></div>{!embedded ? <a className="button-link" href={`/watch/${room.id}`} target="_blank" rel="noreferrer">Watch on dashboard ↗</a> : null}</div>
+      {!embedded && me && !pairedHere && !finished ? <section className="code-panel"><p>{me.paired_at ? "This seat belongs to another device." : "Pair this virtual badge with its own code."}</p>{code ? <p className="code">{groupCode(code)}</p> : null}<button className="primary" disabled={!code || pairing || Boolean(me.paired_at) || !live} onClick={() => void pair()}>{pairing ? "Pairing…" : pairRequested ? "Pair again" : "Pair virtual badge"}</button>{pairRequested ? <p role="status">Pairing accepted. Waiting for the synced roster…</p> : null}</section> : null}
       <p role="status">{room.paired_count}/2 badges paired{pairedHere ? " · Virtual badge ready" : ""}. {room.status === "waiting" ? "Enter the other player's code on the physical Tufty." : `${room.move_count}/49 lines played.`}</p>
       <div className="tufty-screen" tabIndex={0} role="region" aria-label="Virtual badge controls" onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
@@ -236,14 +239,14 @@ function EmulatorRoom({ application, roomId, back }: { application: EmulatorSess
           else if (canPlay && selected) void send(selected);
         }
       }}>
-        <div className="emulator-scores"><span className={room.current_seat === 1 && !finished ? "active" : ""}>P1 <strong>{room.score_p1}</strong></span><span className={room.current_seat === 2 && !finished ? "active" : ""}>P2 <strong>{room.score_p2}</strong></span></div>
+        {!embedded ? <div className="emulator-scores"><span className={room.current_seat === 1 && !finished ? "active" : ""}>P1 <strong>{room.score_p1}</strong></span><span className={room.current_seat === 2 && !finished ? "active" : ""}>P2 <strong>{room.score_p2}</strong></span></div> : null}
         <BoardView cols={room.cols} rows={room.rows} moves={moves} onEdge={(edge) => void send(edge)} disabled={!canPlay} selected={selected} />
         <div className="badge-buttons"><button disabled={!freeEdges.length || sending} onClick={() => cycle(-1)}>A · Previous</button><button className="primary" disabled={!canPlay || !selected} onClick={() => selected && void send(selected)}>B · Claim line</button><button disabled={!freeEdges.length || sending} onClick={() => cycle(1)}>C · Next</button></div>
       </div>
       <p className="muted">Click a free line, or focus the badge and use A / B / C (← / Enter / →). Yellow marks the selected line.</p>
       {pending ? <div className="note"><p role="status">{notice}</p><button disabled={sending || !live} onClick={() => void send()}>{sending ? "Sending…" : "Retry saved move"}</button></div> : notice ? <p role="status">{notice}</p> : null}
       {pairedHere && !finished ? <label className="auto-play"><input type="checkbox" checked={autoPlay} onChange={(event) => setAutoPlay(event.target.checked)} /> Auto-play my turns <span className="muted">(one move every ½ second, after sync confirmation)</span></label> : null}
-      <div className="actions"><button onClick={back}>All rooms</button>{me && room.status === "waiting" ? <button disabled={pairing || Boolean(pending)} onClick={() => void leave()}>{me.seat === 1 ? "Cancel room" : "Leave room"}</button> : null}</div>
+      <div className="actions">{!embedded ? <button onClick={back}>All rooms</button> : null}{me && room.status === "waiting" ? <button disabled={pairing || Boolean(pending)} onClick={() => void leave()}>{me.seat === 1 ? "Cancel room" : embedded ? "Leave as virtual badge" : "Leave room"}</button> : null}</div>
       {error ? <p className="error" role="alert">{error}</p> : null}
     </section>
   );

@@ -1,6 +1,6 @@
 # Tuffy Dots and Boxes
 
-Two Tufty 2350 badges, or one badge and the browser emulator, play one Dots and Boxes board. A web dashboard creates the room, shows a five-letter pairing code (A, B, and C only), and watches the game. PowerSync delivers the board to each badge and to anyone watching in the browser. Moves are sent with a Supabase call, then synced back.
+Two Tufty 2350 badges, or one badge and a virtual badge in the browser, play one Dots and Boxes board. A web dashboard creates the room, shows a five-letter pairing code (A, B, and C only), and lets you join the other seat in the same tab. PowerSync delivers the board to each badge and to anyone watching in the browser. Moves are sent with a Supabase call, then synced back.
 
 The linked projects are Supabase `rjjvtmqicwtikbveofyq`, PowerSync instance `6ad7f348423e048d1cdd5f03`, and the Vercel project `tuffy-dots-and-boxes`.
 
@@ -14,7 +14,7 @@ npm --prefix web test
 npm --prefix web run dev
 ```
 
-Open the site, create a room, and enter the spaced code on the badge. Someone else can join that waiting room and gets a different code. Anyone can watch. A person can have one waiting or playing room. Finishing it, cancelling it as the host, or leaving it as the guest frees them to make another.
+Open the site, create a room, and enter the spaced code on the badge. On that same room page, select **Join as virtual badge** to join and pair the second player automatically. You can then play both sides with one browser tab and one Tufty. Someone else can open the waiting room and choose a virtual badge or **Join with a physical badge** to get their own code. Anyone can watch. Each player account can have one waiting or playing room. Finishing it, archiving it as the host, or leaving it as the guest frees them to make another.
 
 The host can **Archive room** from its lobby card or room page, including while
 the game is playing. Archiving preserves the board history, closes the room,
@@ -28,24 +28,28 @@ and displays connection errors in the lobby as well as room pages. `Live` means
 the client is connected and has completed a sync; cached data remains usable
 while it reconnects.
 
-## Browser badge emulator
+## Virtual badge
 
-Open `/emulate` directly (for local development, `http://127.0.0.1:5174/emulate`).
-This hidden route has an independent persistent anonymous account, device ID,
-and local PowerSync database. It does not replace the dashboard's player.
+The room page (`/room/<id>`) includes **Join as virtual badge**. It uses an
+independent persistent anonymous account, device ID, and local PowerSync
+database, keeping the room creator's physical badge and archive controls intact.
+Reloading or reopening the room restores the virtual badge. Failed pairing can
+be retried with the same button without reserving another player seat.
 The badge UI is React and uses the same pairing and move APIs as the physical
 badge. Only PowerSync's SQLite database uses WebAssembly. The dev and build
 commands copy the SDK's prebuilt workers and matching SQLite assets into
 `web/public/assets/powersync/` so they are served together in development and
 production. These generated files are ignored by Git.
 
-1. Create a room in the regular dashboard and enter that code on the Tufty.
-2. Open `/emulate`, join the same room, then select **Pair virtual badge**.
+1. Create a room and enter its code on the Tufty.
+2. Select **Join as virtual badge** on the same page. Joining and pairing happen together.
 3. Click a free edge, or use A / B / C (previous / claim / next). Focus the
    virtual badge for keyboard controls. **Auto-play my turns** makes it an
    automatic opponent; each move waits for PowerSync confirmation.
 
-For testing without hardware, use `/emulate` and `/emulate?badge=2` in two tabs.
+The legacy `/emulate` route remains available for testing. Its default profile
+shares the room page's virtual badge. For testing without hardware, use
+`/emulate` and `/emulate?badge=2` in two tabs.
 Each profile is isolated. Both can create/join/pair, and the regular dashboard
 can watch. Moves are saved before upload and retries reuse the exact UUID,
 including after reload. Profiles accept 1–24 lowercase letters, digits,
