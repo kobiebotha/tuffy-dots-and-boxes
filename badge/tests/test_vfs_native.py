@@ -1,7 +1,7 @@
-"""Run real SQLite/PowerSync through the actual production Python BadgeVFS.
+"""Run real SQLite/PowerSync through the production Python ShadowVFS.
 
 The C shim is only an ABI/SQLite adapter. Storage, buffering and failures use
-the production BadgeVFS methods and real temporary files, never a C copy.
+the production ShadowVFS methods and real temporary files, never a C copy.
 """
 import json
 from pathlib import Path
@@ -10,8 +10,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
-                for path in ("lib", "app/dots_boxes")]
+sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "sqlite-shadow-vfs")] + [
+    str(Path(__file__).resolve().parents[1] / path) for path in ("lib", "app/dots_boxes")]
 import dots_storage
 from dots_client import Client
 from dots_storage import Store

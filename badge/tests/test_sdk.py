@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 BADGE = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(BADGE / "lib"))
+sys.path[:0] = [str(BADGE.parent / "sqlite-shadow-vfs"), str(BADGE / "lib")]
 
 from powersync.database import Database
 from powersync.http import PENDING
@@ -52,6 +52,8 @@ class StandaloneTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             shutil.copytree(BADGE / "lib/powersync", Path(directory) / "powersync",
                             ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copyfile(BADGE.parent / "sqlite-shadow-vfs/sqlite_shadow_vfs.py",
+                            Path(directory) / "sqlite_shadow_vfs.py")
             script = '''
 import sys
 sys.path.insert(0, sys.argv[1])

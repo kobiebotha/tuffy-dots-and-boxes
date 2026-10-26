@@ -23,7 +23,7 @@ from game import Game
 from vfs_fixture import PythonVFSCore
 
 original_store = bench.storage.Store
-original_vfs = database.BadgeVFS
+original_vfs = database.ShadowVFS
 physical = Counter()
 checkpoint_io = []
 checkpoint_physical = []
@@ -141,7 +141,7 @@ def main():
         assert fixture['scenarios'] == fixtures[0]['scenarios']
     bench.HostCore = PythonVFSCore
     bench.storage.Store = CapturedStore
-    database.BadgeVFS = CountedVFS
+    database.ShadowVFS = CountedVFS
     results = []
     for rep in range(args.repetitions):
         # Alternate candidate order so warm filesystem effects do not privilege one.
@@ -185,7 +185,7 @@ def main():
             'physical': snapshots[min(5,len(snapshots)-1)]}
     report = {'methodology': {'source': str(ROOT), 'library': str(bench.LIBRARY), 'fixtures': fixtures_path,
         'core': '0.5.4/cratesio', 'arenaBytes': 256*1024, 'cachePages': 32, 'shadowBytes': 128*1024,
-        'vfs': 'Production Python BadgeVFS via PythonVFSCore C ABI adapter. Temporary POSIX files.',
+        'vfs': 'Production Python ShadowVFS via PythonVFSCore C ABI adapter. Temporary POSIX files.',
         'equivalence': 'All three scenarios use byte-for-byte identical compact service-produced operations, checksums and grouping. Both raw variants retain the account local-only JSON table.',
         'validation': '50 rows; expected published fields; all 49 decoded moves compared with service fixture and replayed through Game for 10-10/20 boxes; identical rows on reopen; quick_check; completed checkpoint count; empty ps_crud.',
         'limitations': 'Fresh creation and reopen/read qualification only. No raw migration, post-reopen sync, account-switch, REMOVE, or fault injection qualification. No MicroPython, LittleFS, radio, device timing or power-loss claims. Native highwater excludes Python heap/shadow buffer; the reserved 256 KiB arena and 128 KiB shadow stay fixed. Physical database counts instrument production _sync_db, not hardware flash programming. Host timings include macOS os.sync and cannot predict Tufty speedup.',

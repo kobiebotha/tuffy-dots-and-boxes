@@ -68,17 +68,26 @@ The local MicroPython SDK dependency lives in `badge/lib/powersync`. The package
 bundles it as `apps/dots_boxes/powersync`, so imports use `powersync.*` on the
 badge. To reuse it in another Badgeware project, copy that `powersync` directory
 onto the app's import path, together with `native_sqlite.mpy` from
-`native-sqlite/prebuilt/powersync/` and its third-party notices. The packager
-bundles this native dependency into the SDK directory. The SDK contains the
-database/VFS, verified HTTP, stream framing and sync loop. It targets Tufty 2350 /
+`native-sqlite/prebuilt/powersync/`, its third-party notices, and
+`sqlite-shadow-vfs/sqlite_shadow_vfs.py`. The packager bundles the native
+dependency into the SDK directory and the standalone VFS at the app root.
+The SDK contains the database lifecycle, verified HTTP, stream framing and sync loop. It targets Tufty 2350 /
 Badgeware 1.29.0 and uses Python orchestration over the native PowerSync core.
+
+The [SQLite shadow VFS](sqlite-shadow-vfs/README.md) is independently reusable
+with the SQLite-only native module. It owns the RAM database image and physical
+rollback-journal callbacks, with configurable file paths, capacity and an optional
+caller-supplied buffer. It has no game or PowerSync imports; the SDK supplies its
+128 KiB capacity and free-space policy. A plain SQLite example and separate
+callback/fault tests live alongside the module.
 
 `dots_storage.Store` supplies the game's schema, migrations and queries to the
 SDK's `Database`. `dots_sync.GameConnector` supplies Supabase credentials,
 uploads and published-move confirmation to `SyncClient`; the SDK has no game or
 Supabase imports. Another project supplies its own schema and `Connector`.
 Those boundaries also provide a place to substitute a native implementation
-in a future experiment. Host scripts add `badge/lib` to their import path.
+in a future experiment. Host scripts add `badge/lib` and `sqlite-shadow-vfs`
+to their import path.
 
 That stages `web/public/dots-boxes.zip` and a manifest with content-versioned app files under `web/public/badge-app/`. It refreshes the original `web/public/apps/dots_boxes` copies and replaces only the generated `badge-app` subtree, keeping one release. Run `python3 badge/tools/package.py --check` to verify every served copy, manifest, and ZIP against the explicit app sources and reviewed native module; the web build runs this check too. Packaging never copies onto a USB drive.
 
@@ -171,6 +180,7 @@ Changing sync streams does not require a service-config or Vercel deployment.
 ## Checks
 
 ```bash
+python3 -m unittest discover -s sqlite-shadow-vfs/tests -v
 python3 -m unittest discover -s badge/tests -v
 npm --prefix web test
 npm --prefix web run build

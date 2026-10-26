@@ -1,6 +1,7 @@
 # Database shadow: safety and qualification
 
-The badge keeps a bounded 128 KiB database image in PSRAM. SQLite database reads,
+The standalone [ShadowVFS](../../sqlite-shadow-vfs/sqlite_shadow_vfs.py) keeps the
+badge's bounded 128 KiB database image in PSRAM. SQLite database reads,
 writes and size queries use that image. At database `xSync`, the VFS writes the
 complete logical image sequentially, then calls `file.flush()` and `os.sync()`.
 It clears the dirty flag only after both succeed. The rollback journal remains a
@@ -49,14 +50,15 @@ remain SQLite I/O errors, preserving dirty data and recovery evidence.
 
 ## What was tested
 
-[Direct VFS tests](../tests/test_vfs.py) cover bounded loading, metadata flush,
+[Direct VFS tests](../../sqlite-shadow-vfs/tests/test_shadow_vfs.py) cover bounded loading, metadata flush,
 read-only access, growth/zero filling, unsupported shrink, journal ordering,
-short writes, write/flush/global-sync failures, close failures and reserve checks.
+short writes, write/flush/global-sync failures and close failures. The SDK's
+[admission tests](../tests/test_vfs.py) cover its free-space reserve policy.
 
 [Native integration tests](../tests/test_vfs_native.py) use the real pinned
 PowerSync `0.5.4/cratesio` core in its 256 KiB arena. The host
-[C adapter](../tests/vfs_bridge.c) forwards SQLite callbacks into the actual
-production Python VFS through [PythonVFSCore](../tests/vfs_fixture.py), rather than
+[C adapter](../../sqlite-shadow-vfs/tests/vfs_bridge.c) forwards SQLite callbacks into the actual
+production Python VFS through [PythonVFSCore](../../sqlite-shadow-vfs/tests/sqlite_vfs_host.py), rather than
 substituting a C storage implementation. They verify full 49-move replay and
 reopen, exact UUID acknowledgement, zero SQL CRUD, failed-COMMIT rollback, actual
 short physical writes and flush failures. A captured durable-journal boundary

@@ -5,8 +5,8 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
-sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
-                for path in ("lib", "app/dots_boxes")]
+sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "sqlite-shadow-vfs")] + [
+    str(Path(__file__).resolve().parents[1] / path) for path in ("lib", "app/dots_boxes")]
 import dots_storage
 from dots_storage import Store
 

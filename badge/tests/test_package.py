@@ -40,6 +40,7 @@ class PackageTests(unittest.TestCase):
         patch.object(package, "PUBLIC", self.public).start()
         patch.object(package, "APP", self.app).start()
         patch.object(package, "SDK", self.app / "powersync").start()
+        patch.object(package, "SHADOW_VFS", self.app / "sqlite_shadow_vfs.py").start()
         patch.object(package, "NATIVE", self.native).start()
         patch.object(package, "NATIVE_NOTICES", notices).start()
         self.release, self.outputs = package.release_outputs(self.sources)
@@ -75,6 +76,9 @@ class PackageTests(unittest.TestCase):
         changed = {**self.sources, "game.py": self.sources["game.py"] + b"\n"}
         updated, _ = package.release_outputs(changed)
         self.assertNotEqual(updated["version"], self.release["version"])
+        changed = {**self.sources, "sqlite_shadow_vfs.py": self.sources["sqlite_shadow_vfs.py"] + b"\n"}
+        updated, _ = package.release_outputs(changed)
+        self.assertNotEqual(updated["version"], self.release["version"])
         self.assertNotEqual(updated["zipUrl"], self.release["zipUrl"])
         changed = {**self.sources, "powersync/sync.py": self.sources["powersync/sync.py"] + b"\n"}
         updated, _ = package.release_outputs(changed)
@@ -94,7 +98,9 @@ from dots_sync import GameConnector
 from powersync.database import Database
 from powersync.sync import Connector
 import powersync
+import sqlite_shadow_vfs
 assert powersync.__file__ == sys.argv[1] + '/powersync/__init__.py'
+assert sqlite_shadow_vfs.__file__ == sys.argv[1] + '/sqlite_shadow_vfs.py'
 assert issubclass(Store, Database)
 assert issubclass(GameConnector, Connector)
 '''

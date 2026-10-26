@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
+sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "sqlite-shadow-vfs"), str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
 import dots_storage as storage
 from powersync.database import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES
 from dots_codec import decode_edge, encode_uuid

@@ -36,7 +36,7 @@ def run_case(source, fixture, inputs, scenario_name, layout, page, cache, parsed
     database.PAGE_BYTES = page
     database.MAX_SYNC_PAGES = 96 * 1024 // page
     database.SQLITE_CACHE_PAGES = cache
-    original_store, original_vfs = storage.Store, database.BadgeVFS
+    original_store, original_vfs = storage.Store, database.ShadowVFS
     physical, calls = Counter(), Counter()
     timings = Counter()
     baseline_json = database.json
@@ -118,14 +118,14 @@ def run_case(source, fixture, inputs, scenario_name, layout, page, cache, parsed
     if layout.endswith("_index"):
         candidate["rawSql"].append("CREATE INDEX moves_room_order ON moves(r,n)")
     previous_bench = bench.storage, bench.HostCore
-    database.json, storage.Store, database.BadgeVFS = CountJSON(), Store, VFS
+    database.json, storage.Store, database.ShadowVFS = CountJSON(), Store, VFS
     bench.storage, bench.HostCore = storage, Core
     result = {}
     try:
         result.update(bench.run(candidate, scenario_name,
             candidate["scenarios"][scenario_name.removesuffix("_ui")], inputs["userId"]))
     finally:
-        database.json, storage.Store, database.BadgeVFS = baseline_json, original_store, original_vfs
+        database.json, storage.Store, database.ShadowVFS = baseline_json, original_store, original_vfs
         database.PAGE_BYTES, database.MAX_SYNC_PAGES, database.SQLITE_CACHE_PAGES = previous_options
         bench.storage, bench.HostCore = previous_bench
     result.update({"source": str(source), "sourceSha256": source_sha256,

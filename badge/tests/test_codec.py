@@ -3,8 +3,8 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
-                for path in ("lib", "app/dots_boxes")]
+sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "sqlite-shadow-vfs")] + [
+    str(Path(__file__).resolve().parents[1] / path) for path in ("lib", "app/dots_boxes")]
 from dots_codec import decode_edge, decode_status, decode_uuid, encode_edge, encode_uuid
 
 

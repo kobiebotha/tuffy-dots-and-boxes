@@ -12,6 +12,7 @@ BADGE = Path(__file__).resolve().parents[1]
 APP = BADGE / "app" / "dots_boxes"
 SDK = BADGE / "lib" / "powersync"
 REPO = BADGE.parent
+SHADOW_VFS = REPO / "sqlite-shadow-vfs" / "sqlite_shadow_vfs.py"
 PUBLIC = REPO / "web" / "public"
 NATIVE = REPO / "native-sqlite" / "prebuilt" / "powersync"
 NATIVE_NOTICES = REPO / "native-sqlite" / "THIRD_PARTY_NOTICES.txt"
@@ -37,13 +38,13 @@ APP_FILES = (
     "ca/sectigo-r46.der",
 )
 SDK_FILES = (
-    "__init__.py", "database.py", "vfs.py", "http.py", "stream.py", "sync.py",
+    "__init__.py", "database.py", "http.py", "stream.py", "sync.py",
     "runtime.py", "native_sqlite.mpy", "native_sqlite.LICENSE.txt",
 )
-SOURCE_FILES = APP_FILES + tuple("powersync/" + name for name in SDK_FILES)
+SOURCE_FILES = APP_FILES + tuple("powersync/" + name for name in SDK_FILES) + ("sqlite_shadow_vfs.py",)
 # Previous releases copied SDK internals into the game root.
 RETIRED_FILES = ("dots_http.py", "dots_runtime.py", "dots_stream.py", "badgegotchi_native.mpy",
-                 "powersync/badgegotchi_native.mpy")
+                 "powersync/badgegotchi_native.mpy", "powersync/vfs.py")
 
 
 def sha(data):
@@ -68,6 +69,8 @@ def collect():
             root, relative = NATIVE, "native_sqlite.mpy"
         elif name == "powersync/native_sqlite.LICENSE.txt":
             root, relative = NATIVE_NOTICES.parent, NATIVE_NOTICES.name
+        elif name == "sqlite_shadow_vfs.py":
+            root, relative = SHADOW_VFS.parent, SHADOW_VFS.name
         path = root / relative
         ancestors = list(root.parents) + [root]
         for part in Path(relative).parts:

@@ -127,7 +127,7 @@ int python_vfs_install(PythonIO callback) {
     python_io = callback;
     memset(&python_vfs, 0, sizeof(python_vfs));
     python_vfs.iVersion = 2; python_vfs.szOsFile = sizeof(PythonFile);
-    python_vfs.mxPathname = 512; python_vfs.zName = "dots-actual-python-vfs";
+    python_vfs.mxPathname = 512; python_vfs.zName = "sqlite-shadow-python-vfs";
     python_vfs.xOpen = vfs_open; python_vfs.xDelete = vfs_delete;
     python_vfs.xAccess = vfs_access; python_vfs.xFullPathname = vfs_full_path;
     python_vfs.xRandomness = vfs_random; python_vfs.xSleep = vfs_sleep;

@@ -73,8 +73,10 @@ they cannot unwind through SQLite/Rust.
 
 Use a single serialized filesystem owner and retain the callback while the
 database is open. SQLite's journal ordering and sync requests must be honored.
-The Python PowerSync SDK's `BadgeVFS` is one implementation with a bounded PSRAM
-shadow and LittleFS journal; another project can supply its own callback.
+The standalone [Python shadow VFS](../sqlite-shadow-vfs/README.md) supplies
+`ShadowVFS` with a bounded RAM image and LittleFS journal. It works with either
+native build variant and is also a dependency of the Python PowerSync SDK.
+Another project can supply its own callback.
 The portable C `sqlite-littlefs-vfs` library is a separate alternative.
 
 ## Build from source

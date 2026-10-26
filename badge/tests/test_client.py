@@ -4,8 +4,8 @@ import sys
 import unittest
 from unittest.mock import patch
 
-sys.path[:0] = [str(Path(__file__).resolve().parents[1] / path)
-                for path in ("lib", "app/dots_boxes")]
+sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "sqlite-shadow-vfs")] + [
+    str(Path(__file__).resolve().parents[1] / path) for path in ("lib", "app/dots_boxes")]
 from dots_client import Client
 from dots_session import fresh_session, validate_session
 from game import Game

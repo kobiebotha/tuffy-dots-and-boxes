@@ -2,7 +2,11 @@
 import json
 import os
 
-from .vfs import BadgeVFS, DATABASE, MAX_DATABASE_BYTES, MIN_FREE_BYTES, _stat, _free_bytes
+from sqlite_shadow_vfs import ShadowVFS
+
+DATABASE = "state.sqlite"
+MAX_DATABASE_BYTES = 128 * 1024
+MIN_FREE_BYTES = 64 * 1024
 
 PAGE_BYTES = 1024
 MAX_SYNC_PAGES = 96
@@ -11,6 +15,20 @@ MAX_SYNC_BATCH_RECORDS = 6
 MAX_BUCKETS = 32
 QUERY_ROWS = 16
 SQLITE_CACHE_PAGES = 32
+
+
+def _stat(path):
+    try:
+        return os.stat(path)
+    except OSError as exc:
+        if exc.args[0] != 2:
+            raise
+        return None
+
+
+def _free_bytes(root):
+    stat = os.statvfs(root)
+    return stat[1] * stat[4]
 
 
 def _quote(value):
@@ -117,7 +135,7 @@ class Database:
         before = _stat(path)
         if before and (before[6] == 0 or before[6] > MAX_DATABASE_BYTES):
             raise ValueError("Unrecognized database size; retained unchanged")
-        self.io = BadgeVFS(self.root, self.heartbeat)
+        self.io = ShadowVFS(path, max_database_bytes=MAX_DATABASE_BYTES, heartbeat=self.heartbeat)
         self.native.configure(self.io)
         try:
             self.native.open(path)

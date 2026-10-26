@@ -11,7 +11,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
+sys.path[:0] = [str(ROOT / "badge/tests"), str(ROOT / "sqlite-shadow-vfs"), str(ROOT / "badge/lib"), str(ROOT / "badge/app/dots_boxes")]
 from native_fixture import HostCore
 from dots_storage import Store
 from powersync.database import MAX_SYNC_BATCH_RECORDS, MAX_SYNC_LINE_BYTES

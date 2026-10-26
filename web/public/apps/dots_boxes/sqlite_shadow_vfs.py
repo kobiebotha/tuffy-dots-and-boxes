@@ -1,11 +1,14 @@
-"""Bounded PSRAM database shadow with durable LittleFS rollback journaling."""
+"""SQLite callback VFS with a bounded RAM shadow and physical rollback journal.
+
+Uses only MicroPython os/time and file APIs. On Tufty the bytearray is allocated
+from the PSRAM-backed heap. Supply this callable to native_sqlite.configure().
+"""
 import os
 import time
 
-DATABASE = "state.sqlite"
-MAX_DATABASE_BYTES = 128 * 1024
-MIN_FREE_BYTES = 64 * 1024
+DEFAULT_MAX_DATABASE_BYTES = 128 * 1024
 _ZERO_BYTES = bytes(1024)
+
 
 def _stat(path):
     try:
@@ -16,12 +19,7 @@ def _stat(path):
         return None
 
 
-def _free_bytes(root):
-    stat = os.statvfs(root)
-    return stat[1] * stat[4]
-
-
-class BadgeVFS:
+class ShadowVFS:
     """One connection with a bounded database shadow and a physical journal.
 
     SQLite's FULL journal barriers still precede every database sync. Between
@@ -30,13 +28,24 @@ class BadgeVFS:
     copying a file's tail at every random seek. The journal is never buffered.
     """
 
-    def __init__(self, root, heartbeat=None):
-        self.paths = (root + "/" + DATABASE, root + "/" + DATABASE + "-journal")
+    def __init__(self, path, max_database_bytes=DEFAULT_MAX_DATABASE_BYTES,
+                 heartbeat=None, buffer=None):
+        if (not isinstance(path, str) or not path.startswith("/")
+                or any(part in ("", ".", "..") for part in path.split("/")[1:])
+                or "\0" in path):
+            raise ValueError("VFS needs an absolute database file path")
+        if type(max_database_bytes) is not int or max_database_bytes <= 0:
+            raise ValueError("VFS needs a positive database capacity")
+        if buffer is not None and (not isinstance(buffer, bytearray)
+                                   or len(buffer) != max_database_bytes):
+            raise ValueError("VFS buffer must be a bytearray matching the capacity")
+        self.paths = (path, path + "-journal")
+        self.max_database_bytes = max_database_bytes
         self.files = {}
         self.next_handle = 1
         self.heartbeat = heartbeat
         self.last_error = None
-        self.db_buffer = bytearray(MAX_DATABASE_BYTES)
+        self.db_buffer = bytearray(max_database_bytes) if buffer is None else buffer
         self.db_size = 0
         self.db_dirty = False
         self.db_handle = None
@@ -54,7 +63,7 @@ class BadgeVFS:
 
     def _load_db(self, stream, path, flags):
         size = os.stat(path)[6]
-        if size > MAX_DATABASE_BYTES:
+        if size > self.max_database_bytes:
             raise ValueError("Database exceeds storage limit")
         if size and stream.readinto(memoryview(self.db_buffer)[:size]) != size:
             raise OSError("Could not read the complete database")
@@ -142,7 +151,7 @@ class BadgeVFS:
                 return (0, 0)
             if op == 2:
                 if is_db:
-                    if arg1 < 0 or arg2 < 0 or arg2 > MAX_DATABASE_BYTES:
+                    if arg1 < 0 or arg2 < 0 or arg2 > self.max_database_bytes:
                         return (10, 0)
                     end = min(self.db_size, arg1 + arg2)
                     return (0, memoryview(self.db_buffer)[arg1:end])
@@ -153,7 +162,7 @@ class BadgeVFS:
                     end = arg1 + len(arg2)
                     if flags & 1:
                         return (10, 0)
-                    if arg1 < 0 or end > MAX_DATABASE_BYTES:
+                    if arg1 < 0 or end > self.max_database_bytes:
                         return (13, 0)
                     if arg2:
                         self._zero_db(self.db_size, arg1)
@@ -161,7 +170,7 @@ class BadgeVFS:
                         self.db_size = max(self.db_size, end)
                         self.db_dirty = True
                     return (0, len(arg2))
-                if arg1 < 0 or arg1 + len(arg2) > MAX_DATABASE_BYTES + 4096:
+                if arg1 < 0 or arg1 + len(arg2) > self.max_database_bytes + 4096:
                     return (13, 0)
                 stream.seek(arg1)
                 return (0, stream.write(arg2))
@@ -172,7 +181,7 @@ class BadgeVFS:
                     if arg1 < self.db_size:
                         self.last_error = "File truncation is unavailable"
                         return (1546, 0)
-                    if arg1 > MAX_DATABASE_BYTES:
+                    if arg1 > self.max_database_bytes:
                         return (13, 0)
                     if arg1 > self.db_size:
                         self._zero_db(self.db_size, arg1)
@@ -183,7 +192,7 @@ class BadgeVFS:
                 if arg1 < size:
                     self.last_error = "File truncation is unavailable"
                     return (1546, 0)
-                if arg1 > MAX_DATABASE_BYTES:
+                if arg1 > self.max_database_bytes:
                     return (13, 0)
                 if arg1 > size:
                     stream.seek(arg1 - 1)
@@ -214,5 +223,3 @@ class BadgeVFS:
         for handle in list(self.files):
             if self(1, handle, 0, 0)[0]:
                 raise OSError("Could not close database storage")
-
-
