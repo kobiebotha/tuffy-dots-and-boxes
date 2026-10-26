@@ -1,0 +1,181 @@
+{
+  "source_sha256": "0c657666d819f261cc4007526ad57e1669de9949df7a8ea847aa284a2bf0ee52",
+  "adapted_sha256": "917474a58350e9b2d86471bf1a56dce830474b43f4487f21e432a25f7ee4e9e1",
+  "changes": [
+    {
+      "before": "static FuncDef aDateTimeFuncs[]",
+      "after": "static const FuncDef aDateTimeFuncs[]",
+      "count": 1
+    },
+    {
+      "before": "sqlite3InsertBuiltinFuncs(aDateTimeFuncs, ArraySize(aDateTimeFuncs));",
+      "after": "sqlite3InsertBuiltinFuncs((FuncDef*)sqlite3_wsd_find((void*)aDateTimeFuncs, sizeof(aDateTimeFuncs)), ArraySize(aDateTimeFuncs));",
+      "count": 1
+    },
+    {
+      "before": "static FuncDef aAlterTableFuncs[]",
+      "after": "static const FuncDef aAlterTableFuncs[]",
+      "count": 1
+    },
+    {
+      "before": "sqlite3InsertBuiltinFuncs(aAlterTableFuncs, ArraySize(aAlterTableFuncs));",
+      "after": "sqlite3InsertBuiltinFuncs((FuncDef*)sqlite3_wsd_find((void*)aAlterTableFuncs, sizeof(aAlterTableFuncs)), ArraySize(aAlterTableFuncs));",
+      "count": 1
+    },
+    {
+      "before": "static FuncDef aBuiltinFunc[]",
+      "after": "static const FuncDef aBuiltinFunc[]",
+      "count": 1
+    },
+    {
+      "before": "sqlite3InsertBuiltinFuncs(aBuiltinFunc, ArraySize(aBuiltinFunc));",
+      "after": "sqlite3InsertBuiltinFuncs((FuncDef*)sqlite3_wsd_find((void*)aBuiltinFunc, sizeof(aBuiltinFunc)), ArraySize(aBuiltinFunc));",
+      "count": 1
+    },
+    {
+      "before": "static FuncDef aWindowFuncs[]",
+      "after": "static const FuncDef aWindowFuncs[]",
+      "count": 1
+    },
+    {
+      "before": "sqlite3InsertBuiltinFuncs(aWindowFuncs, ArraySize(aWindowFuncs));",
+      "after": "sqlite3InsertBuiltinFuncs((FuncDef*)sqlite3_wsd_find((void*)aWindowFuncs, sizeof(aWindowFuncs)), ArraySize(aWindowFuncs));",
+      "count": 1
+    },
+    {
+      "before": "static FuncDef aJsonFunc[]",
+      "after": "static const FuncDef aJsonFunc[]",
+      "count": 1
+    },
+    {
+      "before": "sqlite3InsertBuiltinFuncs(aJsonFunc, ArraySize(aJsonFunc));",
+      "after": "sqlite3InsertBuiltinFuncs((FuncDef*)sqlite3_wsd_find((void*)aJsonFunc, sizeof(aJsonFunc)), ArraySize(aJsonFunc));",
+      "count": 1
+    },
+    {
+      "before": "SQLITE_PRIVATE FuncDefHash sqlite3BuiltinFunctions;",
+      "after": "FuncDefHash sqlite3BuiltinFunctions;",
+      "count": 2
+    },
+    {
+      "before": "SQLITE_PRIVATE u32 sqlite3TreeTrace;",
+      "after": "u32 sqlite3TreeTrace;",
+      "count": 1
+    },
+    {
+      "before": "SQLITE_PRIVATE u32 sqlite3TreeTrace = 0;",
+      "after": "u32 sqlite3TreeTrace = 0;",
+      "count": 1
+    },
+    {
+      "before": "SQLITE_PRIVATE u32 sqlite3WhereTrace;",
+      "after": "u32 sqlite3WhereTrace;",
+      "count": 1
+    },
+    {
+      "before": "SQLITE_PRIVATE u32 sqlite3WhereTrace = 0;",
+      "after": "u32 sqlite3WhereTrace = 0;",
+      "count": 1
+    },
+    {
+      "before": "SQLITE_PRIVATE const char *sqlite3StdType[]",
+      "after": "SQLITE_PRIVATE const char *const sqlite3StdType[]",
+      "count": 2
+    },
+    {
+      "before": "static struct OpenMode aCacheMode[]",
+      "after": "static const struct OpenMode aCacheMode[]",
+      "count": 1
+    },
+    {
+      "before": "static struct OpenMode aOpenMode[]",
+      "after": "static const struct OpenMode aOpenMode[]",
+      "count": 1
+    },
+    {
+      "before": "static sqlite3_module jsonEachModule",
+      "after": "static const sqlite3_module jsonEachModule",
+      "count": 1
+    },
+    {
+      "before": "static HashElem nullElement = { 0, 0, 0, 0, 0 };",
+      "after": "static const HashElem nullElement = { 0, 0, 0, 0, 0 };",
+      "count": 1
+    },
+    {
+      "before": "return &nullElement;",
+      "after": "return (HashElem*)&nullElement;",
+      "count": 1
+    },
+    {
+      "before": "static VdbeOp dummy;",
+      "after": "static const VdbeOp dummy;",
+      "count": 1
+    },
+    {
+      "before": "static u8 fakeCursor = CURSOR_VALID;",
+      "after": "static const u8 fakeCursor = CURSOR_VALID;",
+      "count": 1
+    },
+    {
+      "before": "static u8 aNull[] = { 0x00 };",
+      "after": "static const u8 aNull[] = { 0x00 };",
+      "count": 1
+    },
+    {
+      "before": "pParse->aBlob = aNull;",
+      "after": "pParse->aBlob = (u8*)aNull;",
+      "count": 1
+    },
+    {
+      "before": "db->init.azInit = sqlite3StdType;",
+      "after": "db->init.azInit = (const char**)sqlite3StdType;",
+      "count": 2
+    },
+    {
+      "before": "aMode = aCacheMode;",
+      "after": "aMode = (struct OpenMode*)aCacheMode;",
+      "count": 1
+    },
+    {
+      "before": "aMode = aOpenMode;",
+      "after": "aMode = (struct OpenMode*)aOpenMode;",
+      "count": 1
+    },
+    {
+      "before": "const char *azOpt[] =",
+      "after": "static const char *const azOpt[] =",
+      "count": 1
+    },
+    {
+      "before": "const char *azAff[] =",
+      "after": "static const char *const azAff[] =",
+      "count": 1
+    },
+    {
+      "before": "const char *azMsg[] =",
+      "after": "static const char *const azMsg[] =",
+      "count": 1
+    },
+    {
+      "before": "const char *azOrigin[] =",
+      "after": "static const char *const azOrigin[] =",
+      "count": 1
+    },
+    {
+      "before": "      struct WindowUpdate {",
+      "after": "      static const struct WindowUpdate {",
+      "count": 1
+    },
+    {
+      "before": "Token tOld = { \"old\", 3 };",
+      "after": "static const Token tOld = { \"old\", 3 };",
+      "count": 1
+    },
+    {
+      "before": "Token tNew = { \"new\", 3 };",
+      "after": "static const Token tNew = { \"new\", 3 };",
+      "count": 1
+    }
+  ]
+}

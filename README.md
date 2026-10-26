@@ -67,10 +67,11 @@ python3 badge/tools/package.py
 The local MicroPython SDK dependency lives in `badge/lib/powersync`. The packager
 bundles it as `apps/dots_boxes/powersync`, so imports use `powersync.*` on the
 badge. To reuse it in another Badgeware project, copy that `powersync` directory
-onto the app's import path. The package contains the database/VFS, verified HTTP,
-stream framing, sync loop, and the pinned native module. Its current runtime is
-qualified for Tufty 2350 / Badgeware 1.29.0; it still uses Python orchestration
-over the existing native PowerSync core.
+onto the app's import path, together with `native_sqlite.mpy` from
+`native-sqlite/prebuilt/powersync/` and its third-party notices. The packager
+bundles this native dependency into the SDK directory. The SDK contains the
+database/VFS, verified HTTP, stream framing and sync loop. It targets Tufty 2350 /
+Badgeware 1.29.0 and uses Python orchestration over the native PowerSync core.
 
 `dots_storage.Store` supplies the game's schema, migrations and queries to the
 SDK's `Database`. `dots_sync.GameConnector` supplies Supabase credentials,
@@ -93,7 +94,22 @@ PowerSync confirmation replaces this pending edge with the canonical edge;
 server rejection removes it. Scores, boxes, and the next turn wait for the
 confirmed board, and a pending move blocks further claims.
 
-The native module is the reviewed `badgegotchi_native.mpy` (PowerSync core 0.5.4). Do not rebuild it for this app.
+The reusable [native-sqlite component](native-sqlite/README.md) owns
+`native_sqlite.mpy`, its C bindings, source pins, SQLite adaptations and build
+tools. It has SQLite-only and SQLite + PowerSync extension variants. This app
+uses the latter (core 0.5.4), with a runtime digest checked against its prebuilt
+manifest. Building and running host tests requires no sibling app checkout:
+
+```bash
+# After the native component's documented prerequisites and source fetch:
+python3 native-sqlite/tools/build.py host --variant powersync
+python3 -m unittest discover -s badge/tests -v
+```
+
+New ARM binaries need a manual Tufty smoke test; host tests do not execute `.mpy`
+code. Build outputs stay in `native-sqlite/dist/` until explicitly selected as
+prebuilt artifacts. The source extraction's renamed binary has not yet had that
+hardware smoke test.
 
 The badge disables default subscriptions and requests only `badge_game_v2` for
 its paired room. The browser lobby and previous games never enter its 128 KiB

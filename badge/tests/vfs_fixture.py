@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 
-from native_fixture import HostCore, LIBRARY, ROOT
+from native_fixture import HostCore, LIBRARY, ROOT, SQLITE_INCLUDE
 
 IO = c.CFUNCTYPE(c.c_int, c.c_int, c.c_char_p, c.c_int, c.c_longlong,
                  c.c_void_p, c.c_int, c.POINTER(c.c_longlong), c.POINTER(c.c_longlong))
@@ -44,8 +44,7 @@ class PythonVFSCore(HostCore):
             PythonVFSCore._build = tempfile.TemporaryDirectory(prefix="dots-python-vfs-")
             filename = "bridge.dylib" if sys.platform == "darwin" else "bridge.so"
             target = Path(PythonVFSCore._build.name) / filename
-            include = Path(os.environ.get("POWERSYNC_SQLITE_INCLUDE", str(
-                ROOT.parent / "powerbadge/native/sqlite-hello/vendor/sqlite-littlefs-vfs/vendor/sqlite")))
+            include = SQLITE_INCLUDE
             flags = ["-dynamiclib"] if sys.platform == "darwin" else ["-shared", "-fPIC"]
             subprocess.run(["cc", "-std=c11", "-O1", *flags, "-I", str(include),
                             str(Path(__file__).with_name("vfs_bridge.c")), str(LIBRARY),

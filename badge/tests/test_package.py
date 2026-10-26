@@ -27,6 +27,11 @@ class PackageTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.public = Path(self.temporary.name).resolve() / "public"
         self.app = Path(self.temporary.name).resolve() / "source"
+        self.native = Path(self.temporary.name).resolve() / "native"
+        self.native.mkdir()
+        (self.native / "native_sqlite.mpy").write_bytes(self.sources["powersync/native_sqlite.mpy"])
+        notices = self.native / "THIRD_PARTY_NOTICES.txt"
+        notices.write_bytes(self.sources["powersync/native_sqlite.LICENSE.txt"])
         for name, data in self.sources.items():
             destination = self.app / name
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -35,6 +40,8 @@ class PackageTests(unittest.TestCase):
         patch.object(package, "PUBLIC", self.public).start()
         patch.object(package, "APP", self.app).start()
         patch.object(package, "SDK", self.app / "powersync").start()
+        patch.object(package, "NATIVE", self.native).start()
+        patch.object(package, "NATIVE_NOTICES", notices).start()
         self.release, self.outputs = package.release_outputs(self.sources)
 
     def stage(self):
@@ -99,7 +106,9 @@ assert issubclass(GameConnector, Connector)
         legacy = self.public / "apps/dots_boxes"
         legacy.mkdir(parents=True)
         for name in package.RETIRED_FILES:
-            (legacy / name).write_bytes(b"previous generated SDK copy")
+            path = legacy / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"previous generated SDK copy")
         self.stage()
         self.assertTrue(all(not (legacy / name).exists() for name in package.RETIRED_FILES))
         package.check_outputs(self.outputs)
@@ -150,13 +159,20 @@ assert issubclass(GameConnector, Connector)
         self.assertTrue(unknown.exists())
 
     def test_source_check_rejects_native_and_runtime_pin_mismatches(self):
-        native = self.app / "powersync/badgegotchi_native.mpy"
-        native.write_bytes(self.sources["powersync/badgegotchi_native.mpy"][:-1] + b"!")
+        native = self.native / "native_sqlite.mpy"
+        native.write_bytes(self.sources["powersync/native_sqlite.mpy"][:-1] + b"!")
         with self.assertRaisesRegex(SystemExit, "Native module does not match"):
             package.collect()
-        native.write_bytes(self.sources["powersync/badgegotchi_native.mpy"])
+        native.write_bytes(self.sources["powersync/native_sqlite.mpy"])
         (self.app / "powersync/runtime.py").write_text("wrong runtime pin")
         with self.assertRaisesRegex(SystemExit, "Runtime pin does not match"):
+            package.collect()
+
+    def test_native_dependency_is_collected_from_its_component_and_requires_powersync(self):
+        (self.app / "powersync/native_sqlite.mpy").write_bytes(b"stale SDK copy")
+        self.assertEqual(package.collect(), self.sources)
+        with patch.object(package, "NATIVE_METADATA", {**package.NATIVE_METADATA, "variant": "sqlite"}), \
+                self.assertRaisesRegex(SystemExit, "PowerSync Tufty build"):
             package.collect()
 
     def test_source_check_rejects_symlinks_and_missing_files(self):

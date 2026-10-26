@@ -13,10 +13,13 @@ APP = BADGE / "app" / "dots_boxes"
 SDK = BADGE / "lib" / "powersync"
 REPO = BADGE.parent
 PUBLIC = REPO / "web" / "public"
+NATIVE = REPO / "native-sqlite" / "prebuilt" / "powersync"
+NATIVE_NOTICES = REPO / "native-sqlite" / "THIRD_PARTY_NOTICES.txt"
 APP_ID = "dots_boxes"
 VERSION = "0.1.0"
-NATIVE_BYTES = 737049
-NATIVE_SHA256 = "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8"
+NATIVE_METADATA = json.loads((NATIVE / "module.json").read_text())
+NATIVE_BYTES = NATIVE_METADATA["bytes"]
+NATIVE_SHA256 = NATIVE_METADATA["sha256"]
 APP_FILES = (
     "__init__.py",
     "game.py",
@@ -35,11 +38,12 @@ APP_FILES = (
 )
 SDK_FILES = (
     "__init__.py", "database.py", "vfs.py", "http.py", "stream.py", "sync.py",
-    "runtime.py", "badgegotchi_native.mpy",
+    "runtime.py", "native_sqlite.mpy", "native_sqlite.LICENSE.txt",
 )
 SOURCE_FILES = APP_FILES + tuple("powersync/" + name for name in SDK_FILES)
 # Previous releases copied SDK internals into the game root.
-RETIRED_FILES = ("dots_http.py", "dots_runtime.py", "dots_stream.py", "badgegotchi_native.mpy")
+RETIRED_FILES = ("dots_http.py", "dots_runtime.py", "dots_stream.py", "badgegotchi_native.mpy",
+                 "powersync/badgegotchi_native.mpy")
 
 
 def sha(data):
@@ -60,6 +64,10 @@ def collect():
     files = {}
     for name in SOURCE_FILES:
         root, relative = (SDK, name[len("powersync/"):]) if name.startswith("powersync/") else (APP, name)
+        if name == "powersync/native_sqlite.mpy":
+            root, relative = NATIVE, "native_sqlite.mpy"
+        elif name == "powersync/native_sqlite.LICENSE.txt":
+            root, relative = NATIVE_NOTICES.parent, NATIVE_NOTICES.name
         path = root / relative
         ancestors = list(root.parents) + [root]
         for part in Path(relative).parts:
@@ -67,7 +75,10 @@ def collect():
         if any(part.is_symlink() for part in ancestors) or not path.is_file():
             raise SystemExit("Missing or symlinked app file: " + name)
         files[name] = path.read_bytes()
-    native = files["powersync/badgegotchi_native.mpy"]
+    if (NATIVE_METADATA.get("file") != "native_sqlite.mpy"
+            or NATIVE_METADATA.get("variant") != "powersync" or NATIVE_METADATA.get("mpy") != 7942):
+        raise SystemExit("Native metadata does not identify the PowerSync Tufty build")
+    native = files["powersync/native_sqlite.mpy"]
     if len(native) != NATIVE_BYTES or sha(native) != NATIVE_SHA256 or native[:4] != bytes((77, 6, 31, 31)):
         raise SystemExit("Native module does not match the reviewed build")
     identity = files["powersync/runtime.py"].decode("utf-8")

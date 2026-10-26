@@ -25,7 +25,7 @@ so the powersync sync streams can be set up to so that a user sees their "active
 for first time users, we can show them installation instructions to load the game onto their badge.
 
 badge app
-the badge app runs using the powersync native SDK, and sqlite using sqlite-littlefs-vfs , a project I created. the app is sideloaded when the badge is placed in USB drive mode. you can view a working reference project in ../badgegotchi
+the badge app uses the MicroPython PowerSync SDK in badge/lib/powersync, backed by the SQLite + PowerSync native module in native-sqlite. SQLite file operations go through a C callback bridge to the SDK's Python BadgeVFS, which uses Badgeware's filesystem APIs and a PSRAM database shadow. the app is sideloaded when the badge is placed in USB drive mode. you can view a working reference project in ../badgegotchi
 
 there is also an already working version of the badge app in ../powerbadge , you can use some of that reference code for this project and update it to work with powersync
 

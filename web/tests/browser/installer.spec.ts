@@ -100,7 +100,7 @@ for (const existing of [false, true]) {
 }
 
 test("copying guards navigation and unloading until verification finishes", async ({ page }) => {
-  await mockDrive(page, "pause-write", "powersync/badgegotchi_native.mpy");
+  await mockDrive(page, "pause-write", "powersync/native_sqlite.mpy");
   await page.goto("/install");
   // Give Back a real previous path without mounting the multiplayer dashboard.
   await page.evaluate(() => {
@@ -109,7 +109,7 @@ test("copying guards navigation and unloading until verification finishes", asyn
   });
   await selectDrive(page);
   await page.getByRole("button", { name: "Copy game to badge", exact: true }).click();
-  await expect.poll(() => driveLog(page)).toContain("write:/apps/dots_boxes/powersync/badgegotchi_native.mpy");
+  await expect.poll(() => driveLog(page)).toContain("write:/apps/dots_boxes/powersync/native_sqlite.mpy");
   const progress = page.getByRole("progressbar", { name: "Game files copied and verified" });
   await expect(progress).toBeVisible();
   const lobby = page.getByRole("link", { name: "Lobby", exact: true });

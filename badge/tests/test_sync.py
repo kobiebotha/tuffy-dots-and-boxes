@@ -518,7 +518,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(records.record["pending_move"]["id"], DEVICE)
 
 
-@unittest.skipUnless(LIBRARY.exists(), "Pinned badgegotchi host qualifier is not available")
+@unittest.skipUnless(LIBRARY.exists(), "Build the native-sqlite PowerSync host library to run real-core tests")
 class RealCoreTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

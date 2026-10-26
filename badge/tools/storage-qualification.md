@@ -11,7 +11,8 @@ Sync results are exposed only after SQLite COMMIT succeeds.
 
 The matched Tufty MicroPython revision is
 `pimoroni/micropython@41d1e007537f9b15cf13a9436228dd59d6485eca`. The local source root is
-`../badgegotchi/experiments/badgeware-native/vendor/micropython-41d1e007537f9b15cf13a9436228dd59d6485eca/`.
+`native-sqlite/vendor/micropython/` from the repository root, populated by
+`python3 native-sqlite/tools/fetch.py micropython`.
 This is the qualified source/ABI match, not a claim that the complete installed
 firmware image has a verified Git identity.
 

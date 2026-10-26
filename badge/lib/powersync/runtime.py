@@ -4,8 +4,8 @@ import hashlib
 import os
 import sys
 
-NATIVE_BYTES = 737049
-NATIVE_SHA256 = "802223bc6d2f7daea4c04b975bf2c6208068ef968891557e726bd485d3efafa8"
+NATIVE_BYTES = 737192
+NATIVE_SHA256 = "359c1f5e619357c20d777414165540b55d290af63994ddb44d0d3a210cbcb9d5"
 
 
 def module_directory():
@@ -28,7 +28,7 @@ def load_native(heartbeat=None):
             or uname.machine != "Pimoroni Tufty 2350 with RP2350"):
         raise RuntimeError("This SDK build requires the Tufty 2350")
     directory = module_directory()
-    native_path = directory + "/badgegotchi_native.mpy"
+    native_path = directory + "/native_sqlite.mpy"
     digest = hashlib.sha256()
     length = 0
     with open(native_path, "rb") as source:
@@ -43,14 +43,14 @@ def load_native(heartbeat=None):
     actual = binascii.hexlify(digest.digest()).decode()
     if length != NATIVE_BYTES or actual != NATIVE_SHA256:
         raise RuntimeError("Native module integrity check failed")
-    loaded = sys.modules.get("badgegotchi_native")
+    loaded = sys.modules.get("native_sqlite")
     if loaded is not None and getattr(loaded, "__file__", None) != native_path:
         raise RuntimeError("Another native module uses this SDK's module name")
     sys.path.insert(0, directory)
     try:
-        import badgegotchi_native
+        import native_sqlite
     finally:
         sys.path.pop(0)
-    if getattr(badgegotchi_native, "__file__", None) != native_path:
+    if getattr(native_sqlite, "__file__", None) != native_path:
         raise RuntimeError("Native module did not load from this SDK")
-    return badgegotchi_native
+    return native_sqlite

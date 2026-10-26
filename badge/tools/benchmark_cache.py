@@ -40,7 +40,7 @@ def main():
     migration_checks = None
     with tempfile.TemporaryDirectory(prefix="dots-cache-v1-") as folder:
         library = Path(folder) / "counting.dylib"
-        header = benchmark.ROOT.parent / "powerbadge/native/sqlite-hello/vendor/sqlite-littlefs-vfs/vendor/sqlite"
+        header = benchmark.ROOT / "native-sqlite/vendor/sqlite"
         subprocess.run(["cc", "-std=c11", "-O1", "-dynamiclib", "-I", str(header),
                         str(Path(__file__).with_name("counting_vfs.c")), str(benchmark.LIBRARY),
                         "-o", str(library)], check=True, capture_output=True)
