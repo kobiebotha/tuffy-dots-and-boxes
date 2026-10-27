@@ -11,3 +11,22 @@ web/public/assets/powersync/
 **/__pycache__
 .DS_Store
 supabase/.temp
+
+# Native SDK experiment caches can remain locally when switching branches.
+# Keep these here because the experiment's nested ignore files may be absent.
+/experiments/powersync-native-sdk/.cargo-home/
+/experiments/powersync-native-sdk/host/target/
+/experiments/powersync-native-sdk/host/sdk/
+/experiments/powersync-native-sdk/host/build/
+/experiments/powersync-native-sdk/arm/target/
+/experiments/powersync-native-sdk/arm/async-leaf-target/
+/experiments/powersync-native-sdk/arm/*.o
+/experiments/powersync-native-sdk/arm/*.rlib
+/experiments/powersync-native-sdk/port-build/
+/experiments/powersync-native-sdk/port-proof/target/
+/experiments/powersync-native-sdk/badge-module/native/build/
+/experiments/powersync-native-sdk/badge-module/native/.mpy_ld_cache-*/
+/experiments/powersync-native-sdk/badge-module/native/*.mpy
+/experiments/powersync-native-sdk/badge-module/rust/target/
+/experiments/powersync-native-sdk/badge-module/vendor/*/Cargo.lock
+/experiments/powersync-native-sdk/badge-module/evidence/*disassembly.log
