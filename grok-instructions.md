@@ -1,7 +1,7 @@
 
-I want to create a multiplayer version of dots and boxes running on my tuffy badge.
+I want to create a multiplayer version of dots and boxes running on my tufty badge.
 
-PowerSync will be driving the multiplayer components. I've gotten PowerSync to run on my tuffy badge (that I got at supabase select). You can see the reference code in ../badgegotchi
+PowerSync will be driving the multiplayer components. I've gotten PowerSync to run on my tufty badge (that I got at supabase select). You can see the reference code in ../badgegotchi
 
 How the dots and boxes should work is:
 

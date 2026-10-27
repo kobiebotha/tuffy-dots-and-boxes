@@ -1,0 +1,1361 @@
+{
+  "format_version": 1,
+  "device": {
+    "local": [
+      {
+        "framebuffer_us": 10670487,
+        "outcome": "accepted",
+        "panel_submitted_us": 10681103,
+        "pending_saved_us": 10658798,
+        "rpc_done_us": 11965408,
+        "queued_us": 10638030,
+        "confirmed_panel_submitted_us": 13782534,
+        "sample_id": 0,
+        "sqlite_persisted_us": 13679267,
+        "confirmed_framebuffer_us": 13770642
+      },
+      {
+        "framebuffer_us": 16041887,
+        "outcome": "accepted",
+        "panel_submitted_us": 16052155,
+        "pending_saved_us": 16030159,
+        "rpc_done_us": 17347775,
+        "queued_us": 16009041,
+        "confirmed_panel_submitted_us": 19176177,
+        "sample_id": 1,
+        "sqlite_persisted_us": 19079571,
+        "confirmed_framebuffer_us": 19161373
+      },
+      {
+        "framebuffer_us": 21525849,
+        "outcome": "accepted",
+        "panel_submitted_us": 21536799,
+        "pending_saved_us": 21514499,
+        "rpc_done_us": 22697906,
+        "queued_us": 21493586,
+        "confirmed_panel_submitted_us": 24673074,
+        "sample_id": 2,
+        "sqlite_persisted_us": 24578009,
+        "confirmed_framebuffer_us": 24658657
+      },
+      {
+        "framebuffer_us": 26898799,
+        "outcome": "accepted",
+        "panel_submitted_us": 26909877,
+        "pending_saved_us": 26887160,
+        "rpc_done_us": 29239221,
+        "queued_us": 26866448,
+        "confirmed_panel_submitted_us": 31123831,
+        "sample_id": 3,
+        "sqlite_persisted_us": 31029184,
+        "confirmed_framebuffer_us": 31111468
+      },
+      {
+        "framebuffer_us": 33404129,
+        "outcome": "accepted",
+        "panel_submitted_us": 33416553,
+        "pending_saved_us": 33392445,
+        "rpc_done_us": 34644846,
+        "queued_us": 33373471,
+        "confirmed_panel_submitted_us": 36417407,
+        "sample_id": 4,
+        "sqlite_persisted_us": 36318706,
+        "confirmed_framebuffer_us": 36402753
+      },
+      {
+        "framebuffer_us": 38877448,
+        "outcome": "accepted",
+        "panel_submitted_us": 38889765,
+        "pending_saved_us": 38865734,
+        "rpc_done_us": 40061535,
+        "queued_us": 38846646,
+        "confirmed_panel_submitted_us": 41934777,
+        "sample_id": 5,
+        "sqlite_persisted_us": 41838242,
+        "confirmed_framebuffer_us": 41920479
+      },
+      {
+        "framebuffer_us": 44372108,
+        "outcome": "accepted",
+        "panel_submitted_us": 44384730,
+        "pending_saved_us": 44360511,
+        "rpc_done_us": 45647432,
+        "queued_us": 44341572,
+        "confirmed_panel_submitted_us": 47554198,
+        "sample_id": 6,
+        "sqlite_persisted_us": 47455167,
+        "confirmed_framebuffer_us": 47538527
+      },
+      {
+        "framebuffer_us": 51105549,
+        "outcome": "accepted",
+        "panel_submitted_us": 51116976,
+        "pending_saved_us": 51093819,
+        "rpc_done_us": 52255477,
+        "queued_us": 51073925,
+        "confirmed_panel_submitted_us": 54196521,
+        "sample_id": 7,
+        "sqlite_persisted_us": 54050578,
+        "confirmed_framebuffer_us": 54185306
+      },
+      {
+        "framebuffer_us": 56635229,
+        "outcome": "accepted",
+        "panel_submitted_us": 56646059,
+        "pending_saved_us": 56623337,
+        "rpc_done_us": 57841160,
+        "queued_us": 56602966,
+        "confirmed_panel_submitted_us": 59803600,
+        "sample_id": 8,
+        "sqlite_persisted_us": 59659284,
+        "confirmed_framebuffer_us": 59794480
+      },
+      {
+        "framebuffer_us": 62196819,
+        "outcome": "accepted",
+        "panel_submitted_us": 62208090,
+        "pending_saved_us": 62185052,
+        "rpc_done_us": 63369176,
+        "queued_us": 62164967,
+        "confirmed_panel_submitted_us": 65331803,
+        "sample_id": 9,
+        "sqlite_persisted_us": 65185254,
+        "confirmed_framebuffer_us": 65320277
+      },
+      {
+        "framebuffer_us": 67680261,
+        "outcome": "accepted",
+        "panel_submitted_us": 67691804,
+        "pending_saved_us": 67668591,
+        "rpc_done_us": 68841318,
+        "queued_us": 67648706,
+        "confirmed_panel_submitted_us": 70839083,
+        "sample_id": 10,
+        "sqlite_persisted_us": 70687096,
+        "confirmed_framebuffer_us": 70821932
+      },
+      {
+        "framebuffer_us": 73210577,
+        "outcome": "accepted",
+        "panel_submitted_us": 73222257,
+        "pending_saved_us": 73199000,
+        "rpc_done_us": 74473384,
+        "queued_us": 73179103,
+        "confirmed_panel_submitted_us": 76414645,
+        "sample_id": 11,
+        "sqlite_persisted_us": 76265117,
+        "confirmed_framebuffer_us": 76401310
+      },
+      {
+        "framebuffer_us": 78830481,
+        "outcome": "accepted",
+        "panel_submitted_us": 78842264,
+        "pending_saved_us": 78819168,
+        "rpc_done_us": 79991994,
+        "queued_us": 78799120,
+        "confirmed_panel_submitted_us": 81966486,
+        "sample_id": 12,
+        "sqlite_persisted_us": 81815022,
+        "confirmed_framebuffer_us": 81950833
+      },
+      {
+        "framebuffer_us": 84383015,
+        "outcome": "accepted",
+        "panel_submitted_us": 84394448,
+        "pending_saved_us": 84371264,
+        "rpc_done_us": 85656672,
+        "queued_us": 84351355,
+        "confirmed_panel_submitted_us": 87631830,
+        "sample_id": 13,
+        "sqlite_persisted_us": 87476296,
+        "confirmed_framebuffer_us": 87617904
+      },
+      {
+        "framebuffer_us": 88924683,
+        "outcome": "accepted",
+        "panel_submitted_us": 88935444,
+        "pending_saved_us": 88912285,
+        "rpc_done_us": 90107291,
+        "queued_us": 88892346,
+        "confirmed_panel_submitted_us": 92127227,
+        "sample_id": 14,
+        "sqlite_persisted_us": 91971133,
+        "confirmed_framebuffer_us": 92109152
+      },
+      {
+        "framebuffer_us": 92295335,
+        "outcome": "accepted",
+        "panel_submitted_us": 92306981,
+        "pending_saved_us": 92282980,
+        "rpc_done_us": 93512659,
+        "queued_us": 92263912,
+        "confirmed_panel_submitted_us": 95409292,
+        "sample_id": 15,
+        "sqlite_persisted_us": 95317224,
+        "confirmed_framebuffer_us": 95401508
+      },
+      {
+        "framebuffer_us": 95580088,
+        "outcome": "accepted",
+        "panel_submitted_us": 95588817,
+        "pending_saved_us": 95567169,
+        "rpc_done_us": 96874313,
+        "queued_us": 95545632,
+        "confirmed_panel_submitted_us": 98702374,
+        "sample_id": 16,
+        "sqlite_persisted_us": 98609122,
+        "confirmed_framebuffer_us": 98694189
+      },
+      {
+        "framebuffer_us": 98872419,
+        "outcome": "accepted",
+        "panel_submitted_us": 98881737,
+        "pending_saved_us": 98858997,
+        "rpc_done_us": 100098781,
+        "queued_us": 98838574,
+        "confirmed_panel_submitted_us": 102253508,
+        "sample_id": 17,
+        "sqlite_persisted_us": 102058992,
+        "confirmed_framebuffer_us": 102243632
+      },
+      {
+        "framebuffer_us": 102434272,
+        "outcome": "accepted",
+        "panel_submitted_us": 102444057,
+        "pending_saved_us": 102420545,
+        "rpc_done_us": 103649967,
+        "queued_us": 102400929,
+        "confirmed_panel_submitted_us": 105590885,
+        "sample_id": 18,
+        "sqlite_persisted_us": 105493228,
+        "confirmed_framebuffer_us": 105578947
+      },
+      {
+        "framebuffer_us": 120057101,
+        "outcome": "accepted",
+        "panel_submitted_us": 120067101,
+        "pending_saved_us": 120041581,
+        "rpc_done_us": 121452591,
+        "queued_us": 119967834,
+        "confirmed_panel_submitted_us": 123202632,
+        "sample_id": 19,
+        "sqlite_persisted_us": 123099408,
+        "confirmed_framebuffer_us": 123187347
+      },
+      {
+        "framebuffer_us": 123443725,
+        "outcome": "accepted",
+        "panel_submitted_us": 123461099,
+        "pending_saved_us": 123427388,
+        "rpc_done_us": 124678814,
+        "queued_us": 123406770,
+        "confirmed_panel_submitted_us": 126822190,
+        "sample_id": 20,
+        "sqlite_persisted_us": 126713713,
+        "confirmed_framebuffer_us": 126804808
+      },
+      {
+        "framebuffer_us": 128131578,
+        "outcome": "accepted",
+        "panel_submitted_us": 128148516,
+        "pending_saved_us": 128114988,
+        "rpc_done_us": 129320503,
+        "queued_us": 128094236,
+        "confirmed_panel_submitted_us": 131261614,
+        "sample_id": 21,
+        "sqlite_persisted_us": 131164111,
+        "confirmed_framebuffer_us": 131251068
+      },
+      {
+        "framebuffer_us": 131458029,
+        "outcome": "accepted",
+        "panel_submitted_us": 131475115,
+        "pending_saved_us": 131441012,
+        "rpc_done_us": 132658199,
+        "queued_us": 131420745,
+        "confirmed_panel_submitted_us": 134599295,
+        "sample_id": 22,
+        "sqlite_persisted_us": 134443830,
+        "confirmed_framebuffer_us": 134588345
+      },
+      {
+        "framebuffer_us": 134795649,
+        "outcome": "accepted",
+        "panel_submitted_us": 134812754,
+        "pending_saved_us": 134778119,
+        "rpc_done_us": 135974256,
+        "queued_us": 134758440,
+        "confirmed_panel_submitted_us": 137903098,
+        "sample_id": 23,
+        "sqlite_persisted_us": 137803746,
+        "confirmed_framebuffer_us": 137893468
+      },
+      {
+        "framebuffer_us": 138155298,
+        "outcome": "accepted",
+        "panel_submitted_us": 138172809,
+        "pending_saved_us": 138137997,
+        "rpc_done_us": 139300900,
+        "queued_us": 138062231,
+        "confirmed_panel_submitted_us": 141196007,
+        "sample_id": 24,
+        "sqlite_persisted_us": 141094737,
+        "confirmed_framebuffer_us": 141182985
+      }
+    ],
+    "active": false,
+    "downloads": [
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 15874817,
+        "sqlite_persisted_us": 15823447,
+        "armed_us": 13916948,
+        "panel_submitted_us": 15883618,
+        "sample_id": 0
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 21351116,
+        "sqlite_persisted_us": 21299881,
+        "armed_us": 19311130,
+        "panel_submitted_us": 21368120,
+        "sample_id": 1
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 26720748,
+        "sqlite_persisted_us": 26669205,
+        "armed_us": 24808359,
+        "panel_submitted_us": 26729770,
+        "sample_id": 2
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 33218592,
+        "sqlite_persisted_us": 33168261,
+        "armed_us": 31248270,
+        "panel_submitted_us": 33236748,
+        "sample_id": 3
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 38699243,
+        "sqlite_persisted_us": 38648755,
+        "armed_us": 36563906,
+        "panel_submitted_us": 38709998,
+        "sample_id": 4
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 44195774,
+        "sqlite_persisted_us": 44145206,
+        "armed_us": 42081246,
+        "panel_submitted_us": 44204852,
+        "sample_id": 5
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 49786698,
+        "sqlite_persisted_us": 49732893,
+        "armed_us": 47700697,
+        "panel_submitted_us": 49801903,
+        "sample_id": 6
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 56393743,
+        "sqlite_persisted_us": 56343228,
+        "armed_us": 54342596,
+        "panel_submitted_us": 56410080,
+        "sample_id": 7
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 62013151,
+        "sqlite_persisted_us": 61962132,
+        "armed_us": 59950081,
+        "panel_submitted_us": 62028313,
+        "sample_id": 8
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 67500325,
+        "sqlite_persisted_us": 67447626,
+        "armed_us": 65478265,
+        "panel_submitted_us": 67512029,
+        "sample_id": 9
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 73030231,
+        "sqlite_persisted_us": 72979114,
+        "armed_us": 70985801,
+        "panel_submitted_us": 73042381,
+        "sample_id": 10
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 78640136,
+        "sqlite_persisted_us": 78588960,
+        "armed_us": 76572735,
+        "panel_submitted_us": 78651166,
+        "sample_id": 11
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 84193724,
+        "sqlite_persisted_us": 84142973,
+        "armed_us": 82124078,
+        "panel_submitted_us": 84203350,
+        "sample_id": 12
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 107867061,
+        "sqlite_persisted_us": 107813374,
+        "armed_us": 105760979,
+        "panel_submitted_us": 107883295,
+        "sample_id": 13
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 110291560,
+        "sqlite_persisted_us": 110237803,
+        "armed_us": 108064520,
+        "panel_submitted_us": 110299630,
+        "sample_id": 14
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 112687059,
+        "sqlite_persisted_us": 112631723,
+        "armed_us": 110468973,
+        "panel_submitted_us": 112705087,
+        "sample_id": 15
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 115131630,
+        "sqlite_persisted_us": 115076921,
+        "armed_us": 112886129,
+        "panel_submitted_us": 115143718,
+        "sample_id": 16
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 117410010,
+        "sqlite_persisted_us": 117354361,
+        "armed_us": 115324512,
+        "panel_submitted_us": 117425348,
+        "sample_id": 17
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 119794270,
+        "sqlite_persisted_us": 119737861,
+        "armed_us": 117606313,
+        "panel_submitted_us": 119808624,
+        "sample_id": 18
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 143411260,
+        "sqlite_persisted_us": 143353113,
+        "armed_us": 141376391,
+        "panel_submitted_us": 143421240,
+        "sample_id": 19
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 145713714,
+        "sqlite_persisted_us": 145655804,
+        "armed_us": 143613337,
+        "panel_submitted_us": 145725020,
+        "sample_id": 20
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 147978214,
+        "sqlite_persisted_us": 147919091,
+        "armed_us": 145905330,
+        "panel_submitted_us": 147994811,
+        "sample_id": 21
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 150448991,
+        "sqlite_persisted_us": 150389909,
+        "armed_us": 148175273,
+        "panel_submitted_us": 150466895,
+        "sample_id": 22
+      },
+      {
+        "outcome": "accepted",
+        "framebuffer_us": 154396142,
+        "sqlite_persisted_us": 154336943,
+        "armed_us": 150659831,
+        "panel_submitted_us": 154411169,
+        "sample_id": 23
+      }
+    ],
+    "format_version": 1,
+    "durable_local_medium": "pending.json",
+    "dropped": 0,
+    "harness": {
+      "capacity": 32,
+      "app_path": "/system/apps/dots_boxes",
+      "source_sha256": "280cc592f943515548ab6a976668ef0ef1b8e7cc4658ef67de8246c80a8e459d",
+      "seconds": 240,
+      "enabled": true
+    }
+  },
+  "host": {
+    "format_version": 1,
+    "sync_probes": [
+      {
+        "host_send_us": 23109602188,
+        "device_us": 10553350,
+        "host_receive_us": 23109620046
+      },
+      {
+        "host_send_us": 23112903031,
+        "device_us": 13857272,
+        "host_receive_us": 23112923804
+      },
+      {
+        "host_send_us": 23114951017,
+        "device_us": 15902043,
+        "host_receive_us": 23114968811
+      },
+      {
+        "host_send_us": 23118296805,
+        "device_us": 19250870,
+        "host_receive_us": 23118317420
+      },
+      {
+        "host_send_us": 23120435445,
+        "device_us": 21386606,
+        "host_receive_us": 23120453321
+      },
+      {
+        "host_send_us": 23123793719,
+        "device_us": 24747765,
+        "host_receive_us": 23123814221
+      },
+      {
+        "host_send_us": 23125797139,
+        "device_us": 26759452,
+        "host_receive_us": 23125826271
+      },
+      {
+        "host_send_us": 23130233866,
+        "device_us": 31187296,
+        "host_receive_us": 23130253738
+      },
+      {
+        "host_send_us": 23132304072,
+        "device_us": 33255256,
+        "host_receive_us": 23132321986
+      },
+      {
+        "host_send_us": 23135548953,
+        "device_us": 36503389,
+        "host_receive_us": 23135569979
+      },
+      {
+        "host_send_us": 23137777150,
+        "device_us": 38728481,
+        "host_receive_us": 23137795012
+      },
+      {
+        "host_send_us": 23141066358,
+        "device_us": 42021100,
+        "host_receive_us": 23141087547
+      },
+      {
+        "host_send_us": 23143272077,
+        "device_us": 44223551,
+        "host_receive_us": 23143290187
+      },
+      {
+        "host_send_us": 23146685857,
+        "device_us": 47640097,
+        "host_receive_us": 23146706545
+      },
+      {
+        "host_send_us": 23148869136,
+        "device_us": 50955695,
+        "host_receive_us": 23150022387
+      },
+      {
+        "host_send_us": 23153328033,
+        "device_us": 54282513,
+        "host_receive_us": 23153348840
+      },
+      {
+        "host_send_us": 23155477163,
+        "device_us": 56428695,
+        "host_receive_us": 23155495323
+      },
+      {
+        "host_send_us": 23158935251,
+        "device_us": 59889659,
+        "host_receive_us": 23158956358
+      },
+      {
+        "host_send_us": 23161095464,
+        "device_us": 62046942,
+        "host_receive_us": 23161113535
+      },
+      {
+        "host_send_us": 23164463346,
+        "device_us": 65417763,
+        "host_receive_us": 23164484034
+      },
+      {
+        "host_send_us": 23166579015,
+        "device_us": 67530540,
+        "host_receive_us": 23166596880
+      },
+      {
+        "host_send_us": 23169971204,
+        "device_us": 70925025,
+        "host_receive_us": 23169991253
+      },
+      {
+        "host_send_us": 23172109503,
+        "device_us": 73060911,
+        "host_receive_us": 23172127456
+      },
+      {
+        "host_send_us": 23175557609,
+        "device_us": 76512156,
+        "host_receive_us": 23175578436
+      },
+      {
+        "host_send_us": 23177718286,
+        "device_us": 78669901,
+        "host_receive_us": 23177736396
+      },
+      {
+        "host_send_us": 23181109329,
+        "device_us": 82064184,
+        "host_receive_us": 23181130504
+      },
+      {
+        "host_send_us": 23183270427,
+        "device_us": 84222451,
+        "host_receive_us": 23183289022
+      },
+      {
+        "host_send_us": 23204745133,
+        "device_us": 105699707,
+        "host_receive_us": 23204765871
+      },
+      {
+        "host_send_us": 23206950211,
+        "device_us": 107913147,
+        "host_receive_us": 23206979512
+      },
+      {
+        "host_send_us": 23207048621,
+        "device_us": 108003214,
+        "host_receive_us": 23207069316
+      },
+      {
+        "host_send_us": 23209366525,
+        "device_us": 110318290,
+        "host_receive_us": 23209384636
+      },
+      {
+        "host_send_us": 23209453976,
+        "device_us": 110408202,
+        "host_receive_us": 23209474547
+      },
+      {
+        "host_send_us": 23211771999,
+        "device_us": 112723734,
+        "host_receive_us": 23211790008
+      },
+      {
+        "host_send_us": 23211870475,
+        "device_us": 112824894,
+        "host_receive_us": 23211891377
+      },
+      {
+        "host_send_us": 23214210664,
+        "device_us": 115162978,
+        "host_receive_us": 23214229247
+      },
+      {
+        "host_send_us": 23214309458,
+        "device_us": 115263551,
+        "host_receive_us": 23214329751
+      },
+      {
+        "host_send_us": 23216492211,
+        "device_us": 117443966,
+        "host_receive_us": 23216510195
+      },
+      {
+        "host_send_us": 23216590812,
+        "device_us": 117545370,
+        "host_receive_us": 23216611661
+      },
+      {
+        "host_send_us": 23218875681,
+        "device_us": 119827273,
+        "host_receive_us": 23218893708
+      },
+      {
+        "host_send_us": 23240361359,
+        "device_us": 141315838,
+        "host_receive_us": 23240381855
+      },
+      {
+        "host_send_us": 23242487992,
+        "device_us": 143440017,
+        "host_receive_us": 23242506086
+      },
+      {
+        "host_send_us": 23242597627,
+        "device_us": 143552229,
+        "host_receive_us": 23242618285
+      },
+      {
+        "host_send_us": 23244791893,
+        "device_us": 145743810,
+        "host_receive_us": 23244810052
+      },
+      {
+        "host_send_us": 23244890567,
+        "device_us": 145844778,
+        "host_receive_us": 23244910853
+      },
+      {
+        "host_send_us": 23247061518,
+        "device_us": 148013384,
+        "host_receive_us": 23247079562
+      },
+      {
+        "host_send_us": 23247160075,
+        "device_us": 148114545,
+        "host_receive_us": 23247180791
+      },
+      {
+        "host_send_us": 23249533716,
+        "device_us": 150485554,
+        "host_receive_us": 23249551774
+      },
+      {
+        "host_send_us": 23249643282,
+        "device_us": 150597896,
+        "host_receive_us": 23249663787
+      },
+      {
+        "host_send_us": 23253477936,
+        "device_us": 154429975,
+        "host_receive_us": 23253496057
+      },
+      {
+        "host_send_us": 23253564347,
+        "device_us": 154519652,
+        "host_receive_us": 23253585926
+      }
+    ],
+    "download_rpc": [
+      {
+        "sample_id": 0,
+        "host_send_us": 23112983732,
+        "host_receive_us": 23113174167,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 1,
+        "host_send_us": 23118377889,
+        "host_receive_us": 23118535445,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 2,
+        "host_send_us": 23123875133,
+        "host_receive_us": 23124033017,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 3,
+        "host_send_us": 23130315027,
+        "host_receive_us": 23130464487,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 4,
+        "host_send_us": 23135630651,
+        "host_receive_us": 23135800853,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 5,
+        "host_send_us": 23141147902,
+        "host_receive_us": 23141318287,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 6,
+        "host_send_us": 23146767372,
+        "host_receive_us": 23146925794,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 7,
+        "host_send_us": 23153409185,
+        "host_receive_us": 23153575536,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 8,
+        "host_send_us": 23159016769,
+        "host_receive_us": 23159172432,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 9,
+        "host_send_us": 23164544860,
+        "host_receive_us": 23164691057,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 10,
+        "host_send_us": 23170052357,
+        "host_receive_us": 23170192400,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 11,
+        "host_send_us": 23175639207,
+        "host_receive_us": 23175821103,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 12,
+        "host_send_us": 23181190608,
+        "host_receive_us": 23181347366,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 13,
+        "host_send_us": 23204827607,
+        "host_receive_us": 23204999156,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 14,
+        "host_send_us": 23207130903,
+        "host_receive_us": 23207261956,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 15,
+        "host_send_us": 23209535587,
+        "host_receive_us": 23209699221,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 16,
+        "host_send_us": 23211952714,
+        "host_receive_us": 23212123934,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 17,
+        "host_send_us": 23214390763,
+        "host_receive_us": 23214549289,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 18,
+        "host_send_us": 23216672902,
+        "host_receive_us": 23216841960,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 19,
+        "host_send_us": 23240442835,
+        "host_receive_us": 23240609812,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 20,
+        "host_send_us": 23242679573,
+        "host_receive_us": 23242824075,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 21,
+        "host_send_us": 23244971581,
+        "host_receive_us": 23245126757,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 22,
+        "host_send_us": 23247241799,
+        "host_receive_us": 23247415620,
+        "accepted": true,
+        "duplicate": false
+      },
+      {
+        "sample_id": 23,
+        "host_send_us": 23249726027,
+        "host_receive_us": 23249894011,
+        "accepted": true,
+        "duplicate": false
+      }
+    ]
+  },
+  "capture": {
+    "label": "run3",
+    "status": "complete",
+    "warmup_moves": 4,
+    "date": "2026-10-27",
+    "move_order": "horizontal row/column order, then vertical row/column order",
+    "host_rpc_transport": "curl HTTPS; fresh process, no connection reuse",
+    "local_trigger": "scheduled Controller.tap after normal step, before draw",
+    "serial_policy": "no host traffic inside samples; sample_done after final submission",
+    "app_files_verified": {
+      "sqlite_shadow_vfs.py": {
+        "bytes": 9321,
+        "sha256": "0392ee099ff3c88610a24a3c18cdef9e63ff89405eec6a58e414bd9cf3bdd5be"
+      },
+      "powersync/database.py": {
+        "bytes": 19326,
+        "sha256": "a7cd5b7348dc3a79a0ee47c14f07a2d9102936e13272c266494b56746d6081ee"
+      },
+      "__init__.py": {
+        "bytes": 3281,
+        "sha256": "77eea22fc428e6b1c4398ef36528919d1c03ae10d3663cbfda14bd17fc645c78"
+      },
+      "powersync/http.py": {
+        "bytes": 13685,
+        "sha256": "3ea3aa65c0953770c9116e23209fb39b664da7b7a68b4e208c1d1273f3c79f6b"
+      },
+      "logos.py": {
+        "bytes": 2625,
+        "sha256": "f9ffbe34a9a5c154a8420136ede3ec026cb225e6c3be2c2b97301adcbae764e7"
+      },
+      "powersync/__init__.py": {
+        "bytes": 232,
+        "sha256": "310ab6af2b0093506ab464cdfef584ac308096e2fcb1b5e5d9eb21b0b575a601"
+      },
+      "view.py": {
+        "bytes": 11621,
+        "sha256": "476f49cfa1ad5dde9cdf23bcaf28098fb105f36cbc321a7d72eb51fbaebfd95d"
+      },
+      "game.py": {
+        "bytes": 3927,
+        "sha256": "760661f95be01aaf9fafa02da1013dcae4433b7cbd17306606a26ffe9a6a9bc0"
+      },
+      "controls.py": {
+        "bytes": 6068,
+        "sha256": "88eba637c396ed77bad34919c31eddc06e6385aa3b362499bcea517d49a422b8"
+      },
+      "dots_client.py": {
+        "bytes": 13841,
+        "sha256": "b1dca15eebd24350fa604e192e5086763983a95f5854f581b29f22f7c051daf8"
+      },
+      "icon.png": {
+        "bytes": 149,
+        "sha256": "ca9f4c67cc3c0d2e921979ad7b916585bdf927e50c89cd8940f8cd02656cf17b"
+      },
+      "dots_sync.py": {
+        "bytes": 5364,
+        "sha256": "4659261eb22090415caa3e32fd4c4e1847211822d32dd114fe336529969e5399"
+      },
+      "dots_storage.py": {
+        "bytes": 8052,
+        "sha256": "6e6054e69e8e6a263267f32922732b052d60aef3f018b98ac18b24d5108337d8"
+      },
+      "dots_session.py": {
+        "bytes": 7408,
+        "sha256": "924d935b4e980c33c1c97724b3f951927b78ebefb222d23d038c26ecede4b12b"
+      },
+      "dots_pairing.py": {
+        "bytes": 1086,
+        "sha256": "32d448fcb07f94890dc3d303fa1bda35e1acf08dd359a71da95fd19fab954331"
+      },
+      "powersync/stream.py": {
+        "bytes": 12155,
+        "sha256": "a33073941e5d7c6deb37466d033daaaed6572bf061b308805268d5ef8baeffd3"
+      },
+      "powersync/sync.py": {
+        "bytes": 17632,
+        "sha256": "462eb4b8ad2be702ae3f4b5f15bf512b7102b80c339a3926e2de4907196042a9"
+      },
+      "dots_config.py": {
+        "bytes": 614,
+        "sha256": "610700813ab0afad4c8c0d4fea3c6fab7c03217526b0d1aba9be2ae2ea3f3890"
+      },
+      "dots_codec.py": {
+        "bytes": 1869,
+        "sha256": "80b6a099d3832a42393c1714375a2749bad1c8b6ebca9fb03e578fa092442e89"
+      },
+      "powersync/runtime.py": {
+        "bytes": 2114,
+        "sha256": "b9fb14b40d2c3bdd46f017bd8ea5a9283de60724c2f323971e97c072719082a5"
+      },
+      "powersync/native_sqlite.mpy": {
+        "bytes": 737192,
+        "sha256": "359c1f5e619357c20d777414165540b55d290af63994ddb44d0d3a210cbcb9d5"
+      },
+      "ca/sectigo-r46.der": {
+        "bytes": 1422,
+        "sha256": "7bb647a62aeeac88bf257aa522d01ffea395e0ab45c73f93f65654ec38f25a06"
+      },
+      "powersync/native_sqlite.LICENSE.txt": {
+        "bytes": 14420,
+        "sha256": "40195d993172ef3ba8731ba633d342e53d8052b7637e910c5219fc7f5a7ef716"
+      }
+    },
+    "annotations": [
+      {
+        "kind": "local",
+        "sample_id": 0,
+        "move_index": 1,
+        "warmup": true
+      },
+      {
+        "kind": "download",
+        "sample_id": 0,
+        "move_index": 2,
+        "warmup": true
+      },
+      {
+        "kind": "local",
+        "sample_id": 1,
+        "move_index": 3,
+        "warmup": true
+      },
+      {
+        "kind": "download",
+        "sample_id": 1,
+        "move_index": 4,
+        "warmup": true
+      },
+      {
+        "kind": "local",
+        "sample_id": 2,
+        "move_index": 5,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 2,
+        "move_index": 6,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 3,
+        "move_index": 7,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 3,
+        "move_index": 8,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 4,
+        "move_index": 9,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 4,
+        "move_index": 10,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 5,
+        "move_index": 11,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 5,
+        "move_index": 12,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 6,
+        "move_index": 13,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 6,
+        "move_index": 14,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 7,
+        "move_index": 15,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 7,
+        "move_index": 16,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 8,
+        "move_index": 17,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 8,
+        "move_index": 18,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 9,
+        "move_index": 19,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 9,
+        "move_index": 20,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 10,
+        "move_index": 21,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 10,
+        "move_index": 22,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 11,
+        "move_index": 23,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 11,
+        "move_index": 24,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 12,
+        "move_index": 25,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 12,
+        "move_index": 26,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 13,
+        "move_index": 27,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 14,
+        "move_index": 28,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 15,
+        "move_index": 29,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 16,
+        "move_index": 30,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 17,
+        "move_index": 31,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 18,
+        "move_index": 32,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 13,
+        "move_index": 33,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 14,
+        "move_index": 34,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 15,
+        "move_index": 35,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 16,
+        "move_index": 36,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 17,
+        "move_index": 37,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 18,
+        "move_index": 38,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 19,
+        "move_index": 39,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 20,
+        "move_index": 40,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 21,
+        "move_index": 41,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 22,
+        "move_index": 42,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 23,
+        "move_index": 43,
+        "warmup": false
+      },
+      {
+        "kind": "local",
+        "sample_id": 24,
+        "move_index": 44,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 19,
+        "move_index": 45,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 20,
+        "move_index": 46,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 21,
+        "move_index": 47,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 22,
+        "move_index": 48,
+        "warmup": false
+      },
+      {
+        "kind": "download",
+        "sample_id": 23,
+        "move_index": 49,
+        "warmup": false
+      }
+    ],
+    "last_startup_status": {
+      "local_count": 0,
+      "pending": false,
+      "command": "status",
+      "synced": true,
+      "sync_error": "",
+      "generation": 1,
+      "download_count": 0,
+      "connected": true,
+      "sync_status": "SYNCED",
+      "current_seat": 1,
+      "transport_phase": "read",
+      "transport_status": 200,
+      "bytes_sent": 1417,
+      "phase": "stream",
+      "request_id": 8,
+      "schedule_error": null,
+      "scheduled": false,
+      "mode": "play",
+      "failure": null,
+      "moves": 0,
+      "app_failure": null,
+      "step_error": null
+    }
+  }
+}

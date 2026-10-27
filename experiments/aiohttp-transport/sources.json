@@ -1,0 +1,20 @@
+[
+  {
+    "name": "micropython-lib",
+    "repository": "micropython/micropython-lib",
+    "revision": "7cbdd3ab8ef97edc17846f8b7cbb9e63e7a855c4",
+    "path": "python-ecosys/aiohttp/aiohttp/__init__.py",
+    "sha256": "719d72a7bbc39e331e8292f5b7cb2525bfab1844dc80c0744115b91cf7135c7b",
+    "lines": 278,
+    "bytes": 8989
+  },
+  {
+    "name": "tangerino",
+    "repository": "Tangerino/aiohttp",
+    "revision": "2591ac0cb8b526881b73490326d7b07c89d05050",
+    "path": "aiohttp.py",
+    "sha256": "461023a2e31336253b10c895706ddd76a6a468189d6b4ff1b7efb41900b1199e",
+    "lines": 906,
+    "bytes": 35072
+  }
+]

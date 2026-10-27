@@ -1,6 +1,6 @@
 # Investigate the PowerSync native SDK on Badgeware
 
-Prepared 2026-10-26. Workspace: `/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes`.
+Prepared 2026-10-26. Workspace: `tufty-dots-and-boxes`.
 
 Investigate replacing the custom MicroPython PowerSync client with the actual
 [PowerSync native SDK](https://github.com/powersync-ja/powersync-native), while

@@ -1,0 +1,135 @@
+{
+  "format_version": 1,
+  "device": {
+    "local": [],
+    "active": false,
+    "downloads": [],
+    "format_version": 1,
+    "durable_local_medium": "pending.json",
+    "dropped": 0,
+    "harness": {
+      "capacity": 32,
+      "app_path": "/system/apps/dots_boxes",
+      "source_sha256": "5ba31e6f6f87143d78eb4a867b516814841d5ff0529aa207d0410e4428b7114c",
+      "seconds": 240,
+      "enabled": true
+    }
+  },
+  "host": {
+    "format_version": 1,
+    "sync_probes": [
+      {
+        "host_send_us": 21647970526,
+        "device_us": 38316707,
+        "host_receive_us": 21647991900
+      }
+    ],
+    "download_rpc": []
+  },
+  "capture": {
+    "label": "run1",
+    "status": "failed",
+    "warmup_moves": 4,
+    "date": "2026-10-27",
+    "move_order": "horizontal row/column order, then vertical row/column order",
+    "host_rpc_transport": "curl HTTPS; fresh process, no connection reuse",
+    "local_trigger": "scheduled Controller.tap after normal step, before draw",
+    "serial_policy": "no host traffic inside samples; sample_done after final submission",
+    "app_files_verified": {
+      "sqlite_shadow_vfs.py": {
+        "bytes": 9321,
+        "sha256": "0392ee099ff3c88610a24a3c18cdef9e63ff89405eec6a58e414bd9cf3bdd5be"
+      },
+      "powersync/database.py": {
+        "bytes": 19326,
+        "sha256": "a7cd5b7348dc3a79a0ee47c14f07a2d9102936e13272c266494b56746d6081ee"
+      },
+      "__init__.py": {
+        "bytes": 3281,
+        "sha256": "77eea22fc428e6b1c4398ef36528919d1c03ae10d3663cbfda14bd17fc645c78"
+      },
+      "powersync/http.py": {
+        "bytes": 13685,
+        "sha256": "3ea3aa65c0953770c9116e23209fb39b664da7b7a68b4e208c1d1273f3c79f6b"
+      },
+      "logos.py": {
+        "bytes": 2625,
+        "sha256": "f9ffbe34a9a5c154a8420136ede3ec026cb225e6c3be2c2b97301adcbae764e7"
+      },
+      "powersync/__init__.py": {
+        "bytes": 232,
+        "sha256": "310ab6af2b0093506ab464cdfef584ac308096e2fcb1b5e5d9eb21b0b575a601"
+      },
+      "view.py": {
+        "bytes": 11621,
+        "sha256": "476f49cfa1ad5dde9cdf23bcaf28098fb105f36cbc321a7d72eb51fbaebfd95d"
+      },
+      "game.py": {
+        "bytes": 3927,
+        "sha256": "760661f95be01aaf9fafa02da1013dcae4433b7cbd17306606a26ffe9a6a9bc0"
+      },
+      "controls.py": {
+        "bytes": 6068,
+        "sha256": "88eba637c396ed77bad34919c31eddc06e6385aa3b362499bcea517d49a422b8"
+      },
+      "dots_client.py": {
+        "bytes": 13841,
+        "sha256": "b1dca15eebd24350fa604e192e5086763983a95f5854f581b29f22f7c051daf8"
+      },
+      "icon.png": {
+        "bytes": 149,
+        "sha256": "ca9f4c67cc3c0d2e921979ad7b916585bdf927e50c89cd8940f8cd02656cf17b"
+      },
+      "dots_sync.py": {
+        "bytes": 5364,
+        "sha256": "4659261eb22090415caa3e32fd4c4e1847211822d32dd114fe336529969e5399"
+      },
+      "dots_storage.py": {
+        "bytes": 8052,
+        "sha256": "6e6054e69e8e6a263267f32922732b052d60aef3f018b98ac18b24d5108337d8"
+      },
+      "dots_session.py": {
+        "bytes": 7408,
+        "sha256": "924d935b4e980c33c1c97724b3f951927b78ebefb222d23d038c26ecede4b12b"
+      },
+      "dots_pairing.py": {
+        "bytes": 1086,
+        "sha256": "32d448fcb07f94890dc3d303fa1bda35e1acf08dd359a71da95fd19fab954331"
+      },
+      "powersync/stream.py": {
+        "bytes": 12155,
+        "sha256": "a33073941e5d7c6deb37466d033daaaed6572bf061b308805268d5ef8baeffd3"
+      },
+      "powersync/sync.py": {
+        "bytes": 17632,
+        "sha256": "462eb4b8ad2be702ae3f4b5f15bf512b7102b80c339a3926e2de4907196042a9"
+      },
+      "dots_config.py": {
+        "bytes": 614,
+        "sha256": "610700813ab0afad4c8c0d4fea3c6fab7c03217526b0d1aba9be2ae2ea3f3890"
+      },
+      "dots_codec.py": {
+        "bytes": 1869,
+        "sha256": "80b6a099d3832a42393c1714375a2749bad1c8b6ebca9fb03e578fa092442e89"
+      },
+      "powersync/runtime.py": {
+        "bytes": 2114,
+        "sha256": "b9fb14b40d2c3bdd46f017bd8ea5a9283de60724c2f323971e97c072719082a5"
+      },
+      "powersync/native_sqlite.mpy": {
+        "bytes": 737192,
+        "sha256": "359c1f5e619357c20d777414165540b55d290af63994ddb44d0d3a210cbcb9d5"
+      },
+      "ca/sectigo-r46.der": {
+        "bytes": 1422,
+        "sha256": "7bb647a62aeeac88bf257aa522d01ffea395e0ab45c73f93f65654ec38f25a06"
+      },
+      "powersync/native_sqlite.LICENSE.txt": {
+        "bytes": 14420,
+        "sha256": "40195d993172ef3ba8731ba633d342e53d8052b7637e910c5219fc7f5a7ef716"
+      }
+    },
+    "annotations": [],
+    "error": "TimeoutError"
+  }
+}

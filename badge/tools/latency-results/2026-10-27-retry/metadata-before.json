@@ -1,0 +1,25 @@
+{
+  "page_size": "1024",
+  "journal_mode": "delete",
+  "synchronous": "2",
+  "cache_pages": "32",
+  "free_pages": "27",
+  "database_bytes": 63488,
+  "implementation": "(name='micropython', version=(1, 29, 0, ''), _machine='Pimoroni Tufty 2350 with RP2350', _mpy=7942, _build='tufty')",
+  "pending": false,
+  "cpu_hz": 250000000,
+  "wifi_connected": true,
+  "wifi_rssi_dbm": -52,
+  "published_moves": "0",
+  "sql_crud": "0",
+  "uname": [
+    "rp2",
+    "rp2",
+    "1.29.0",
+    "bw-1.29.0-gc,   on 2026-09-22 (GNU 13.3.1 MinSizeRel)",
+    "Pimoroni Tufty 2350 with RP2350"
+  ],
+  "pages": "62",
+  "heap_free_bytes": 6939104,
+  "schema": "5"
+}

@@ -1,8 +1,10 @@
-# Tuffy Dots and Boxes
+# Tufty Dots and Boxes
 
 Two Tufty 2350 badges, or one badge and a virtual badge in the browser, play one Dots and Boxes board. A web dashboard creates the room, shows a five-letter pairing code (A, B, and C only), and lets you join the other seat in the same tab. PowerSync delivers the board to each badge and to anyone watching in the browser. Moves are sent with a Supabase call, then synced back.
 
-The linked projects are Supabase `rjjvtmqicwtikbveofyq`, PowerSync instance `6ad7f348423e048d1cdd5f03`, and the Vercel project `tuffy-dots-and-boxes`.
+The linked projects are Supabase `rjjvtmqicwtikbveofyq`, PowerSync instance `6ad7f348423e048d1cdd5f03`, and the Vercel project `tufty-dots-and-boxes`.
+
+Play at [tufty-dots-and-boxes.vercel.app](https://tufty-dots-and-boxes.vercel.app).
 
 ## Web
 
@@ -117,8 +119,8 @@ python3 -m unittest discover -s badge/tests -v
 
 New ARM binaries need a manual Tufty smoke test; host tests do not execute `.mpy`
 code. Build outputs stay in `native-sqlite/dist/` until explicitly selected as
-prebuilt artifacts. The source extraction's renamed binary has not yet had that
-hardware smoke test.
+prebuilt artifacts. The current pinned binary completed three full games in the
+[27 October device benchmarks](badge/tools/latency-results.md).
 
 The badge disables default subscriptions and requests only `badge_game_v2` for
 its paired room. The browser lobby and previous games never enter its 128 KiB
@@ -199,6 +201,27 @@ use the sibling `../../powersync-service` checkout by default; set
 `POWERSYNC_SERVICE_SOURCE` to use another built service checkout.
 
 ## Measured optimizations
+
+On 27 October 2026, three complete games on a USB-powered Tufty 2350 at 250 MHz
+measured the four app/sync paths below. Excluding four warmup moves per game
+left 69 local and 66 remote samples; every game finished with 49 moves and a
+10–10 score, with no pending move, SQL CRUD, dropped samples, or clock exclusions.
+
+| Path | Samples | p50 (ms) | p95 (ms) |
+| --- | ---: | ---: | ---: |
+| App move write → local display submission | 69 | 43 | 111 |
+| App move write → Supabase persistence acknowledgement | 69 | 1,238 | 1,351 |
+| Supabase commit → relevant SQLite row persisted | 66 | 1,830–2,010 | 2,187–2,372 |
+| Supabase commit → display submission | 66 | 1,898–2,078 | 2,252–2,436 |
+
+Local timing starts at app callback entry. Display submission is `display.update()`
+return, not optical pixel visibility; upload acknowledgement bounds persistence
+from above. Remote ranges bound each percentile using RPC and clock uncertainty
+with an assumed 1,000 ppm drift limit, rounded outward. An extra correlation
+query adds about 15 ms to remote display timing; no overhead correction was
+subtracted. See the [results and reusable prose](badge/tools/latency-results.md),
+[captures and statistics](badge/tools/latency-results/2026-10-27-final/), and
+[benchmark guide](badge/tools/latency-benchmarks.md) for methods and limits.
 
 Reproduce the local service-compiler and pinned-native benchmark with:
 

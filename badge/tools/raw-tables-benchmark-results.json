@@ -1,6 +1,6 @@
 {
   "methodology": {
-    "source": "/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes",
+    "source": ".",
     "library": "/Users/kobie/projects/powersync/skunkworks/badgegotchi/experiments/badgeware-native/powersync-audit/build/fixture-host.dylib",
     "fixtures": "/var/folders/g4/djq7_lkd2v3272ykq8__p4zm0000gn/T/dots-projection-wGqyOR/fixtures.json",
     "core": "0.5.4/cratesio",

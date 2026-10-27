@@ -1,0 +1,15 @@
+{
+  "probe_now": {
+    "empty_loop_total_us": 2876,
+    "iterations": 2000,
+    "total_us": 28028,
+    "per_call_including_loop_us": 14.014
+  },
+  "exact_move_correlation_query": {
+    "warmups": 10,
+    "p50_us": 15126,
+    "p95_us": 15292,
+    "iterations": 100,
+    "max_us": 16094
+  }
+}

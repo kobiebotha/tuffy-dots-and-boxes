@@ -1,0 +1,47 @@
+{
+  "verified": true,
+  "games": [
+    {
+      "run": "run1",
+      "canonical": {
+        "status": "finished",
+        "score_p1": 10,
+        "score_p2": 10,
+        "move_count": 49,
+        "winner": 0
+      },
+      "contiguous_moves": 49,
+      "device_moves": 49,
+      "pending": false,
+      "sql_crud": 0
+    },
+    {
+      "run": "run2",
+      "canonical": {
+        "status": "finished",
+        "score_p1": 10,
+        "score_p2": 10,
+        "move_count": 49,
+        "winner": 0
+      },
+      "contiguous_moves": 49,
+      "device_moves": 49,
+      "pending": false,
+      "sql_crud": 0
+    },
+    {
+      "run": "run3",
+      "canonical": {
+        "status": "finished",
+        "score_p1": 10,
+        "score_p2": 10,
+        "move_count": 49,
+        "winner": 0
+      },
+      "contiguous_moves": 49,
+      "device_moves": 49,
+      "pending": false,
+      "sql_crud": 0
+    }
+  ]
+}
