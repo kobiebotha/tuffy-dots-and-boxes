@@ -11,3 +11,9 @@ web/public/assets/powersync/
 **/__pycache__
 .DS_Store
 supabase/.temp
+
+# Local SQLite toolchain downloads and generated build/linker caches.
+/native-sqlite/cache/
+/native-sqlite/build/
+/native-sqlite/.mpy_ld_cache-*/
+/native-sqlite/.venv/
