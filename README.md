@@ -75,6 +75,12 @@ onto the app's import path, together with `native_sqlite.mpy` from
 dependency into the SDK directory and the standalone VFS at the app root.
 The SDK contains the database lifecycle, verified HTTP, stream framing and sync loop. It targets Tufty 2350 /
 Badgeware 1.29.0 and uses Python orchestration over the native PowerSync core.
+Its package-local `powersync.bounded_dns` resolver is bundled as Python source;
+no separately installed shared DNS helper is required. It uses the connected
+Wi-Fi interface's IPv4 DNS server, nonblocking UDP and bounded retries. It
+supports classic 512-byte DNS responses and CNAME chains with a final IPv4
+answer; IPv6, DNS-over-TCP and DNS caching are unsupported. Certificate and
+hostname verification remain in the HTTPS transport.
 
 The [SQLite shadow VFS](sqlite-shadow-vfs/README.md) is independently reusable
 with the SQLite-only native module. It owns the RAM database image and physical
@@ -150,9 +156,11 @@ by random LittleFS writes. The free-space guard reserves room for a replacement
 image plus 64 KiB. This relies on the qualified Tufty LittleFS implementation;
 it is not a general-purpose filesystem VFS.
 
-An upgraded SQLite file retains its previous high-water size because the VFS
-does not support shrinking files. Migration returns old cache pages to SQLite's
-freelist for reuse within the existing 128 KiB cap. A newly created raw cache
+Nonempty SQLite files retain their physical high-water size. The VFS supports
+logical truncation for rollback, including spilled growth, while SQLite's
+restored header bounds the valid pages. Rollback to an empty database durably
+recreates an empty file. Migration returns old cache pages to SQLite's freelist
+for reuse within the existing 128 KiB cap. A newly created raw cache
 finishes a full 49-move live game at 53 KiB in the current host benchmark; an upgraded
 file may remain larger while using fewer pages.
 

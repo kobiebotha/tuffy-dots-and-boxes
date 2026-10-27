@@ -58,7 +58,13 @@ limit, free-space admission and a transaction using plain SQLite.
 - One connection and one serialized owner; no other process, interrupt, thread,
   or VFS may access the same database or journal concurrently.
 - Use DELETE rollback journaling, FULL synchronization and memory-only temporary
-  storage. WAL and shrinking files (including VACUUM) are unsupported.
+  storage. WAL and physical compaction (including VACUUM) are unsupported.
+- Logical database truncation is supported for transaction rollback, including
+  growth that spilled beyond SQLite's page cache. Nonempty images retain the
+  physical file's high-water tail; SQLite's restored header page count bounds
+  the valid database. Rollback to an empty image recreates and flushes an empty
+  file so a failed first commit cannot reappear after reopening. This requires
+  modern SQLite's valid in-header page count, as supplied by `native-sqlite`.
 - Journal writes are bounded to the database capacity plus 4 KiB. Larger
   configurations and different page/cache sizes need their own qualification.
 - Keep the VFS and its buffer alive until SQLite closes. Read callbacks return
@@ -81,9 +87,11 @@ library, which calls LittleFS directly.
 python3 -m unittest discover -s sqlite-shadow-vfs/tests -v
 ```
 
-Unit tests cover the actual file callbacks, limits, journal ordering and injected
-I/O failures. An isolated integration test uses the native component's SQLite-only
-host build to exercise this VFS without PowerSync or the game. Build that library
+Unit tests cover the actual file callbacks, limits, logical shrink, journal
+ordering and injected I/O failures. Isolated integrations use the native
+component's SQLite-only host build to exercise this VFS without PowerSync or the
+game, including spilled-growth rollback, automatic rollback after SQLITE_FULL,
+and a failed first commit that returns to an empty database after reopening. Build that library
 with `python3 native-sqlite/tools/build.py host --variant sqlite`; the integration
 test skips with an explanation when it is unavailable. The PowerSync suite also
 uses this component's C test bridge and Python adapter.

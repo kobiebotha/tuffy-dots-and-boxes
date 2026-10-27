@@ -98,8 +98,10 @@ from dots_sync import GameConnector
 from powersync.database import Database
 from powersync.sync import Connector
 import powersync
+from powersync import bounded_dns
 import sqlite_shadow_vfs
 assert powersync.__file__ == sys.argv[1] + '/powersync/__init__.py'
+assert bounded_dns.__file__ == sys.argv[1] + '/powersync/bounded_dns.py'
 assert sqlite_shadow_vfs.__file__ == sys.argv[1] + '/sqlite_shadow_vfs.py'
 assert issubclass(Store, Database)
 assert issubclass(GameConnector, Connector)

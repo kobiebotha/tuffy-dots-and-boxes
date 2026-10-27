@@ -51,8 +51,14 @@ remain SQLite I/O errors, preserving dirty data and recovery evidence.
 ## What was tested
 
 [Direct VFS tests](../../sqlite-shadow-vfs/tests/test_shadow_vfs.py) cover bounded loading, metadata flush,
-read-only access, growth/zero filling, unsupported shrink, journal ordering,
-short writes, write/flush/global-sync failures and close failures. The SDK's
+read-only access, growth/zero filling, logical shrink, journal ordering,
+short writes, write/flush/global-sync failures and close failures. Nonempty
+rollback images retain the physical high-water tail, with SQLite's restored
+header defining the valid page count. An empty rollback closes and recreates
+only the empty database file, retaining dirty state and the journal if close,
+reopen or synchronization fails. The standalone SQLite integrations also cover
+rollback after page-cache spills, SQLITE_FULL, and an uncertain first-commit
+failure without resurrecting the rolled-back schema on reopen. The SDK's
 [admission tests](../tests/test_vfs.py) cover its free-space reserve policy.
 
 [Native integration tests](../tests/test_vfs_native.py) use the real pinned

@@ -103,5 +103,162 @@ with tempfile.TemporaryDirectory() as folder:
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+    def _check_spilled_growth_rollback(self, automatic):
+        import os
+        script = '''
+import sys, tempfile
+from pathlib import Path
+sys.path[:0] = [sys.argv[1], sys.argv[1] + '/tests']
+from sqlite_shadow_vfs import ShadowVFS
+from sqlite_vfs_host import PythonVFSCore
+automatic = sys.argv[2] == 'automatic'
+with tempfile.TemporaryDirectory() as folder:
+    path = folder + '/growth.db'
+    native = PythonVFSCore()
+    def open_db():
+        io = ShadowVFS(path)
+        native.configure(io)
+        native.open(path)
+        native.exec('PRAGMA page_size=1024; PRAGMA max_page_count=64; PRAGMA synchronous=FULL; PRAGMA journal_mode=DELETE; PRAGMA temp_store=MEMORY; PRAGMA cache_size=32')
+        return io
+    def check_original():
+        assert native.exec('SELECT count(*), length(payload) FROM entries') == [['1', '32']]
+        assert native.exec('PRAGMA integrity_check') == [['ok']]
+    io = open_db()
+    try:
+        native.exec('CREATE TABLE entries(id INTEGER PRIMARY KEY, payload BLOB)')
+        native.exec('INSERT INTO entries VALUES(-1, zeroblob(32))')
+        original_size = io.db_size
+        native.reset_stats()
+        native.exec('BEGIN; UPDATE entries SET payload=zeroblob(40) WHERE id=-1')
+        for identity in range(48):
+            native.exec('INSERT INTO entries VALUES(%d, zeroblob(900))' % identity)
+        # These writes must reach the VFS before rollback, rather than remaining
+        # entirely in SQLite's page cache as in the small rollback fixture.
+        assert native.stats['db.write'] > 0, native.stats
+        assert io.db_size > original_size, (io.db_size, original_size)
+        if automatic:
+            try:
+                for identity in range(48, 128):
+                    native.exec('INSERT INTO entries VALUES(%d, zeroblob(900))' % identity)
+            except RuntimeError as error:
+                assert 'database or disk is full' in str(error), error
+            else:
+                raise AssertionError('Expected SQLITE_FULL to roll back the transaction')
+        else:
+            native.exec('ROLLBACK')
+        check_original()
+        shrinks = [event for event in native.events if event['op'] == 4
+                   and event['kind'] == 'db' and event['arg'] == original_size]
+        assert shrinks and all(event['code'] == 0 for event in shrinks), shrinks
+        assert native.last_bridge_error is None, native.last_bridge_error
+    finally:
+        native.close()
+        io.close_all()
+    assert not Path(path + '-journal').exists(), 'Rollback left a hot journal'
+    io = open_db()
+    try:
+        check_original()
+        native.exec('BEGIN; INSERT INTO entries VALUES(1000, zeroblob(900)); COMMIT')
+        assert native.exec('SELECT count(*) FROM entries') == [['2']]
+        assert native.exec('PRAGMA integrity_check') == [['ok']]
+    finally:
+        native.close()
+        io.close_all()
+    io = open_db()
+    try:
+        assert native.exec('SELECT count(*) FROM entries') == [['2']]
+        assert native.exec('PRAGMA integrity_check') == [['ok']]
+    finally:
+        native.close()
+        io.close_all()
+'''
+        environment = dict(os.environ, POWERSYNC_TEST_LIBRARY=str(LIBRARY))
+        result = subprocess.run([sys.executable, "-I", "-c", script, str(COMPONENT),
+                                 "automatic" if automatic else "explicit"],
+                                cwd=COMPONENT, env=environment, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipUnless(LIBRARY.is_file(), "Build native-sqlite host --variant sqlite for integration")
+    def test_spilled_growth_rollback_preserves_rows_and_can_commit_after_reopen(self):
+        self._check_spilled_growth_rollback(automatic=False)
+
+    @unittest.skipUnless(LIBRARY.is_file(), "Build native-sqlite host --variant sqlite for integration")
+    def test_sqlite_full_automatically_rolls_back_spilled_growth(self):
+        self._check_spilled_growth_rollback(automatic=True)
+
+
+
+    @unittest.skipUnless(LIBRARY.is_file(), "Build native-sqlite host --variant sqlite for integration")
+    def test_failed_first_commit_cannot_resurrect_rolled_back_schema_after_reopen(self):
+        import os
+        script = '''
+import sys, tempfile
+from pathlib import Path
+sys.path[:0] = [sys.argv[1], sys.argv[1] + '/tests']
+from sqlite_shadow_vfs import ShadowVFS
+from sqlite_vfs_host import PythonVFSCore
+with tempfile.TemporaryDirectory() as folder:
+    path = folder + '/empty.db'
+    native = PythonVFSCore()
+    def open_db():
+        io = ShadowVFS(path)
+        native.configure(io)
+        native.open(path)
+        native.exec('PRAGMA page_size=1024; PRAGMA max_page_count=128; PRAGMA synchronous=FULL; PRAGMA journal_mode=DELETE; PRAGMA temp_store=MEMORY; PRAGMA cache_size=32')
+        return io
+    io = open_db()
+    persisted_sizes = []
+    try:
+        assert io.db_size == Path(path).stat().st_size == 0
+        native.exec('BEGIN; CREATE TABLE entries(id INTEGER PRIMARY KEY, payload BLOB)')
+        for identity in range(48):
+            native.exec('INSERT INTO entries VALUES(%d, zeroblob(900))' % identity)
+        assert native.stats['db.write'] > 0, native.stats
+        sync_db = io._sync_db
+        def fail_after_first_database_sync(stream):
+            sync_db(stream)
+            if not persisted_sizes:
+                persisted_sizes.append(Path(path).stat().st_size)
+                raise OSError('Database sync failed after persistence')
+        io._sync_db = fail_after_first_database_sync
+        try:
+            native.exec('COMMIT')
+        except RuntimeError as error:
+            assert 'disk I/O error' in str(error), error
+        else:
+            raise AssertionError('Expected the injected COMMIT failure')
+        assert persisted_sizes and persisted_sizes[0] > 0, persisted_sizes
+        assert native.exec("SELECT name FROM sqlite_master WHERE type='table'") == []
+        shrinks = [event for event in native.events if event['op'] == 4
+                   and event['kind'] == 'db' and event['arg'] == 0]
+        assert shrinks and all(event['code'] == 0 for event in shrinks), shrinks
+        assert native.last_bridge_error is None, native.last_bridge_error
+    finally:
+        native.close()
+        io.close_all()
+    assert not Path(path + '-journal').exists(), 'Rollback left a hot journal'
+    io = open_db()
+    try:
+        assert native.exec("SELECT name FROM sqlite_master WHERE type='table'") == []
+        assert native.exec('PRAGMA integrity_check') == [['ok']]
+        native.exec('CREATE TABLE recovered(id INTEGER PRIMARY KEY)')
+    finally:
+        native.close()
+        io.close_all()
+    io = open_db()
+    try:
+        assert native.exec("SELECT name FROM sqlite_master WHERE type='table'") == [['recovered']]
+        assert native.exec('PRAGMA integrity_check') == [['ok']]
+    finally:
+        native.close()
+        io.close_all()
+'''
+        environment = dict(os.environ, POWERSYNC_TEST_LIBRARY=str(LIBRARY))
+        result = subprocess.run([sys.executable, "-I", "-c", script, str(COMPONENT)],
+                                cwd=COMPONENT, env=environment, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

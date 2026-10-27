@@ -77,14 +77,25 @@ class ShadowVFS:
 
     def _sync_db(self, stream):
         if self.db_dirty:
-            stream.seek(0)
-            if stream.write(memoryview(self.db_buffer)[:self.db_size]) != self.db_size:
-                raise OSError("Incomplete database write; journal retained")
+            if self.db_size == 0:
+                # A failed first commit may already have written a complete
+                # header. An empty rollback must remove it or it could reappear
+                # on reopen. Only an empty image is safe to recreate this way;
+                # truncating a nonempty image risks pages absent from the journal.
+                _, path, flags = self.files[self.db_handle]
+                stream.close()
+                stream = open(path, "w+b")
+                self.files[self.db_handle] = (stream, path, flags)
+            else:
+                stream.seek(0)
+                if stream.write(memoryview(self.db_buffer)[:self.db_size]) != self.db_size:
+                    raise OSError("Incomplete database write; journal retained")
         # LittleFS flush is file_sync, including its data and directory commit.
         # Retain the qualified barrier and keep dirty data until both succeed.
         stream.flush()
         os.sync()
         self.db_dirty = False
+        return stream
 
     def __call__(self, op, item, arg1, arg2):
         try:
@@ -138,7 +149,7 @@ class ShadowVFS:
             is_db = item == self.db_handle
             if op == 1:
                 if is_db and self.db_dirty:
-                    self._sync_db(stream)
+                    stream = self._sync_db(stream)
                 stream.close()
                 del self.files[item]
                 if is_db:
@@ -178,13 +189,18 @@ class ShadowVFS:
                 if is_db:
                     if flags & 1:
                         return (10, 0)
-                    if arg1 < self.db_size:
-                        self.last_error = "File truncation is unavailable"
+                    if arg1 < 0:
                         return (1546, 0)
                     if arg1 > self.max_database_bytes:
                         return (13, 0)
                     if arg1 > self.db_size:
                         self._zero_db(self.db_size, arg1)
+                    if arg1 != self.db_size:
+                        # Rollback may discard pages spilled beyond the original
+                        # database end. Keep the physical file's high-water tail:
+                        # MicroPython cannot truncate it, and reopening with "w"
+                        # could destroy unchanged pages absent from the journal.
+                        # SQLite's restored header bounds its valid page count.
                         self.db_size, self.db_dirty = arg1, True
                     return (0, 0)
                 stream.seek(0, 2)

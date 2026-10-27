@@ -207,7 +207,7 @@ class HTTPS:
             self.close()
             raise OSError("HTTPS deadline")
         if self.phase == "dns":
-            import bounded_dns
+            from . import bounded_dns
             import network
             wlan = network.WLAN(network.STA_IF)
             if not wlan.isconnected():

@@ -220,13 +220,13 @@ class ShadowVFSTests(unittest.TestCase):
         self.assertEqual(self.vfs(2, handle, 0, -1)[0], 10)
         self.assertEqual(self.vfs(2, handle, 0, MAX_DATABASE_BYTES + 1)[0], 10)
 
-    def test_database_limits_and_unsupported_shrink_do_not_change_shadow(self):
+    def test_database_limits_and_negative_truncate_do_not_change_shadow(self):
         handle = self.db()
         before = bytes(self.vfs.db_buffer)
         for offset, data in ((-1, b"x"), (MAX_DATABASE_BYTES, b"x")):
             self.assertEqual(self.vfs(3, handle, offset, data)[0], 13)
         self.assertEqual(self.vfs(4, handle, MAX_DATABASE_BYTES + 1, 0)[0], 13)
-        self.assertEqual(self.vfs(4, handle, 7, 0)[0], 1546)
+        self.assertEqual(self.vfs(4, handle, -1, 0)[0], 1546)
         self.assertEqual(bytes(self.vfs.db_buffer), before)
         self.assertEqual(self.vfs.db_size, 8)
         self.assertFalse(self.vfs.db_dirty)
@@ -237,10 +237,105 @@ class ShadowVFSTests(unittest.TestCase):
         self.assertEqual(self.vfs(5, handle, 0, 0), (0, 0))
         self.assertEqual(self.path.stat().st_size, MAX_DATABASE_BYTES)
 
+    def test_shrink_changes_logical_eof_and_preserves_physical_tail_at_sync(self):
+        handle = self.db()
+        self.physical_journal()
+        self.events.clear()
+        self.assertEqual(self.vfs(4, handle, 3, 0), (0, 0))
+        self.assertEqual(self.vfs.db_size, 3)
+        self.assertTrue(self.vfs.db_dirty)
+        self.assertEqual(self.vfs(2, handle, 0, 20), (0, b"ori"))
+        self.assertEqual(self.vfs(2, handle, 3, 20), (0, b""))
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.path.read_bytes(), b"original")
+        self.assertEqual(self.vfs(5, handle, 0, 0), (0, 0))
+        self.assertEqual(self.events, [("db", "seek", (0,)), ("db", "write", 3),
+                                       ("db", "flush"), ("os", "sync")])
+        self.assertFalse(self.vfs.db_dirty)
+        self.assertEqual(self.path.read_bytes(), b"original")
+        self.assertTrue(self.journal.exists())
+        self.assertEqual(self.vfs(4, handle, 8, 0), (0, 0))
+        self.assertEqual(self.vfs(2, handle, 0, 20), (0, b"ori" + bytes(5)))
+        self.assertEqual(self.vfs(5, handle, 0, 0), (0, 0))
+        self.assertEqual(self.path.read_bytes(), b"ori" + bytes(5))
+
+    def test_empty_rollback_recreates_file_and_updates_handle_before_close(self):
+        handle = self.db()
+        original = self.probes["db"]
+        self.physical_journal()
+        self.events.clear()
+        self.assertEqual(self.vfs(4, handle, 0, 0), (0, 0))
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.path.read_bytes(), b"original")
+        self.assertEqual(self.vfs(5, handle, 0, 0), (0, 0))
+        self.assertTrue(original.stream.closed)
+        replacement = self.probes["db"]
+        self.assertIsNot(original, replacement)
+        self.assertIs(self.vfs.files[handle][0], replacement)
+        self.assertEqual(self.path.read_bytes(), b"")
+        self.assertFalse(self.vfs.db_dirty)
+        self.assertTrue(self.journal.exists())
+        self.assertEqual(self.vfs(3, handle, 0, b"next"), (0, 4))
+        self.assertEqual(self.vfs(1, handle, 0, 0), (0, 0))
+        self.assertTrue(replacement.stream.closed)
+        self.assertEqual(self.path.read_bytes(), b"next")
+
+    def test_empty_image_close_open_and_sync_failures_retain_state_for_retry(self):
+        handle = self.db()
+        self.physical_journal()
+        self.assertEqual(self.vfs(4, handle, 0, 0), (0, 0))
+        original = self.probes["db"]
+        original.close_error = True
+        self.assertEqual(self.vfs(5, handle, 0, 0)[0], 10)
+        self.assertTrue(self.vfs.db_dirty)
+        self.assertEqual(self.path.read_bytes(), b"original")
+        original.close_error = False
+        with patch.object(vfs, "open", side_effect=OSError("reopen failed")):
+            self.assertEqual(self.vfs(5, handle, 0, 0)[0], 10)
+        self.assertTrue(original.stream.closed)
+        self.assertTrue(self.vfs.db_dirty)
+        self.assertIn(handle, self.vfs.files)
+        self.next_flush_error = True
+        self.assertEqual(self.vfs(5, handle, 0, 0)[0], 10)
+        self.assertTrue(self.vfs.db_dirty)
+        self.assertTrue(self.journal.exists())
+        failed = self.probes["db"]
+        failed.flush_error = False
+        self.next_flush_error = False
+        self.sync_mock.side_effect = OSError("sync failed")
+        self.assertEqual(self.vfs(5, handle, 0, 0)[0], 10)
+        self.assertTrue(self.vfs.db_dirty)
+        self.sync_mock.side_effect = lambda: None
+        self.assertEqual(self.vfs(5, handle, 0, 0), (0, 0))
+        self.assertFalse(self.vfs.db_dirty)
+        self.assertTrue(self.journal.exists())
+        self.assertEqual(self.path.read_bytes(), b"")
+        self.assertEqual(self.vfs(1, handle, 0, 0), (0, 0))
+        self.assertNotIn(handle, self.vfs.files)
+
+    def test_shrunk_image_remains_dirty_after_sync_failure_until_retry(self):
+        handle = self.db()
+        self.physical_journal()
+        self.assertEqual(self.vfs(3, handle, 0, b"restored"), (0, 8))
+        self.assertEqual(self.vfs(4, handle, 3, 0), (0, 0))
+        self.probes["db"].flush_error = True
+        self.assertEqual(self.vfs(5, handle, 0, 0)[0], 10)
+        self.assertTrue(self.vfs.db_dirty)
+        self.assertEqual(self.vfs(6, handle, 0, 0), (0, 3))
+        self.assertEqual(self.vfs(2, handle, 0, 20), (0, b"res"))
+        self.assertTrue(self.journal.exists())
+        self.probes["db"].flush_error = False
+        self.assertEqual(self.vfs(5, handle, 0, 0), (0, 0))
+        self.assertFalse(self.vfs.db_dirty)
+        self.assertEqual(self.path.read_bytes()[:3], b"res")
+        self.assertEqual(self.path.stat().st_size, 8)
+        self.assertTrue(self.journal.exists())
+
     def test_readonly_database_cannot_write_or_grow(self):
         handle = self.db(flags=1)
         self.assertEqual(self.vfs(3, handle, 0, b"x")[0], 10)
         self.assertEqual(self.vfs(4, handle, 9, 0)[0], 10)
+        self.assertEqual(self.vfs(4, handle, 3, 0)[0], 10)
         self.assertEqual(self.vfs(2, handle, 0, 20), (0, b"original"))
         self.assertFalse(self.vfs.db_dirty)
 

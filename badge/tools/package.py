@@ -38,7 +38,7 @@ APP_FILES = (
     "ca/sectigo-r46.der",
 )
 SDK_FILES = (
-    "__init__.py", "database.py", "http.py", "stream.py", "sync.py",
+    "__init__.py", "bounded_dns.py", "database.py", "http.py", "stream.py", "sync.py",
     "runtime.py", "native_sqlite.mpy", "native_sqlite.LICENSE.txt",
 )
 SOURCE_FILES = APP_FILES + tuple("powersync/" + name for name in SDK_FILES) + ("sqlite_shadow_vfs.py",)
