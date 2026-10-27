@@ -1,0 +1,8 @@
+BENCH_SESSION {"room_id": "6ad058a8-d19b-4d8c-b32d-e6f2b6945ccb", "seat": 1, "expires_at": 1793065411}
+BENCH_PENDING {"generation":2,"pending_move":null,"version":1}
+ORIGINAL_FILES ['sqlite_shadow_vfs.py', '._badgegotchi_native.mpy', 'ca', '._ca', 'controls.py', '._controls.py', 'dots_client.py', '._dots_client.py', 'dots_codec.py', '._dots_codec.py', 'dots_config.py', '._dots_config.py', '._dots_http.py', 'dots_pairing.py', '._dots_pairing.py', '._dots_runtime.py', 'dots_session.py', '._dots_session.py', 'dots_storage.py', '._dots_storage.py', '._dots_stream.py', 'dots_sync.py', '._dots_sync.py', 'game.py', '._game.py', 'icon.png', '._icon.png', 'logos.py', '._logos.py', 'view.py', '._view.py', '__init__.py', '.___init__.py', 'powersync']
+BENCH_QUEUED 0
+BENCH_ROOM {"current_seat": 2, "status": "playing", "score_p2": 0, "score_p1": 0, "rows": 4, "winner": null, "cols": 5, "move_count": 9}
+BENCH_MOVES [{"row": 2, "col": 2, "move_index": 1, "orientation": "v"}, {"row": 2, "col": 2, "move_index": 2, "orientation": "h"}, {"row": 2, "col": 3, "move_index": 3, "orientation": "h"}, {"row": 1, "col": 4, "move_index": 4, "orientation": "v"}, {"row": 1, "col": 3, "move_index": 5, "orientation": "h"}, {"row": 1, "col": 2, "move_index": 6, "orientation": "h"}, {"row": 1, "col": 1, "move_index": 7, "orientation": "h"}, {"row": 1, "col": 1, "move_index": 8, "orientation": "v"}, {"row": 2, "col": 0, "move_index": 9, "orientation": "h"}]
+NATIVE_CACHE_REMOVED_FOR_BENCHMARK (4096, 4096, 256, 54, 54, 0, 0, 0, 0, 255)
+

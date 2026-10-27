@@ -1,0 +1,6 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/arm-none-eabi-ar t /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/async-leaf-target/thumbv8m.main-none-eabi/release/libbadge_async_leaf_check.rlib
+lib.rmeta
+badge_async_leaf_check-8380c9aa20d86d11.badge_async_leaf_check.4510cf96c2a18ca0-cgu.0.rcgu.o
+badge_async_leaf_check-8380c9aa20d86d11.badge_async_leaf_check.4510cf96c2a18ca0-cgu.1.rcgu.o
+badge_async_leaf_check-8380c9aa20d86d11.badge_async_leaf_check.4510cf96c2a18ca0-cgu.2.rcgu.o
+badge_async_leaf_check-8380c9aa20d86d11.badge_async_leaf_check.4510cf96c2a18ca0-cgu.3.rcgu.o

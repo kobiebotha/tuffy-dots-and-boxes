@@ -1,0 +1,228 @@
+on:
+  push:
+  pull_request:
+name: "tests"
+
+permissions: {}
+
+concurrency:
+  group: packages-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    permissions:
+      security-events: write # Needed to upload findings as code scanning results.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          persona: pedantic
+
+  build_libs:
+    name: Build libraries
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    uses: ./.github/workflows/build.yml
+    permissions:
+      # Not used here since attest is not enabled for this workflow, but the
+      # reusable workflow's attest job requires the caller to grant these.
+      id-token: write # Unused
+      attestations: write # Unused
+      artifact-metadata: write # Unused
+
+  rust_unit_tests:
+    name: Rust unit tests on ${{ matrix.os }}
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Ubuntu setup
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          sudo apt install libreadline-dev
+
+      - name: Install Rust Nightly
+        run: rustup install
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Build
+        run: |
+          cargo build -p powersync_loadable --release
+          cargo build -p powersync_core --release --features static
+          cargo build -p powersync_sqlite --release
+          cargo build -p sqlite3 --release
+
+      - name: Test powersync
+        run: |
+          cargo test -p powersync_core
+
+      - name: Check shell
+        run: |
+          ./target/release/powersync_sqlite ":memory:" "select powersync_rs_version()"
+
+      - name: Check loadable extension
+        run: |
+          ./target/release/sqlite3 ":memory:" ".load ./target/release/libpowersync" "select powersync_rs_version()"
+
+  build:
+    name: Testing on ${{ matrix.os }}
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    runs-on: ${{ matrix.os }}
+    needs: [build_libs]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: 
+          - ubuntu-24.04
+          - macos-latest
+          - windows-latest
+          - ubuntu-arm64
+          - windows-11-arm
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Setup Dart tests
+        working-directory: dart
+        run: |
+          dart pub get
+          dart analyze
+      - uses: actions/cache@v6
+        with:
+          path: dart/.dart_tool/hooks_runner/
+          key: hooks-${{ matrix.os }}-${{ hashFiles('dart/pubspec.lock') }}
+          restore-keys: hooks-${{ matrix.os }}
+
+      - name: Download libs
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_linux }}
+          path: dart/assets
+      - name: Download libs
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_macos }}
+          path: dart/assets
+      - name: Download libs
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_windows }}
+          path: dart/assets
+
+      - name: View downloaded artifacts
+        if: runner.os == 'Linux'
+        working-directory: dart
+        run: |
+          ls -al assets/
+
+      - name: Dart tests
+        working-directory: dart
+        run: |
+          dart test -P ci
+
+      - name: Generate sbom
+        working-directory: dart
+        run: dart tool/generate_sbom.dart
+
+  build_stable_rust:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dart-lang/setup-dart@v1
+      - name: Install Rust Stable
+        run: rustup install stable
+
+      - name: Setup Dart tests
+        working-directory: dart
+        run: |
+          dart pub get
+          dart analyze
+
+      - uses: actions/cache@v6
+        with:
+          path: dart/.dart_tool/hooks_runner/
+          key: hooks-${{ matrix.os }}-${{ hashFiles('dart/pubspec.lock') }}
+          restore-keys: hooks-${{ matrix.os }}
+
+      - name: Compile with stable Rust
+        run: |
+          cargo +stable build -p powersync_loadable
+
+      - name: Dart tests with stable Rust
+        working-directory: dart
+        run: dart test
+
+  test_with_sanitizers:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@v1
+      - name: Install Rust Nightly
+        run: rustup install
+      - name: Install LLVM toolchain
+        run: |
+          sudo apt update
+          sudo apt install -y llvm clang lld
+
+      - name: Build with sanitizers
+        run: tool/build_linux_sanitized.sh
+
+      - run: dart pub get
+        working-directory: dart
+
+      - name: Test with MemorySanitizer
+        working-directory: dart
+        run: dart tool/run_tests.dart msan
+
+      - name: Test with AddressSanitizer
+        working-directory: dart
+        run: dart tool/run_tests.dart asan
+
+  vulnerability_scan:
+    runs-on: ubuntu-latest
+    name: Scan SBOM for vulnerabilities
+    needs: [build_libs]
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    permissions:
+      security-events: write # To upload SARIF report of found vulnerabilities
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download SBOM
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.sbom }}
+      - name: View SBOM
+        run: cat bom.json
+      - uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        id: scan
+        with:
+          sbom: bom.json
+          grype-version: v0.117.0 # The default version from the action doesn't support CycloneDX version 1.7 yet.
+          cache-db: true
+          output-format: table

@@ -1,0 +1,13 @@
+.DS_Store
+.vscode
+dist/
+*.db
+build/
+target/
+.idea
+*.xcframework
+*.tar.gz
+*.tar.xz
+*.zip
+.build
+/sanitized/

@@ -1,0 +1,32 @@
+diff --git a/powersync/src/lib.rs b/powersync/src/lib.rs
+--- a/powersync/src/lib.rs
++++ b/powersync/src/lib.rs
+@@ -6,6 +6,7 @@ mod util;
+ pub use db::crud::{CrudEntry, CrudTransaction, UpdateType};
+ #[cfg(feature = "ffi")]
+ pub use db::internal::InnerPowerSyncState;
++pub use db::connection::{RawSqliteConnection, SqliteConnection};
+ pub use db::pool::{ConnectionPool, LeasedConnection};
+ pub use db::streams::StreamSubscription;
+ pub use db::streams::StreamSubscriptionOptions;
+diff --git a/powersync/src/db/pool.rs b/powersync/src/db/pool.rs
+--- a/powersync/src/db/pool.rs
++++ b/powersync/src/db/pool.rs
+@@ -247,7 +247,7 @@ pub struct LeasedConnection {
+ }
+ 
+ impl LeasedConnection {
+-    pub(crate) fn sqlite_connection(&self) -> &SqliteConnection {
++    pub fn sqlite_connection(&self) -> &SqliteConnection {
+         match &self.inner {
+             OwnedConnectionLease::Writer { connection, .. } => connection,
+             OwnedConnectionLease::Reader { connection, .. } => unsafe {
+@@ -258,7 +258,7 @@ impl LeasedConnection {
+         }
+     }
+ 
+-    pub(crate) fn sqlite_connection_mut(&mut self) -> &mut SqliteConnection {
++    pub fn sqlite_connection_mut(&mut self) -> &mut SqliteConnection {
+         match &mut self.inner {
+             OwnedConnectionLease::Writer { connection, .. } => connection,
+             OwnedConnectionLease::Reader { connection, .. } => unsafe {

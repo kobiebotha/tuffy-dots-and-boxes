@@ -1,0 +1,231 @@
+$ cargo test --manifest-path ../powersync-native/Cargo.toml -p powersync --features embassy --target-dir experiments/powersync-native-sdk/port-build/host --locked
+   Compiling cexpr v0.6.0
+   Compiling unicode-xid v0.2.6
+   Compiling konst_macro_rules v0.2.19
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling const_format_proc_macros v0.2.34
+   Compiling konst v0.2.20
+   Compiling concurrent-queue v2.5.0
+   Compiling event-listener-strategy v0.5.4
+   Compiling hashbrown v0.16.1
+   Compiling itoa v1.0.18
+   Compiling litrs v1.0.0
+   Compiling fastrand v2.5.0
+   Compiling regex v1.13.1
+   Compiling libsqlite3-sys v0.37.0
+   Compiling percent-encoding v2.3.2
+   Compiling powersync_core v0.5.4
+   Compiling utf8parse v0.2.2
+   Compiling embassy-executor v0.10.0
+   Compiling hashlink v0.11.1
+   Compiling anstyle-parse v1.0.0
+   Compiling form_urlencoded v1.2.2
+   Compiling const_format v0.2.36
+   Compiling document-features v0.2.12
+   Compiling futures-lite v2.6.1
+   Compiling uuid v1.26.1
+   Compiling futures-micro v0.5.0
+   Compiling futures-task v0.3.34
+   Compiling colorchoice v1.0.5
+   Compiling async-task v4.7.1
+   Compiling anstyle v1.0.14
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling bytes v1.12.1
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling embassy-executor-timer-queue v0.1.0
+   Compiling cordyceps v0.3.5
+   Compiling jiff-core v0.1.1
+   Compiling anstyle-query v1.1.5
+   Compiling fallible-iterator v0.3.0
+   Compiling critical-section v1.2.0
+   Compiling futures-util v0.3.34
+   Compiling anstream v1.0.0
+   Compiling async-oneshot v0.5.9
+   Compiling hashbrown v0.17.1
+   Compiling async-lock v3.4.2
+   Compiling async-channel v2.5.0
+   Compiling rand v0.4.6
+   Compiling scopeguard v1.2.0
+   Compiling spin v0.10.1
+   Compiling remove_dir_all v0.5.3
+   Compiling async-executor v1.14.0
+   Compiling futures-sink v0.3.34
+   Compiling num-derive v0.3.3
+   Compiling tempdir v0.3.7
+   Compiling jiff v0.2.37
+   Compiling darling_core v0.20.11
+   Compiling synstructure v0.14.0
+   Compiling darling_core v0.24.1
+   Compiling env_filter v2.0.0
+   Compiling num-derive v0.4.2
+   Compiling pin-project-internal v1.1.13
+   Compiling atomic_enum v0.3.0
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.3
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling thiserror-impl v2.0.20
+   Compiling serde_derive v1.0.229
+   Compiling async-trait v0.1.92
+   Compiling futures-executor v0.3.34
+   Compiling futures-macro v0.3.34
+   Compiling pin-project v1.1.13
+   Compiling zerofrom v0.1.8
+   Compiling darling_macro v0.20.11
+   Compiling env_logger v0.11.11
+   Compiling futures-test v0.3.34
+   Compiling darling_macro v0.24.1
+   Compiling yoke v0.8.3
+   Compiling darling v0.24.1
+   Compiling darling v0.20.11
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling serde_with_macros v3.23.0
+   Compiling embassy-executor-macros v0.8.0
+   Compiling serde_with v3.23.0
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling rusqlite v0.39.0
+   Compiling powersync_sqlite_nostd v0.5.4
+   Compiling icu_provider v2.3.1
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+   Compiling powersync_test_utils v0.1.0 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync_test_utils)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.57s
+     Running unittests src/lib.rs (experiments/powersync-native-sdk/port-build/host/debug/deps/powersync-e9488c65d1c46865)
+
+running 47 tests
+test env::embassy::tests::cancellation_before_first_poll_releases_captured_resources ... ok
+test db::watch::test::stream_drop ... ok
+test db::schema::test::invalid_raw_table_missing_statements ... ok
+test db::watch::test::emit_initial ... ok
+test db::watch::test::notify ... ok
+test db::watch::test::report_tables ... ok
+test db::schema::test::invalid_table_name ... ok
+test db::schema::test::handles_options_track_metadata ... ok
+test db::schema::test::direct_table ... ok
+test db::schema::test::invalid_duplicate_columns ... ok
+test db::schema::test::invalid_duplicate_table ... ok
+test env::embassy::tests::cancellation_joins_and_drops_pending_future ... ok
+test db::schema::test::handles_options_track_previous_all ... ok
+test db::schema::test::handles_options_ignore_empty_updates ... ok
+test env::embassy::tests::delay_yields_before_ready_platform_timer ... ok
+test env::embassy::tests::completes_and_reuses_static_slots ... ok
+test db::schema::test::handles_options_track_previous_column_filter ... ok
+test env::embassy::tests::platform_timer_wakes_embassy_without_polling_reentrantly ... ok
+test env::embassy::tests::minimum_pool_runs_three_self_waking_sdk_actors ... ok
+test sync::state::test::coalesced_state_changes_observe_latest_seed_result ... ok
+test sync::state::test::does_not_notify_waiter_when_wake_download_loop_is_false ... ok
+test sync::state::test::disconnect_wakes_every_pending_waiter ... ok
+test sync::state::test::mark_disconnected ... ok
+test sync::state::test::mark_ready_failure ... ok
+test sync::state::test::mark_ready_success ... ok
+test sync::state::test::reconnect_requires_new_seed_and_notifies_all_waiters ... ok
+test sync::state::test::supports_concurrent_waiters ... ok
+test time::tests::conversion_keeps_dates_before_epoch ... ok
+test sync::state::test::waits_for_checkpoint_waiter_is_notified ... ok
+test time::tests::signed_timestamp_round_trip ... ok
+test sync::connector::test::endpoint_validation ... ok
+test util::bson_split::test::empty_source ... ok
+test util::bson_split::test::invalid_end_in_length ... ok
+test util::bson_split::test::invalid_bson_size ... ok
+test util::bson_split::test::split_bson_objects ... ok
+test util::line_split::test::splits_lines ... ok
+test util::line_split::test::utf8_split_across_chunks ... ok
+test util::line_split::test::splits_lines_separate_events ... ok
+test util::shared_future::test::dropped_initializer ... ok
+test util::bson_split::test::invalid_end_in_object ... ok
+test util::shared_future::test::drops_value ... ok
+test util::shared_future::test::initializes_once ... ok
+test sync::download::http::tests::transport_error_does_not_report_connection_established ... ok
+test sync::download::http::tests::successful_response_reports_connection_before_stream_events ... ok
+test db::connection::tests::failed_commit_rolls_back_before_reusing_connection ... ok
+test sync::download::http::tests::unsuccessful_status_does_not_report_connection_established ... ok
+test db::connection::tests::failed_opens_release_the_connection ... ok
+
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/crud_test.rs (experiments/powersync-native-sdk/port-build/host/debug/deps/crud_test-c3a773bf62e905c4)
+
+running 11 tests
+test raw_table_clear ... ok
+test raw_table_rest_column ... ok
+test ignore_empty_update ... ok
+test insert ... ok
+test include_metadata ... ok
+test raw_table_crud_trigger ... ok
+test include_old_values_when_changed ... ok
+test include_old_values ... ok
+test applies_checkpoint_after_draining_crud_queue ... ok
+test include_old_values_with_filter ... ok
+test crud_transactions ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/database_test.rs (experiments/powersync-native-sdk/port-build/host/debug/deps/database_test-c0a3defe4720ee8c)
+
+running 5 tests
+test test_external_schema ... ok
+test link_core_extension ... ok
+test test_concurrent_reads ... ok
+test test_table_updates ... ok
+test test_watch_statement ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/sync_test.rs (experiments/powersync-native-sdk/port-build/host/debug/deps/sync_test-fd91d8cf94658cb1)
+
+running 29 tests
+test can_use_checkpoint_method_from_connector ... ok
+test fails_on_sync_errors ... ok
+test reconciles_checkpoint_state_on_token_expiry ... ok
+test reconnects_on_failure ... ok
+test can_disable_default_stream ... ok
+test request_checkpoint_fails_when_connected_with_legacy_mode ... ok
+test request_checkpoint_fails_when_disconnected ... ok
+test download_is_retried_on_checkpoint_request ... ok
+test direct_tables ... ok
+test disconnect_and_clear_clears_db ... ok
+test fails_when_reconnecting_with_legacy_mode ... ok
+test progress_without_priorities ... ok
+test changes_subscriptions_dynamically ... ok
+test reads_sync_lines_before_checkpoint_requests_are_ready ... ok
+test disconnect_and_clear_soft ... ok
+test fetching_credentials_does_not_hold_the_download_writer_lease ... ok
+test per_priority_status ... ok
+test does_not_apply_checkpoint_with_pending_local_data ... ok
+test reports_default_streams ... ok
+test reports_correct_times ... ok
+test throws_on_disconnect_but_can_request_again ... ok
+test reposts_current_checkpoint_until_applied ... ok
+test requests_checkpoints_for_updates ... ok
+test subscriptions_update_while_offline ... ok
+test unsubscribe_all ... ok
+test waits_until_data_is_applied ... ok
+test upload_retry ... ok
+test subscribes_with_streams ... ok
+test reports_download_error_when_seeding_checkpoint_fails ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+   Doc-tests powersync
+
+running 1 test
+test powersync/src/env/embassy.rs - env::embassy (line 19) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test powersync/src/db/connection.rs - db::connection::SqliteConnection::prepare_unchecked (line 82) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+all doctests ran in 0.26s; merged doctests compilation took 0.14s

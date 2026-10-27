@@ -1,0 +1,2 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/cargo clean --manifest-path /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/rust/Cargo.toml -p powersync_core --target thumbv8m.main-none-eabi --release --target-dir /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/rust/target
+     Removed 30 files, 8.0MiB total

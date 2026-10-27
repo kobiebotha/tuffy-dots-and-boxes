@@ -1,0 +1,6 @@
+{
+  "configured_shared_arena_bytes": 262144,
+  "exit_code": -6,
+  "output": "WARN: Sync iteration failed, SQLite:  failed with NOMEM\n\nthread 'main' (445642) panicked at src/main.rs:118:9:\nforeground proof stalled\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+  "scope": "host SDK/core/test allocations; not a badge memory measurement"
+}

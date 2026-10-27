@@ -1,0 +1,18 @@
+{
+  "object": "/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/audit/bridge.o",
+  "nonempty_mutable_data": [],
+  "fixed_text_to_bss": [],
+  "relocation_type_counts": {
+    "30": 669,
+    "10": 10459,
+    "3": 4895,
+    "96": 14,
+    "2": 865
+  },
+  "bridge_object_section_bytes": {
+    ".text": 480574,
+    ".rodata": 171732,
+    ".data.rel.ro": 10760,
+    ".bss": 60
+  }
+}

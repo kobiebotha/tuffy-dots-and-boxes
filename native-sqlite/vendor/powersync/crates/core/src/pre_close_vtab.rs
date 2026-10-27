@@ -1,0 +1,162 @@
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::rc::Rc;
+use core::ffi::{c_char, c_int, c_void};
+
+use powersync_sqlite_nostd as sqlite;
+use sqlite::{Connection, ResultCode};
+
+use crate::error::Result;
+use crate::state::DatabaseState;
+use crate::update_hooks::uninstall_update_hooks;
+use crate::utils::database::Database;
+use crate::vtab_util::*;
+
+/// A virtual table hack to implement a "pre-close hook" for databases.
+///
+/// When `sqlite3_close` is called, SQLite invokes the disconnect callback of virtual tables
+/// attached to the connection. This gives us an opportunity to call
+/// [DatabaseState::release_resources], allowing us to close active sync clients and associated
+/// prepared statements. Without this, our internal statements might lease resources.
+#[repr(C)]
+struct VirtualTable {
+    base: sqlite::vtab,
+    state: Rc<DatabaseState>,
+    db: *mut sqlite::sqlite3,
+}
+
+extern "C" fn connect(
+    db: *mut sqlite::sqlite3,
+    aux: *mut c_void,
+    _argc: c_int,
+    _argv: *const *const c_char,
+    vtab: *mut *mut sqlite::vtab,
+    _err: *mut *mut c_char,
+) -> c_int {
+    if let Err(rc) = sqlite::declare_vtab(db, "CREATE TABLE powersync_internal_close(_ TEXT);") {
+        return rc as c_int;
+    }
+
+    unsafe {
+        let tab = Box::into_raw(Box::new(VirtualTable {
+            base: sqlite::vtab {
+                nRef: 0,
+                pModule: core::ptr::null(),
+                zErrMsg: core::ptr::null_mut(),
+            },
+            state: DatabaseState::clone_from(aux),
+            db,
+        }));
+        *vtab = tab.cast::<sqlite::vtab>();
+        let _ = sqlite::vtab_config(db, 0);
+    }
+    ResultCode::OK as c_int
+}
+
+extern "C" fn disconnect(vtab: *mut sqlite::vtab) -> c_int {
+    // Assume ownership of vtab since xDisconnect is supposed to destroy the connection.
+    let vtab = unsafe { Box::from_raw(vtab as *mut VirtualTable) };
+
+    // This is an eponymous virtual table. It will only be disconnected when the database is closed.
+    // So we can use this as a "pre-close" hook and ensure we clear prepared statements the core
+    // extension might hold.
+    vtab.state.release_resources();
+    uninstall_update_hooks(vtab.db, &vtab.state);
+
+    ResultCode::OK as c_int
+}
+
+extern "C" fn update(
+    _vtab: *mut sqlite::vtab,
+    _argc: c_int,
+    _argv: *mut *mut sqlite::value,
+    _p_row_id: *mut sqlite::int64,
+) -> c_int {
+    // This table isn't meant to be written to.
+    ResultCode::MISUSE as c_int
+}
+
+#[repr(transparent)]
+struct EmptyCursor(sqlite::vtab_cursor);
+
+extern "C" fn best_index(_vtab: *mut sqlite::vtab, _index_info: *mut sqlite::index_info) -> c_int {
+    // No rows are ever returned, so there's nothing to plan for.
+    ResultCode::OK as c_int
+}
+
+extern "C" fn open(vtab: *mut sqlite::vtab, cursor: *mut *mut sqlite::vtab_cursor) -> c_int {
+    let c = Box::into_raw(Box::new(EmptyCursor(sqlite::vtab_cursor { pVtab: vtab })));
+    unsafe { *cursor = c.cast::<sqlite::vtab_cursor>() };
+
+    ResultCode::OK as c_int
+}
+
+extern "C" fn close(cursor: *mut sqlite::vtab_cursor) -> c_int {
+    unsafe {
+        drop(Box::from_raw(cursor as *mut EmptyCursor));
+    }
+    ResultCode::OK as c_int
+}
+
+extern "C" fn filter(
+    _cursor: *mut sqlite::vtab_cursor,
+    _idx_num: c_int,
+    _idx_str: *const c_char,
+    _argc: c_int,
+    _argv: *mut *mut sqlite::value,
+) -> c_int {
+    ResultCode::OK as c_int
+}
+
+extern "C" fn eof(_cursor: *mut sqlite::vtab_cursor) -> c_int {
+    1
+}
+
+// Select-only virtual table, the primary functionality here is in disconnect.
+static MODULE: sqlite::module = sqlite::module {
+    iVersion: 0,
+    xCreate: None,
+    xConnect: Some(connect),
+    xBestIndex: Some(best_index),
+    xDisconnect: Some(disconnect),
+    xDestroy: None,
+    xOpen: Some(open),
+    xClose: Some(close),
+    xFilter: Some(filter),
+    xNext: Some(vtab_no_next),
+    xEof: Some(eof),
+    xColumn: Some(vtab_no_column),
+    xRowid: Some(vtab_no_rowid),
+    xUpdate: Some(update),
+    xBegin: None,
+    xSync: None,
+    xCommit: None,
+    xRollback: None,
+    xFindFunction: None,
+    xRename: None,
+    xSavepoint: None,
+    xRelease: None,
+    xRollbackTo: None,
+    xShadowName: None,
+    xIntegrity: None,
+};
+
+pub fn ensure_has_internal_close_vtab(db: Database) -> Result<()> {
+    db.exec_safe(c"SELECT 1 FROM powersync_internal_close;")?;
+    Ok(())
+}
+
+pub fn register(
+    db: *mut sqlite::sqlite3,
+    state: Rc<DatabaseState>,
+) -> core::result::Result<(), ResultCode> {
+    db.create_module_v2(
+        "powersync_internal_close",
+        &MODULE,
+        Some(Rc::into_raw(state) as *mut c_void),
+        Some(DatabaseState::destroy_rc),
+    )?;
+
+    Ok(())
+}

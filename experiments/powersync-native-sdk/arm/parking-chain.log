@@ -1,0 +1,49 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/cargo tree --manifest-path /Users/kobie/projects/powersync/skunkworks/powersync-native/Cargo.toml --package powersync --no-default-features --target thumbv8m.main-none-eabi --locked -i parking -e features,no-dev --offline
+parking v2.2.1
+└── parking feature "default"
+    ├── event-listener v5.4.2
+    │   ├── async-lock v3.4.2
+    │   │   ├── async-lock feature "default"
+    │   │   │   └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+    │   │   └── async-lock feature "std"
+    │   │       └── async-lock feature "default" (*)
+    │   └── event-listener-strategy v0.5.4
+    │       ├── async-channel v2.5.0
+    │       │   ├── async-channel feature "default"
+    │       │   │   └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+    │       │   └── async-channel feature "std"
+    │       │       └── async-channel feature "default" (*)
+    │       └── async-lock v3.4.2 (*)
+    │       ├── event-listener-strategy feature "default"
+    │       │   └── async-broadcast v0.7.2
+    │       │       └── async-broadcast feature "default"
+    │       │           └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+    │       └── event-listener-strategy feature "std"
+    │           ├── event-listener-strategy feature "default" (*)
+    │           ├── async-channel feature "std" (*)
+    │           └── async-lock feature "std" (*)
+    │   ├── event-listener feature "default"
+    │   │   ├── async-broadcast v0.7.2 (*)
+    │   │   └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+    │   ├── event-listener feature "parking"
+    │   │   └── event-listener feature "std"
+    │   │       ├── event-listener feature "default" (*)
+    │   │       ├── event-listener-strategy feature "std" (*)
+    │   │       └── async-lock feature "std" (*)
+    │   └── event-listener feature "std" (*)
+    └── futures-lite v2.6.1
+        ├── futures-lite feature "alloc"
+        │   └── futures-lite feature "std"
+        │       └── futures-lite feature "default"
+        │           └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+        ├── futures-lite feature "default" (*)
+        ├── futures-lite feature "fastrand"
+        │   ├── futures-lite feature "race"
+        │   │   └── futures-lite feature "default" (*)
+        │   └── futures-lite feature "std" (*)
+        ├── futures-lite feature "futures-io"
+        │   └── futures-lite feature "std" (*)
+        ├── futures-lite feature "parking"
+        │   └── futures-lite feature "std" (*)
+        ├── futures-lite feature "race" (*)
+        └── futures-lite feature "std" (*)

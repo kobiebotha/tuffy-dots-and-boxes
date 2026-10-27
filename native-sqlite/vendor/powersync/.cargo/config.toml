@@ -1,0 +1,85 @@
+# Previously we added this to rustflags for all linux builds:
+#   "-C", "link-arg=-lgcc_eh"
+# It was to fix this error when loading the loadable extension:
+#   undefined symbol: _Unwind_Resume
+# Now, we instead build using:
+#   -Z build-std=panic_abort,core,alloc
+# This fixes the same issue. We still keep -lgcc_eh,
+# to support manual builds without -Z build-std.
+
+# Without -Z build-std, with -lgcc_eh:
+#   241KB, loading works
+# Without -Z build-std, without -lgcc_eh:
+#   207KB, undefined symbol: _Unwind_Resume
+# With -Z build-std, without -lgcc_eh:
+#   173K, loading works
+# With -Z build-std, with -lgcc_eh:
+#   173K, loading works
+# Conclusion: -lgcc_eh has no effect when using -Z build-std.
+
+[target.'cfg(target_os = "linux")']
+rustflags = [
+    "-C", "link-arg=-lgcc_eh",
+]
+
+[target.'cfg(target_family = "wasm")']
+rustflags = [
+    "-C", "link-arg=--allow-undefined",
+]
+
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-linux-gnu-gcc"
+
+[target.i686-unknown-linux-gnu]
+linker = "i686-linux-gnu-gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
+[target.riscv64gc-unknown-linux-gnu]
+linker = "riscv64-linux-gnu-gcc"
+
+# For iOS and macOS, we need to specify the minimum/target version.
+# This must match the versions in the podspec file.
+[target.aarch64-apple-ios]
+rustflags = [
+    "-C", "link-arg=-mios-version-min=11.0",
+]
+
+[target.aarch64-apple-ios-sim]
+rustflags = [
+    "-C", "link-arg=-miphonesimulator-version-min=11.0",
+]
+
+[target.x86_64-apple-ios]
+rustflags = [
+    "-C", "link-arg=-miphonesimulator-version-min=11.0",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-mmacosx-version-min=10.13",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-mmacosx-version-min=10.13",
+]
+
+[target.aarch64-apple-watchos]
+rustflags = [
+    "-C", "link-arg=-mwatchos-version-min=9.0",
+]
+
+[target.aarch64-apple-watchos-sim]
+rustflags = [
+    "-C", "link-arg=-mwatchsimulator-version-min=9.0",
+]
+
+[target.x86_64-apple-watchos-sim]
+rustflags = [
+    "-C", "link-arg=-mwatchos-version-min=9.0",
+]

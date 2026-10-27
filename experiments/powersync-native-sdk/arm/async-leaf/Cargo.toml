@@ -1,0 +1,21 @@
+[package]
+name = "badge-async-leaf-check"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+async-task = { version = "=4.7.1", default-features = false }
+async-channel = { version = "=2.5.0", default-features = false }
+async-lock = { version = "=3.4.2", default-features = false }
+event-listener = { version = "=5.4.2", default-features = false }
+futures-lite = { version = "=2.6.1", default-features = false, features = ["alloc"] }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"

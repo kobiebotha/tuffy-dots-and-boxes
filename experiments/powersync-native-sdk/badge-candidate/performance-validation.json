@@ -1,0 +1,60 @@
+{
+  "record_counts": {
+    "live": 6,
+    "render": 2,
+    "replay": 26
+  },
+  "all_replays_validated": true,
+  "same_badge": "d53ca6a03bcc04f2",
+  "raw_state_sha256": "6247094d3c65672dd1b9daecdf10c44883ae4b9436bb09d080d1ce0bd98ab747",
+  "renderer_framebuffer_sha256": "8e1dc5ccb65586b44ff33057e1f94a9f662bab4621b9fc281ccd14dcd8777442",
+  "installed_sources_checked": {
+    "native:dots_client.py": "aefbe71768c1f579036179c20918fbf55a2315f44a6d67df10efdc5a1508cf41",
+    "native:dots_storage.py": "794b5e81656ed0660539b2ceb9c9bafa7ec3b37e04297a4ea982d921f04489bd",
+    "native:dots_sync.py": "907118c3fce46da3dd6646e3f846311022362fab6311123e48720be8c46d3d6f",
+    "native:powersync/database.py": "b10eba1eb9d259ed2508faa787c8cc779eac1ad8d4096bb3a033cb31b6f63863",
+    "native:powersync/http.py": "0fbe13d24ffc5a231f595a0ca4661a035b54c39b2307161246533f5487a0c016",
+    "native:powersync/runtime.py": "cedf3bf03ce7b27d78bafd14d72aa09c9d54ca6e4f609c29e98a94afb7c01928",
+    "native:powersync/sync.py": "24ef0adbd1bf6e315562b2853b323b6822cd409512b613e8e93c12b9ae2621be",
+    "native:sqlite_shadow_vfs.py": "0392ee099ff3c88610a24a3c18cdef9e63ff89405eec6a58e414bd9cf3bdd5be",
+    "native:view.py": "81a13735cbfeacec0a9d30239361235b0a481c95b3848db886968aa131062f34",
+    "original:dots_client.py": "b1dca15eebd24350fa604e192e5086763983a95f5854f581b29f22f7c051daf8",
+    "original:dots_storage.py": "6e6054e69e8e6a263267f32922732b052d60aef3f018b98ac18b24d5108337d8",
+    "original:dots_sync.py": "4659261eb22090415caa3e32fd4c4e1847211822d32dd114fe336529969e5399",
+    "original:powersync/database.py": "a7cd5b7348dc3a79a0ee47c14f07a2d9102936e13272c266494b56746d6081ee",
+    "original:powersync/http.py": "3ea3aa65c0953770c9116e23209fb39b664da7b7a68b4e208c1d1273f3c79f6b",
+    "original:powersync/runtime.py": "b9fb14b40d2c3bdd46f017bd8ea5a9283de60724c2f323971e97c072719082a5",
+    "original:powersync/sync.py": "462eb4b8ad2be702ae3f4b5f15bf512b7102b80c339a3926e2de4907196042a9",
+    "original:sqlite_shadow_vfs.py": "0392ee099ff3c88610a24a3c18cdef9e63ff89405eec6a58e414bd9cf3bdd5be",
+    "original:view.py": "476f49cfa1ad5dde9cdf23bcaf28098fb105f36cbc321a7d72eb51fbaebfd95d"
+  },
+  "source_mismatches": [],
+  "final_state": {
+    "pending_move": null,
+    "raw_state_sha256": "6247094d3c65672dd1b9daecdf10c44883ae4b9436bb09d080d1ce0bd98ab747",
+    "move_count": 9,
+    "schema_version": 6,
+    "native_cache_restored": true,
+    "crud_rows": 0,
+    "scratch_removed": true,
+    "native_stats": [
+      109120,
+      137536,
+      6336,
+      13,
+      286588201,
+      287705664,
+      287689256,
+      "3.54.1"
+    ],
+    "paired_room": "6ad058a8-d19b-4d8c-b32d-e6f2b6945ccb",
+    "quick_check": "ok"
+  },
+  "test_results": {
+    "original_badge_tests": 181,
+    "candidate_tests": 36,
+    "real_sdk_sqlite_c_abi_checks": 20
+  },
+  "production_code_changed": false,
+  "push_or_deployment": false
+}

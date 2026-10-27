@@ -1,0 +1,707 @@
+use core::fmt::Display;
+
+use alloc::{rc::Rc, string::ToString, vec::Vec};
+use powersync_sqlite_nostd::{self as sqlite};
+
+use crate::{
+    error::{PowerSyncError, Result},
+    pre_close_vtab::ensure_has_internal_close_vtab,
+    schema::Schema,
+    state::DatabaseState,
+    sync::{
+        checkpoint::{ChecksumMismatch, validate_checkpoint},
+        interface::{RequestedStreamSubscription, StreamSubscriptionRequest},
+        streaming_sync::{OwnedStreamDescription, RequestedStreamSubscriptions},
+        subscriptions::{LocallyTrackedSubscription, StreamKey},
+        sync_local::{PartialSyncOperation, SyncOperation},
+        sync_status::{
+            ActiveStreamSubscription, DownloadSyncStatus, SyncPriorityStatus, TimestampMicros,
+        },
+    },
+    utils::{
+        JsonString,
+        database::{Database, Statement},
+    },
+};
+
+use super::{
+    bucket_priority::BucketPriority, interface::BucketRequest, streaming_sync::OwnedCheckpoint,
+};
+
+pub const LAST_REQUESTED_CHECKPOINT_REQUEST_ID_KEY: &str = "last_requested_checkpoint_request_id";
+pub const LAST_SEEN_CHECKPOINT_REQUEST_ID_KEY: &str = "last_seen_checkpoint_request_id";
+pub const LAST_APPLIED_CHECKPOINT_REQUEST_ID_KEY: &str = "last_applied_checkpoint_request_id";
+
+// Tracks the target used to block applying downloaded rows while local writes are outstanding.
+// When present, this is normally either the max-op sentinel for pending local writes or a concrete
+// checkpoint request id also stored in LAST_REQUESTED_CHECKPOINT_REQUEST_ID_KEY.
+pub const TARGET_CHECKPOINT_REQUEST_ID_KEY: &str = "target_checkpoint_request_id";
+
+/// An adapter for storing sync state.
+///
+/// This is used to encapsulate some SQL queries used for the sync implementation, making the code
+/// in `streaming_sync.rs` easier to read. It also allows caching some prepared statements that are
+/// used frequently as an optimization, but we're not taking advantage of that yet.
+pub struct StorageAdapter {
+    pub db: Database,
+    pub progress_stmt: Statement,
+    time_stmt: Statement,
+    delete_subscription: Statement,
+    update_subscription: Statement,
+}
+
+impl StorageAdapter {
+    pub fn new(db: Database) -> Result<Self> {
+        // The cached statements here prevent sqlite3_close from completing. sqlite3_close invokes
+        // the xDisconnect callback on attached virtual tables, which we use to implement a
+        // "pre-close hook". See `pre_close_vtab.rs` for more details on how that works.
+        ensure_has_internal_close_vtab(db)?;
+
+        // language=SQLite
+        let progress =
+            db.prepare_v2("SELECT id, name, count_at_last, count_since_last FROM ps_buckets")?;
+
+        // language=SQLite
+        let time = db.prepare_v2("SELECT CAST(unixepoch('subsec') * 1000000 as integer)")?;
+
+        // language=SQLite
+        let delete_subscription =
+            db.prepare_v2("DELETE FROM ps_stream_subscriptions WHERE id = ?")?;
+
+        // language=SQLite
+        let update_subscription =
+            db.prepare_v2("UPDATE ps_stream_subscriptions SET active = ?2, is_default = ?3, ttl = ?, expires_at = ?, last_synced_at = ? WHERE id = ?1")?;
+
+        Ok(Self {
+            db,
+            progress_stmt: progress,
+            time_stmt: time,
+            delete_subscription,
+            update_subscription,
+        })
+    }
+
+    pub fn collect_bucket_requests(&self) -> Result<Vec<BucketRequest>> {
+        // language=SQLite
+        let statement = self
+            .db
+            .prepare_v2("SELECT name, last_op FROM ps_buckets WHERE pending_delete = 0")?;
+
+        let mut requests = Vec::<BucketRequest>::new();
+
+        while statement.step()? {
+            let bucket_name = statement.column_text(0)?.to_string();
+            let last_op = statement.column_int64(1);
+
+            requests.push(BucketRequest {
+                name: bucket_name.clone(),
+                after: last_op.to_string(),
+            });
+        }
+
+        Ok(requests)
+    }
+
+    pub fn offline_sync_state(&self) -> Result<DownloadSyncStatus> {
+        let priority_items = {
+            // language=SQLite
+            let statement = self.db.prepare_v2(
+                "SELECT priority, last_synced_at FROM ps_sync_state ORDER BY priority",
+            )?;
+
+            let mut items = Vec::<SyncPriorityStatus>::new();
+            while statement.step()? {
+                let priority = BucketPriority {
+                    number: statement.column_int(0),
+                };
+                let timestamp = statement.column_int64(1);
+
+                items.push(SyncPriorityStatus {
+                    priority,
+                    last_synced_at: Some(TimestampMicros(timestamp)),
+                    has_synced: Some(true),
+                });
+            }
+
+            items
+        };
+
+        let mut streams = Vec::new();
+        self.iterate_local_subscriptions(|sub| {
+            streams.push(ActiveStreamSubscription::from_local(&sub));
+        })?;
+
+        Ok(DownloadSyncStatus {
+            connected: false,
+            connecting: false,
+            priority_status: priority_items,
+            downloading: None,
+            streams,
+            // Checkpoint requests should not be made or compared while offline.
+            internal_last_applied_checkpoint_request_id: None,
+        })
+    }
+
+    pub fn delete_buckets<'a>(&self, buckets: impl IntoIterator<Item = &'a str>) -> Result<()> {
+        // Prepare statements lazily, this method may be called without any buckets to delete.
+        let mut delete_bucket_returning_id = None::<Statement>;
+        let mut mark_updated = None::<Statement>;
+        let mut delete_oplog = None::<Statement>;
+
+        for bucket in buckets {
+            let delete_bucket_returning_id = match delete_bucket_returning_id {
+                Some(ref stmt) => stmt,
+                None => delete_bucket_returning_id.insert(
+                    self.db
+                        .prepare_v2("DELETE FROM ps_buckets WHERE name = ?1 RETURNING id")?,
+                ),
+            };
+
+            delete_bucket_returning_id.bind_text(1, bucket, sqlite::Destructor::STATIC)?;
+            if delete_bucket_returning_id.step()? {
+                let bucket_id = delete_bucket_returning_id.column_int64(0);
+
+                let mark_updated = match mark_updated {
+                    Some(ref stmt) => stmt,
+                    None => mark_updated.insert(self.db.prepare_v2(
+                        "\
+INSERT OR IGNORE INTO ps_updated_rows(row_type, row_id)
+SELECT row_type, row_id
+FROM ps_oplog
+WHERE bucket = ?1",
+                    )?),
+                };
+                let delete_oplog = match delete_oplog {
+                    Some(ref stmt) => stmt,
+                    None => delete_oplog
+                        .insert(self.db.prepare_v2("DELETE FROM ps_oplog WHERE bucket=?1")?),
+                };
+
+                mark_updated.bind_int64(1, bucket_id)?;
+                mark_updated.exec()?;
+
+                delete_oplog.bind_int64(1, bucket_id)?;
+                delete_oplog.exec()?;
+            }
+
+            delete_bucket_returning_id.reset()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn step_progress(&'_ self) -> Result<Option<PersistedBucketProgress<'_>>> {
+        if self.progress_stmt.step()? {
+            let bucket_id = self.progress_stmt.column_int64(0);
+            let bucket = self.progress_stmt.column_text(1)?;
+            let count_at_last = self.progress_stmt.column_int64(2);
+            let count_since_last = self.progress_stmt.column_int64(3);
+
+            Ok(Some(PersistedBucketProgress {
+                bucket_id,
+                bucket,
+                count_at_last,
+                count_since_last,
+            }))
+        } else {
+            // Done
+            self.progress_stmt.reset()?;
+            Ok(None)
+        }
+    }
+
+    pub fn lookup_bucket(&self, bucket: &str) -> Result<BucketInfo> {
+        // We do an ON CONFLICT UPDATE simply so that the RETURNING bit works for existing rows.
+        // We can consider splitting this into separate SELECT and INSERT statements.
+        // language=SQLite
+        let bucket_statement = self.db.prepare_v2(
+            "INSERT INTO ps_buckets(name)
+                            VALUES(?)
+                        ON CONFLICT DO UPDATE
+                            SET last_applied_op = last_applied_op
+                        RETURNING id, last_applied_op",
+        )?;
+        bucket_statement.bind_text(1, bucket, sqlite::Destructor::STATIC)?;
+        let has_row = bucket_statement.step()?;
+        debug_assert!(has_row);
+
+        let bucket_id = bucket_statement.column_int64(0);
+        let last_applied_op = bucket_statement.column_int64(1);
+
+        return Ok(BucketInfo {
+            id: bucket_id,
+            last_applied_op,
+        });
+    }
+
+    pub fn sync_local(
+        &self,
+        state: &DatabaseState,
+        checkpoint: &OwnedCheckpoint,
+        priority: Option<BucketPriority>,
+        schema: &Schema,
+    ) -> Result<SyncLocalResult> {
+        let mismatched_checksums =
+            validate_checkpoint(checkpoint.buckets.values(), priority, self.db)?;
+
+        if !mismatched_checksums.is_empty() {
+            self.delete_buckets(mismatched_checksums.iter().map(|i| i.bucket_name.as_str()))?;
+
+            return Ok(SyncLocalResult::ChecksumFailure(CheckpointResult {
+                failed_buckets: mismatched_checksums,
+            }));
+        }
+
+        let update_bucket = self
+            .db
+            .prepare_v2("UPDATE ps_buckets SET last_op = ? WHERE name = ?")?;
+
+        for bucket in checkpoint.buckets.values() {
+            if bucket.is_in_priority(priority) {
+                update_bucket.bind_int64(1, checkpoint.last_op_id)?;
+                update_bucket.bind_text(2, &bucket.bucket, sqlite::Destructor::STATIC)?;
+                update_bucket.exec()?;
+            }
+        }
+
+        if let (None, Some(checkpoint_request_id)) = (&priority, &checkpoint.write_checkpoint) {
+            self.persist_last_seen_checkpoint_request_id(*checkpoint_request_id)?;
+        }
+
+        let now = self.now()?;
+
+        let mut sync = SyncOperation::new(
+            state,
+            self.db,
+            priority.map(|priority| PartialSyncOperation {
+                priority,
+                involved_buckets: checkpoint.list_buckets(Some(priority)).collect(),
+            }),
+            now,
+        );
+        sync.use_schema(schema);
+
+        Ok(if sync.apply()? {
+            if priority.is_none() {
+                // Reset progress counters. We only do this for a complete sync, as we want a
+                // download progress to always cover a complete checkpoint instead of resetting for
+                // partial completions.
+                let update = self.db.prepare_v2(
+                    "UPDATE ps_buckets SET count_since_last = 0, count_at_last = ? WHERE name = ?",
+                )?;
+
+                for bucket in checkpoint.buckets.values() {
+                    if let Some(count) = bucket.count {
+                        update.bind_int64(1, count)?;
+                        update.bind_text(2, bucket.bucket.as_str(), sqlite::Destructor::STATIC)?;
+
+                        update.exec()?;
+                        update.reset()?;
+                    }
+                }
+            }
+
+            SyncLocalResult::ChangesApplied { timestamp: now }
+        } else {
+            // There are pending local changes preventing a full sync. If all buckets in the tracked
+            // checkpoint are priority 0, we can make some progress by retrying as a partial sync.
+            // The sync service doesn't send a partial_checkpoint_complete message when all buckets
+            // have the same priority, this emulates that line.
+            if priority.is_none()
+                && !checkpoint.buckets.is_empty()
+                && checkpoint
+                    .buckets
+                    .iter()
+                    .all(|(_, bkt)| bkt.priority.may_publish_with_outstanding_uploads())
+            {
+                let retry_priority = BucketPriority::HIGHEST;
+                sync.partial = Some(PartialSyncOperation {
+                    priority: retry_priority,
+                    involved_buckets: checkpoint.list_buckets(Some(retry_priority)).collect(),
+                });
+                if sync.apply()? {
+                    return Ok(SyncLocalResult::PendingLocalChangesAppliedPartially {
+                        timestamp: now,
+                    });
+                }
+            }
+
+            SyncLocalResult::PendingLocalChanges
+        })
+    }
+
+    pub fn collect_subscription_requests(
+        &self,
+        include_defaults: bool,
+    ) -> Result<RequestedStreamSubscriptions> {
+        self.delete_outdated_subscriptions()?;
+
+        let mut subscriptions: Vec<RequestedStreamSubscription> = Vec::new();
+        let mut index_to_local_id = Vec::<i64>::new();
+
+        // We have an explicit subscription iff ttl is not null. Checking is_default is not enough,
+        // because a stream can both be a default stream and have an explicit subscription.
+        let stmt = self
+            .db
+            .prepare_v2("SELECT * FROM ps_stream_subscriptions WHERE ttl IS NOT NULL;")?;
+
+        while stmt.step()? {
+            let subscription = Self::read_stream_subscription(&stmt)?;
+
+            subscriptions.push(RequestedStreamSubscription {
+                stream: subscription.stream_name,
+                parameters: subscription.local_params,
+                override_priority: subscription.local_priority,
+            });
+            index_to_local_id.push(subscription.id);
+        }
+
+        Ok(RequestedStreamSubscriptions {
+            request: Rc::new(StreamSubscriptionRequest {
+                include_defaults,
+                subscriptions,
+            }),
+            subscription_ids: Rc::new(index_to_local_id),
+        })
+    }
+
+    pub fn now(&self) -> Result<TimestampMicros> {
+        self.time_stmt.step()?;
+        let res = TimestampMicros(self.time_stmt.column_int64(0));
+        self.time_stmt.reset()?;
+
+        Ok(res)
+    }
+
+    fn read_stream_subscription(stmt: &Statement) -> Result<LocallyTrackedSubscription> {
+        let raw_params = stmt.column_text(5)?;
+
+        Ok(LocallyTrackedSubscription {
+            id: stmt.column_int64(0),
+            stream_name: stmt.column_text(1)?.to_string(),
+            active: stmt.column_int(2) != 0,
+            is_default: stmt.column_int(3) != 0,
+            local_priority: stmt
+                .column_nullable(4, || BucketPriority::try_from(stmt.column_int(4)))?,
+            local_params: if raw_params == "null" {
+                None
+            } else {
+                Some(JsonString::from_string(stmt.column_text(5)?.to_string())?)
+            },
+            ttl: stmt.column_nullable(6, || Ok(stmt.column_int64(6)))?,
+            expires_at: stmt.column_nullable(7, || Ok(stmt.column_int64(7)))?,
+            last_synced_at: stmt.column_nullable(8, || Ok(stmt.column_int64(8)))?,
+        })
+    }
+
+    fn delete_outdated_subscriptions(&self) -> Result<()> {
+        let now = self.now()?;
+        let stmt = self.db.prepare_v2("DELETE FROM ps_stream_subscriptions WHERE (expires_at < ?) OR (ttl IS NULL AND NOT active)")?;
+        stmt.bind_int64(1, now.0)?;
+        stmt.exec()?;
+        Ok(())
+    }
+
+    /// Increases the TTL for explicit subscriptions that are currently marked as active.
+    pub fn increase_ttl(&self, streams: &[StreamKey]) -> Result<()> {
+        let now = self.now()?;
+        let stmt = self.db.prepare_v2(
+            "UPDATE ps_stream_subscriptions SET expires_at = ? + ttl * 1000000 WHERE stream_name = ? AND local_params = ? AND ttl IS NOT NULL",
+        )?;
+
+        for stream in streams {
+            stmt.bind_int64(1, now.0)?;
+            stmt.bind_text(2, &stream.name, sqlite::Destructor::STATIC)?;
+            stmt.bind_text(3, &stream.serialized_params(), sqlite::Destructor::STATIC)?;
+            stmt.exec()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn iterate_local_subscriptions<F: FnMut(LocallyTrackedSubscription) -> ()>(
+        &self,
+        mut action: F,
+    ) -> Result<()> {
+        let stmt = self
+            .db
+            .prepare_v2("SELECT * FROM ps_stream_subscriptions ORDER BY id ASC")?;
+
+        while stmt.step()? {
+            action(Self::read_stream_subscription(&stmt)?);
+        }
+        Ok(())
+    }
+
+    pub fn create_default_subscription(
+        &self,
+        stream: &OwnedStreamDescription,
+    ) -> Result<LocallyTrackedSubscription> {
+        debug_assert!(stream.is_default);
+        let stmt = self.db.prepare_v2("INSERT INTO ps_stream_subscriptions (stream_name, active, is_default) VALUES (?, TRUE, TRUE) RETURNING *;")?;
+        stmt.bind_text(1, &stream.name, sqlite::Destructor::STATIC)?;
+
+        if stmt.step()? {
+            Self::read_stream_subscription(&stmt)
+        } else {
+            Err(PowerSyncError::unknown_internal())
+        }
+    }
+
+    pub fn update_subscription(&self, subscription: &LocallyTrackedSubscription) -> Result<()> {
+        let _ = self.update_subscription.reset();
+
+        self.update_subscription.bind_int64(1, subscription.id)?;
+        self.update_subscription
+            .bind_int(2, if subscription.active { 1 } else { 0 })?;
+        self.update_subscription
+            .bind_int(3, if subscription.is_default { 1 } else { 0 })?;
+        if let Some(ttl) = subscription.ttl {
+            self.update_subscription.bind_int64(4, ttl)?;
+        } else {
+            self.update_subscription.bind_null(4)?;
+        }
+
+        if let Some(expires_at) = subscription.expires_at {
+            self.update_subscription.bind_int64(5, expires_at)?;
+        } else {
+            self.update_subscription.bind_null(5)?;
+        }
+
+        if let Some(last_synced_at) = subscription.last_synced_at {
+            self.update_subscription.bind_int64(6, last_synced_at)?;
+        } else {
+            self.update_subscription.bind_null(6)?;
+        }
+
+        self.update_subscription.exec()?;
+        Ok(())
+    }
+
+    pub fn delete_subscription(&self, id: i64) -> Result<()> {
+        let _ = self.delete_subscription.reset();
+        self.delete_subscription.bind_int64(1, id)?;
+        self.delete_subscription.exec()?;
+        Ok(())
+    }
+
+    pub fn target_checkpoint_request_id(&self) -> Result<Option<i64>> {
+        self.read_i64_kv(TARGET_CHECKPOINT_REQUEST_ID_KEY)
+    }
+
+    /// Probes and optionally updates the target checkpoint request id used to block applying downloaded rows
+    /// while local writes are outstanding.
+    ///
+    /// In the write-checkpoint flow, callers allocate a checkpoint request id, post it to the
+    /// service, and then update this from the max-op sentinel to the concrete checkpoint request id
+    /// once the request succeeds. This is also used for older services where the SDK cannot create
+    /// checkpoint requests explicitly.
+    ///
+    /// The target can also be used internally as a sentinel value such as max op id while local
+    /// writes are pending, so it must not always be interpreted as a checkpoint request id.
+    ///
+    /// This only updates the apply gate. It does not allocate, seed or overwrite
+    /// `last_requested_checkpoint_request_id`, which is managed by `seed_checkpoint_request_id` and
+    /// `next_checkpoint_request_id`.
+    ///
+    /// Returns the target value from before this call. When `target` is `None`, this only
+    /// reads the current value. A `target` of zero clears the stored target, removing the apply
+    /// gate entirely; any other value overwrites it.
+    ///
+    /// Negative values are rejected when parsing the `powersync_control` payload, before this is
+    /// called.
+    pub fn probe_target_checkpoint_request_id(&self, target: Option<i64>) -> Result<Option<i64>> {
+        let previous_target = self.target_checkpoint_request_id()?;
+
+        let Some(target) = target else {
+            return Ok(previous_target);
+        };
+
+        if target == 0 {
+            self.delete_kv(TARGET_CHECKPOINT_REQUEST_ID_KEY)?;
+            return Ok(previous_target);
+        }
+
+        self.write_i64_kv(TARGET_CHECKPOINT_REQUEST_ID_KEY, target)?;
+
+        Ok(previous_target)
+    }
+
+    /// Persists the checkpoint request id observed in a complete sync checkpoint.
+    ///
+    /// This is used to decide whether downloaded data can be applied after local uploads complete.
+    pub fn persist_last_seen_checkpoint_request_id(&self, request_id: i64) -> Result<()> {
+        self.write_i64_kv(LAST_SEEN_CHECKPOINT_REQUEST_ID_KEY, request_id)
+    }
+
+    /// Persists the checkpoint request id that was applied locally.
+    ///
+    /// This is always the id from the last applied checkpoint as sent by the service - a plain
+    /// overwrite with no monotonicity enforced by core. External code owns consistency of these
+    /// ids; waiters should rely on `DidCompleteSync.applied_checkpoint_request_id` rather than
+    /// comparing this value across reconnects.
+    pub fn persist_last_applied_checkpoint_request_id(&self, request_id: i64) -> Result<()> {
+        self.write_i64_kv(LAST_APPLIED_CHECKPOINT_REQUEST_ID_KEY, request_id)
+    }
+
+    /// Increments, persists and returns the next client-created checkpoint request id.
+    pub fn next_checkpoint_request_id(&self) -> Result<i64> {
+        let statement = self.db.prepare_v2(
+            "INSERT INTO ps_kv(key, value)
+VALUES(?1, 1)
+ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+RETURNING value",
+        )?;
+        statement.bind_text(
+            1,
+            LAST_REQUESTED_CHECKPOINT_REQUEST_ID_KEY,
+            sqlite::Destructor::STATIC,
+        )?;
+
+        if statement.step()? {
+            Ok(statement.column_int64(0))
+        } else {
+            Err(PowerSyncError::unknown_internal())
+        }
+    }
+
+    /// Returns whether the local checkpoint request counter has been initialized.
+    pub fn has_checkpoint_request_id(&self) -> Result<bool> {
+        Ok(self.last_checkpoint_request_id()?.is_some())
+    }
+
+    /// Returns the latest checkpoint request id known locally.
+    pub fn last_checkpoint_request_id(&self) -> Result<Option<i64>> {
+        self.read_i64_kv(LAST_REQUESTED_CHECKPOINT_REQUEST_ID_KEY)
+    }
+
+    /// Returns the checkpoint request id to affirm when starting a request-mode sync iteration.
+    ///
+    /// The allocation counter is normally authoritative. A concrete target can be newer during a
+    /// legacy-to-request-mode transition or after migrating unusual state, so include it as a
+    /// lower bound. The max-op sentinel represents pending local writes without a concrete request
+    /// id and must not be sent to the service.
+    pub fn initial_checkpoint_request_id(&self) -> Result<i64> {
+        let last_requested = self.last_checkpoint_request_id()?.unwrap_or(0);
+        let concrete_target = self
+            .target_checkpoint_request_id()?
+            .filter(|target| *target > 0 && *target != i64::MAX)
+            .unwrap_or(0);
+
+        Ok(last_requested.max(concrete_target).max(1))
+    }
+
+    /// Seeds the local checkpoint request counter from service state.
+    ///
+    /// The value is stored verbatim: core does not enforce monotonicity here. SDKs are
+    /// responsible for posting the initial payload to the service and seeding its accepted
+    /// response, and cannot allocate new checkpoint request ids until that seeding has completed.
+    pub fn seed_checkpoint_request_id(&self, request_id: i64) -> Result<()> {
+        self.write_i64_kv(LAST_REQUESTED_CHECKPOINT_REQUEST_ID_KEY, request_id)
+    }
+
+    fn read_i64_kv(&self, key: &'static str) -> Result<Option<i64>> {
+        let statement = self
+            .db
+            .prepare_v2("SELECT value FROM ps_kv WHERE key = ?1")?;
+        statement.bind_text(1, key, sqlite::Destructor::STATIC)?;
+
+        Ok(if statement.step()? {
+            Some(statement.column_int64(0))
+        } else {
+            None
+        })
+    }
+
+    fn write_i64_kv(&self, key: &'static str, value: i64) -> Result<()> {
+        let stmt = self.db.prepare_v2(
+            "INSERT INTO ps_kv(key, value)
+VALUES(?1, ?2)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )?;
+        stmt.bind_text(1, key, sqlite::Destructor::STATIC)?;
+        stmt.bind_int64(2, value)?;
+        stmt.exec()?;
+        Ok(())
+    }
+
+    fn delete_kv(&self, key: &'static str) -> Result<()> {
+        let stmt = self.db.prepare_v2("DELETE FROM ps_kv WHERE key = ?1")?;
+        stmt.bind_text(1, key, sqlite::Destructor::STATIC)?;
+        stmt.exec()?;
+        Ok(())
+    }
+}
+
+pub struct BucketInfo {
+    pub id: i64,
+    pub last_applied_op: i64,
+}
+
+pub struct CheckpointResult {
+    failed_buckets: Vec<ChecksumMismatch>,
+}
+
+impl CheckpointResult {
+    pub fn is_valid(&self) -> bool {
+        self.failed_buckets.is_empty()
+    }
+}
+
+impl Display for CheckpointResult {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if self.is_valid() {
+            write!(f, "Valid checkpoint result")
+        } else {
+            write!(f, "Checksums didn't match, failed for: ")?;
+            for (i, item) in self.failed_buckets.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+
+                item.fmt(f)?;
+            }
+
+            Ok(())
+        }
+    }
+}
+
+impl Display for ChecksumMismatch {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let actual = self.actual_add_checksum + self.actual_op_checksum;
+        write!(
+            f,
+            "{} (expected {}, got {} = {} (op) + {} (add))",
+            self.bucket_name,
+            self.expected_checksum,
+            actual,
+            self.actual_op_checksum,
+            self.actual_add_checksum
+        )
+    }
+}
+
+pub enum SyncLocalResult {
+    /// Changes could not be applied due to a checksum mismatch.
+    ChecksumFailure(CheckpointResult),
+    /// Changes could not be applied because they would break consistency - we need to wait for
+    /// pending local CRUD data to be uploaded and acknowledged in a write checkpoint.
+    PendingLocalChanges,
+    /// The checkpoint has been applied and changes have been published.
+    ChangesApplied { timestamp: TimestampMicros },
+    /// A full checkpoint could not be applied due to pending local changes, but since all of its
+    /// buckets have priority 0, they have been applied as a partial checkpoint instead.
+    ///
+    /// Like [Self::PendingLocalChanges], the full checkpoint still needs to be applied later.
+    PendingLocalChangesAppliedPartially { timestamp: TimestampMicros },
+}
+
+/// Information about the amount of operations a bucket had at the last checkpoint and how many
+/// operations have been inserted in the meantime.
+pub struct PersistedBucketProgress<'a> {
+    pub bucket: &'a str,
+    pub bucket_id: i64,
+    pub count_at_last: i64,
+    pub count_since_last: i64,
+}

@@ -1,0 +1,15 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/cargo tree --manifest-path /Users/kobie/projects/powersync/skunkworks/powersync-native/Cargo.toml --package powersync --no-default-features --target thumbv8m.main-none-eabi --locked -i getrandom -e features,no-dev --offline
+getrandom v0.4.3
+└── getrandom feature "default"
+    └── uuid v1.26.1
+        └── powersync_core v0.5.4
+            ├── powersync_core feature "default"
+            │   └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+            ├── powersync_core feature "getrandom"
+            │   └── powersync_core feature "default" (*)
+            └── powersync_core feature "static"
+                └── powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+        ├── uuid feature "rng"
+        │   └── uuid feature "v4"
+        │       └── powersync_core feature "getrandom" (*)
+        └── uuid feature "v4" (*)

@@ -1,0 +1,95 @@
+{
+  "installed_app": "dots_boxes_native",
+  "installed_sync_sha256": "be728697a5b0885afb999e4579d09f3c7457b628fbf4838ec238c4c987f9cfb4",
+  "native_sha256": "ca5de31cd4e9e593bf2f01296cf5bb48f7dd45ca141157f5799b04b1e566be97",
+  "installer": {
+    "app": "/system/apps/dots_boxes_native",
+    "native_sha256": "ca5de31cd4e9e593bf2f01296cf5bb48f7dd45ca141157f5799b04b1e566be97",
+    "verified_files": [
+      "ca/sectigo-r46.der",
+      "controls.py",
+      "dots_client.py",
+      "dots_codec.py",
+      "dots_config.py",
+      "dots_pairing.py",
+      "dots_session.py",
+      "dots_storage.py",
+      "dots_sync.py",
+      "game.py",
+      "icon.png",
+      "logos.py",
+      "powersync/__init__.py",
+      "powersync/database.py",
+      "powersync/http.py",
+      "powersync/native_powersync_sdk.LICENSE.txt",
+      "powersync/native_powersync_sdk.mpy",
+      "powersync/powersync-native.LICENSE.txt",
+      "powersync/runtime.py",
+      "powersync/sync.py",
+      "sqlite_shadow_vfs.py",
+      "view.py",
+      "__init__.py"
+    ],
+    "original_app_and_state_unchanged": true,
+    "native_save_and_pending_move_unchanged": true,
+    "system_readonly_restored": true,
+    "firmware_replaced": false
+  },
+  "candidate_test_count": 38,
+  "real_sdk_host_replay_passed": true,
+  "live_tls_check": {
+    "crud_rows": 0,
+    "canonical_move_count": 9,
+    "installed_sync_sha256": "be728697a5b0885afb999e4579d09f3c7457b628fbf4838ec238c4c987f9cfb4",
+    "single_tls": false,
+    "elapsed_ms": 9087,
+    "same_stream_retained": true,
+    "sdk_http_errors": [],
+    "passed": true,
+    "exact_uuid_room_confirmed": true,
+    "sdk_http_requests": [
+      [
+        6,
+        "checkpoint-request"
+      ]
+    ],
+    "pending_cleared": true,
+    "full_generation": 2,
+    "workload": "real TLS checkpoint for idempotent already-published SDK CRUD entry; no move RPC",
+    "initial_full_generation": 1
+  },
+  "on_badge_memory_replay": {
+    "samples": 3,
+    "median_pending_cleared_us": 493341,
+    "stream_reconnects": [
+      0,
+      0,
+      0
+    ],
+    "all_correctness_checks_passed": true
+  },
+  "final_state": {
+    "pending_move": null,
+    "raw_state_sha256": "6247094d3c65672dd1b9daecdf10c44883ae4b9436bb09d080d1ce0bd98ab747",
+    "move_count": 9,
+    "schema_version": 6,
+    "native_cache_restored": true,
+    "crud_rows": 0,
+    "scratch_removed": true,
+    "native_stats": [
+      109120,
+      137536,
+      6336,
+      13,
+      286591145,
+      287708608,
+      287692200,
+      "3.54.1"
+    ],
+    "paired_room": "6ad058a8-d19b-4d8c-b32d-e6f2b6945ccb",
+    "quick_check": "ok"
+  },
+  "returned_to_launcher": true,
+  "git_push": false,
+  "deployment": false
+}

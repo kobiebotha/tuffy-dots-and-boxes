@@ -1,0 +1,33 @@
+[package]
+name = "psbadge_native"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+powersync = { path = "../../../../../powersync-native/powersync", default-features = false, features = ["embassy"] }
+powersync_sqlite_nostd = { version = "=0.5.4", default-features = false, features = ["static"] }
+embassy-executor = { version = "0.10.0", default-features = false }
+futures-lite = { version = "2.6.1", default-features = false, features = ["alloc"] }
+async-trait = "0.1.89"
+bytes = { version = "1", default-features = false }
+event-listener = { version = "5.4", default-features = false }
+spin = { version = "0.10", default-features = false, features = ["mutex", "spin_mutex"] }
+serde_json = { version = "1", default-features = false, features = ["alloc", "raw_value"] }
+base64 = { version = "0.22", default-features = false, features = ["alloc"] }
+log = { version = "0.4", default-features = false, features = ["release_max_level_off"] }
+
+[patch.crates-io]
+foldhash = { path = "../vendor/foldhash" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+debug = false

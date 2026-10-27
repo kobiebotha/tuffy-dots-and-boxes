@@ -1,0 +1,7 @@
+native/build/
+native/.mpy_ld_cache-*/
+native/*.mpy
+rust/target/
+dist/*.mpy
+__pycache__/
+evidence/*disassembly.log

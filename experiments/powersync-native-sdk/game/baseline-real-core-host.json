@@ -1,0 +1,296 @@
+{
+  "scope": "Host current custom Python SyncClient to real SQLite/core full publication; no Wi-Fi, TLS or ShadowVFS/flash. Fresh POSIX file database each trial. Timing excludes database/schema/start/checkpoint metadata and output validation.",
+  "python": "3.15.1 (main, Oct 21 2026, 05:55:12) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "library_sha256": "d938c20ac76c6532d63e9bd42e9ab0d531cfc36db346e84ce4fe46b955509030",
+  "wire_sha256": "7d76a2f29eb515b7567dc3e1aa0791ec1ff993915d6a6f0a2a3fa30cbaf98ec0",
+  "wire_bytes": 9114,
+  "operations": 50,
+  "fragment_bytes": 2048,
+  "checkpoint_metadata": {
+    "checkpoint": {
+      "last_op_id": "50",
+      "buckets": [
+        {
+          "bucket": "fixture",
+          "checksum": 0,
+          "priority": 3,
+          "count": 50,
+          "subscriptions": [
+            {
+              "sub": 0
+            }
+          ]
+        }
+      ],
+      "streams": [
+        {
+          "name": "badge_game_v2",
+          "is_default": false,
+          "errors": []
+        }
+      ]
+    }
+  },
+  "arena_bytes": 262144,
+  "sqlite_profile": "native-sqlite/tests/host_config.h",
+  "journal_mode": "DELETE",
+  "synchronous": "FULL",
+  "cache_pages": 32,
+  "core_allocator": "PowerSync core uses SQLite allocator in cached native host qualifier; Python heap excluded.",
+  "output_validation": "All 49 published move IDs/room/edge/index fields, one room's complete fields, zero ps_crud and quick_check=ok.",
+  "median_us": 5856.0,
+  "p95_us": 6806.5,
+  "min_us": 5578.417,
+  "max_us": 7160.292,
+  "samples": [
+    {
+      "elapsed_us": 5922.167,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5745.625,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5863.083,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5994.5,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5637.75,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5847.083,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6196.25,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6806.5,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5929.958,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5672.417,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5782.75,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5908.5,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5856.0,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5688.833,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5639.042,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5686.625,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5578.417,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5602.834,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6260.291,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5726.666,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5774.208,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6194.292,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 7160.292,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6742.542,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6691.542,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 6214.584,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5933.75,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5728.083,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5761.625,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5947.917,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    },
+    {
+      "elapsed_us": 5618.125,
+      "foreground_steps": 9,
+      "transport_calls": 6,
+      "transactions": 9,
+      "sqlite_peak_bytes": 156608,
+      "database_bytes": 51200
+    }
+  ]
+}

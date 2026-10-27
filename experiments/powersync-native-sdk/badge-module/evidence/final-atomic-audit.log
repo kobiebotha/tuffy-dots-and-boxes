@@ -1,0 +1,33 @@
+$ /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/.venv/bin/python -c 
+import json,re,subprocess,sys
+from pathlib import Path
+tools,objdump,report,log,*inputs=sys.argv[1:]
+sys.path.insert(0,tools)
+import mpy_ld,ar_util
+env=mpy_ld.LinkEnv('armv7emsp')
+objects=[Path(p) for p in inputs[:4]]
+for p in objects:
+ with p.open('rb') as f:mpy_ld.load_object_file(env,f,str(p))
+ar_util.init_cache('.mpy_ld_cache-armv7emsp',ar_util.DEFAULT_CACHE_PREFIX)
+archives=[]
+for p in inputs[4:]:archives.extend(ar_util.load_archive(p))
+selected,_=ar_util.resolve(archives,set(s.name for s in env.unresolved_syms))
+folder=Path('build/audit/selected');folder.mkdir(parents=True,exist_ok=True)
+sources=[str(p) for p in objects]
+for i,(ar,member) in enumerate(selected):
+ p=folder/(str(i)+'.o')
+ with ar.open(member) as f:p.write_bytes(f.read())
+ objects.append(p);sources.append(ar.fn+':'+member)
+bad=[]
+with open(log,'w') as out:
+ for p,source in zip(objects,sources):
+  result=subprocess.run([objdump,'-d',str(p)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,check=True)
+  out.write('OBJECT '+source+'\n'+result.stdout)
+  for line in result.stdout.splitlines():
+   if re.search(r'\b(?:ldrex|strex|ldaex|stlex)(?:b|h|d)?\b',line):bad.append({'object':source,'instruction':line})
+data={'scope':'every object selected for final native module, including C, SDK and runtime libraries','objectsChecked':len(objects),'selectedObjects':sources,'exclusiveInstructionCount':len(bad),'exclusiveInstructions':bad,'requiresSingleForegroundOwner':True,'atomicLowering':'LLVM lower-atomic for isolated SDK bridge'}
+Path(report).write_text(json.dumps(data,indent=2)+'\n')
+print('Final native object audit:',len(objects),'objects,',len(bad),'exclusive instructions')
+if bad:sys.exit(2)
+ /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/vendor/micropython/tools /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/arm-none-eabi-objdump /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/evidence/final-atomic-audit.json /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/evidence/final-disassembly.log /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/sdk/src/module.o /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/sdk/src/sqlite_port.o /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/sdk/src/libc_shim.o /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/sdk/src/vfs.o /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/rust/target/thumbv8m.main-none-eabi/release/libpsbadge_native.a /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/13.2.1/thumb/v7e-m+fp/softfp/libgcc.a /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/13.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/softfp/libm.a
+Final native object audit: 55 objects, 0 exclusive instructions

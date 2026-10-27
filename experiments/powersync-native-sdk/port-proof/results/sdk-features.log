@@ -1,0 +1,5 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/cargo tree --manifest-path /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/port-proof/Cargo.toml -i powersync -e features --locked --offline
+powersync v0.1.1 (/Users/kobie/projects/powersync/skunkworks/powersync-native/powersync)
+└── powersync feature "embassy"
+    └── badge-native-sdk-embassy-proof v0.0.0 (/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/port-proof)
+        └── badge-native-sdk-embassy-proof feature "default" (command-line)

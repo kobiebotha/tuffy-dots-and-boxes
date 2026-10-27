@@ -1,0 +1,43 @@
+$ /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/.venv/bin/python -c 
+import json,sys
+from elftools.elf.elffile import ELFFile
+from elftools.elf.relocation import RelocationSection
+with open(sys.argv[1],'rb') as f:
+ e=ELFFile(f)
+ data=[];fixed=[];types={};sizes={}
+ for s in e.iter_sections():
+  if s['sh_type'] in ('SHT_PROGBITS','SHT_NOBITS') and s['sh_size']:
+   if s.name.startswith('.data') and not s.name.startswith('.data.rel.ro'): data.append(s.name)
+   for prefix in ('.text','.rodata','.data.rel.ro','.bss'):
+    if s.name.startswith(prefix):sizes[prefix]=sizes.get(prefix,0)+s['sh_size'];break
+  if not isinstance(s,RelocationSection):continue
+  target=e.get_section(s['sh_info'])
+  if not target.name.startswith(('.text','.rodata','.data.rel.ro','.bss')):continue
+  syms=e.get_section(s['sh_link'])
+  for r in s.iter_relocations():
+   t=r['r_info_type'];types[str(t)]=types.get(str(t),0)+1
+   sym=syms.get_symbol(r['r_info_sym']);idx=sym['st_shndx']
+   if target.name.startswith('.text') and t in (3,10,30) and isinstance(idx,int):
+    sec=e.get_section(idx)
+    if sec.name.startswith('.bss'):fixed.append({'symbol':sym.name,'section':target.name,'type':t})
+ print(json.dumps({'object':sys.argv[1],'nonempty_mutable_data':data,'fixed_text_to_bss':fixed,'relocation_type_counts':types,'bridge_object_section_bytes':sizes},indent=2))
+ if data or fixed:sys.exit(2)
+ /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/audit/bridge.o
+{
+  "object": "/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native/build/audit/bridge.o",
+  "nonempty_mutable_data": [],
+  "fixed_text_to_bss": [],
+  "relocation_type_counts": {
+    "30": 669,
+    "10": 10459,
+    "3": 4895,
+    "96": 14,
+    "2": 865
+  },
+  "bridge_object_section_bytes": {
+    ".text": 480574,
+    ".rodata": 171732,
+    ".data.rel.ro": 10760,
+    ".bss": 60
+  }
+}

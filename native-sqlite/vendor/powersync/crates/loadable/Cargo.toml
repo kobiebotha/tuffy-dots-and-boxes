@@ -1,0 +1,26 @@
+[package]
+name = "powersync_loadable"
+edition.workspace = true
+version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+
+[lib]
+name = "powersync"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+powersync_sqlite_nostd = { path = "../sqlite_nostd" }
+
+[dependencies.powersync_core]
+path = "../core"
+default-features = false
+features = []
+
+[features]
+nightly = []
+static = ["powersync_core/static"]
+default = ["powersync_core/getrandom"]

@@ -1,0 +1,20 @@
+{
+  "board": "Pimoroni Tufty 2350 with RP2350",
+  "app": "/system/apps/dots_boxes_native",
+  "initial_failure": "OSError: Not enough free badge storage",
+  "native_state_existed_before_fix": false,
+  "initial_free_bytes": 151552,
+  "required_first_run_free_bytes": 196608,
+  "old_app_removed": false,
+  "old_active_save_cleared": true,
+  "operator_authorized_cleanup": true,
+  "verified_old_save_backup": "/system/backups/dots_boxes-before-native-20261026",
+  "free_bytes_after_cleanup": 241664,
+  "native_database_created": true,
+  "client_mode": "pair",
+  "storage_guards_changed": false,
+  "first_run_passed": true,
+  "reopen_passed": true,
+  "native_database_bytes": 35840,
+  "free_bytes_before_reopen": 188416
+}

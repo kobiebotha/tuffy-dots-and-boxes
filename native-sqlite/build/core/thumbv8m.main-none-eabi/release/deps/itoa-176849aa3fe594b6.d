@@ -1,0 +1,8 @@
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/thumbv8m.main-none-eabi/release/deps/itoa-176849aa3fe594b6.d: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/u128_ext.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/thumbv8m.main-none-eabi/release/deps/libitoa-176849aa3fe594b6.rlib: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/u128_ext.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/thumbv8m.main-none-eabi/release/deps/libitoa-176849aa3fe594b6.rmeta: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/u128_ext.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/lib.rs:
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/u128_ext.rs:

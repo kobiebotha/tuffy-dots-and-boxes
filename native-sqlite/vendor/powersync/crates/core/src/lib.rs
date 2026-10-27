@@ -1,0 +1,115 @@
+#![no_std]
+extern crate alloc;
+
+use core::ffi::{c_char, c_int};
+
+use alloc::{ffi::CString, format, rc::Rc};
+use powersync_sqlite_nostd as sqlite;
+use sqlite::ResultCode;
+
+use crate::{
+    error::{PowerSyncError, Result},
+    state::DatabaseState,
+    utils::database::Database,
+};
+
+mod bson;
+mod constants;
+mod crud_vtab;
+mod diff;
+mod error;
+mod fix_data;
+mod json_util;
+mod kv;
+mod macros;
+mod migrations;
+mod pre_close_vtab;
+mod schema;
+mod state;
+mod sync;
+mod update_hooks;
+mod utils;
+mod uuid;
+mod version;
+mod view_admin;
+mod views;
+mod vtab_util;
+
+/// The entrypoint for the PowerSync SQLite core extension.
+///
+/// When compiling this Rust crate into a dynamic library, it can be used by embedders to load it
+/// through [SQLite's opening mechanism](https://sqlite.org/loadext.html#loading_an_extension).
+#[unsafe(no_mangle)]
+pub extern "C" fn sqlite3_powersync_init(
+    db: *mut sqlite::sqlite3,
+    err_msg: *mut *mut c_char,
+    api: *mut sqlite::api_routines,
+) -> c_int {
+    debug_assert!(unsafe { *err_msg }.is_null());
+    sqlite::EXTENSION_INIT2(api);
+
+    let result = init_extension(Database::from(db));
+
+    return if let Err(code) = result {
+        if let Ok(desc) = CString::new(format!("Could not initialize PowerSync: {}", code)) {
+            // Note: This is fine since we're using sqlite3_malloc to allocate in Rust
+            unsafe { *err_msg = desc.into_raw() as *mut c_char };
+        }
+
+        code.sqlite_error_code() as c_int
+    } else {
+        ResultCode::OK as c_int
+    };
+}
+
+fn init_extension(db: Database) -> Result<()> {
+    PowerSyncError::check_sqlite3_version()?;
+
+    let state = Rc::new(DatabaseState::new());
+
+    db.use_inner(|db| {
+        crate::version::register(db)?;
+        crate::uuid::register(db)?;
+        crate::diff::register(db)?;
+        crate::fix_data::register(db)?;
+        crate::json_util::register(db)?;
+        crate::view_admin::register(db, state.clone())?;
+        crate::kv::register(db)?;
+        crate::state::register(db, state.clone())?;
+        sync::register(db, state.clone())?;
+        update_hooks::register(db, state.clone())?;
+
+        crate::schema::register(db, state.clone())?;
+        crate::pre_close_vtab::register(db, state.clone())?;
+        crate::crud_vtab::register(db, state)?;
+
+        Ok(())
+    })
+}
+
+unsafe extern "C" {
+    #[cfg(feature = "static")]
+    #[allow(non_snake_case)]
+    fn sqlite3_auto_extension(
+        xEntryPoint: Option<
+            extern "C" fn(
+                *mut sqlite::sqlite3,
+                *mut *mut c_char,
+                *mut sqlite::api_routines,
+            ) -> c_int,
+        >,
+    ) -> ::core::ffi::c_int;
+}
+
+/// Calls `sqlite3_auto_extension` with [sqlite3_powersync_init] to automatically load
+/// the PowerSync core extension into new connections.
+///
+/// For details, see https://sqlite.org/loadext.html#statically_linking_a_run_time_loadable_extension
+#[cfg(feature = "static")]
+#[unsafe(no_mangle)]
+pub extern "C" fn powersync_init_static() -> c_int {
+    unsafe {
+        let f = sqlite3_powersync_init;
+        return sqlite3_auto_extension(Some(f));
+    }
+}

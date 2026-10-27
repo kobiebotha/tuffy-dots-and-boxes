@@ -1,0 +1,2 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/cargo build --manifest-path /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/async-leaf/Cargo.toml --target thumbv8m.main-none-eabi --target-dir /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/async-leaf-target --release --locked --offline
+    Finished `release` profile [optimized] target(s) in 0.00s

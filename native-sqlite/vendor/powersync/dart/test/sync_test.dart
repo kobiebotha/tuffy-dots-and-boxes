@@ -1,0 +1,2773 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:bson/bson.dart';
+import 'package:file/local.dart';
+import 'package:path/path.dart';
+import 'package:sqlite3/common.dart';
+import 'package:sqlite3/sqlite3.dart';
+import 'package:sqlite3_test/sqlite3_test.dart';
+import 'package:test/test.dart';
+import 'package:test_descriptor/test_descriptor.dart' as d;
+
+import 'utils/native_test_utils.dart';
+import 'utils/test_utils.dart';
+import 'utils/tracking_vfs.dart';
+
+void main() {
+  final vfs =
+      TestSqliteFileSystem(fs: const LocalFileSystem(), name: 'vfs-sync-test');
+
+  setUpAll(() {
+    loadExtension();
+    sqlite3.registerVirtualFileSystem(vfs, makeDefault: false);
+  });
+  tearDownAll(() => sqlite3.unregisterVirtualFileSystem(vfs));
+
+  group('text lines', () {
+    _syncTests(vfs: vfs, isBson: false);
+  });
+
+  group('bson lines', () {
+    _syncTests(vfs: vfs, isBson: true);
+  });
+}
+
+void _syncTests<T>({
+  required VirtualFileSystem vfs,
+  required bool isBson,
+}) {
+  late CommonDatabase db;
+  late SyncLinesGoldenTest matcher;
+
+  List<Object?> invokeControlRaw(String operation, Object? data) {
+    db.execute('begin');
+    ResultSet result;
+
+    try {
+      result = db.select('SELECT powersync_control(?, ?)', [operation, data]);
+
+      // Make sure that powersync_control doesn't leave any busy statements
+      // behind.
+      const statement = 'SELECT * FROM sqlite_stmt WHERE busy AND sql != ?;';
+      final busy = db.select(statement, [statement]);
+      expect(busy, isEmpty);
+    } catch (e) {
+      db.execute('rollback');
+      rethrow;
+    }
+
+    db.execute('commit');
+    final [row] = result;
+    final rawResult = row.columnAt(0);
+    if (rawResult is String) {
+      return jsonDecode(rawResult);
+    } else {
+      return const [];
+    }
+  }
+
+  Object? invokeControlScalar(String operation, Object? data) {
+    db.execute('begin');
+    ResultSet result;
+
+    try {
+      result = db.select('SELECT powersync_control(?, ?)', [operation, data]);
+
+      const statement = 'SELECT * FROM sqlite_stmt WHERE busy AND sql != ?;';
+      final busy = db.select(statement, [statement]);
+      expect(busy, isEmpty);
+    } catch (e) {
+      db.execute('rollback');
+      rethrow;
+    }
+
+    db.execute('commit');
+    final [row] = result;
+    return row.columnAt(0);
+  }
+
+  int seedCheckpointRequestId(Object? requestId) {
+    return invokeControlScalar('seed_checkpoint_request_id', requestId) as int;
+  }
+
+  bool establishesSyncStream(List<Object?> instructions) {
+    return instructions.any((instruction) =>
+        instruction is Map && instruction.containsKey('EstablishSyncStream'));
+  }
+
+  List<Object?> invokeControl(String operation, Object? data) {
+    List<Object?> result;
+    if (matcher.enabled) {
+      // Trace through golden matcher
+      result = matcher.invoke(operation, data);
+    } else {
+      result = invokeControlRaw(operation, data);
+    }
+
+    if (operation == 'start' && establishesSyncStream(result)) {
+      seedCheckpointRequestId(1);
+    }
+
+    return result;
+  }
+
+  setUp(() async {
+    db = openTestDatabase(vfs: vfs)
+      ..executeInTx('select powersync_init();')
+      ..executeInTx(
+          'select powersync_replace_schema(?)', [json.encode(testSchema)])
+      ..execute('update ps_kv set value = ?2 where key = ?1',
+          ['client_id', 'test-test-test-test']);
+
+    matcher = SyncLinesGoldenTest(isBson, invokeControlRaw);
+  });
+
+  tearDown(() {
+    matcher.finish();
+  });
+
+  List<Object?> syncLine(Object? line) {
+    if (isBson) {
+      final serialized = BsonCodec.serialize(line).byteList;
+      // print(serialized.asRustByteString);
+      return invokeControl('line_binary', serialized);
+    } else {
+      return invokeControl('line_text', jsonEncode(line));
+    }
+  }
+
+  List<Object?> pushSyncData(
+      String bucket, String opId, String rowId, Object op, Object? data,
+      {int checksum = 0, String objectType = 'items'}) {
+    return syncLine({
+      'data': {
+        'bucket': bucket,
+        'has_more': false,
+        'after': null,
+        'next_after': null,
+        'data': [
+          {
+            'op_id': opId,
+            'op': op,
+            'object_type': objectType,
+            'object_id': rowId,
+            'checksum': checksum,
+            'data': json.encode(data),
+          }
+        ],
+      },
+    });
+  }
+
+  List<Object?> pushCheckpoint(
+      {int lastOpId = 1,
+      List<Object> buckets = const [],
+      String? writeCheckpoint}) {
+    return syncLine(checkpoint(
+      lastOpId: lastOpId,
+      buckets: buckets,
+      writeCheckpoint: writeCheckpoint,
+    ));
+  }
+
+  List<Object?> pushCheckpointComplete({int? priority, String lastOpId = '1'}) {
+    return syncLine(checkpointComplete(priority: priority, lastOpId: lastOpId));
+  }
+
+  Object? lastRequestedCheckpointRequestId() {
+    final rows = db.select(
+        "SELECT value FROM ps_kv WHERE key = 'last_requested_checkpoint_request_id'");
+    return rows.isEmpty ? null : rows.single.columnAt(0);
+  }
+
+  Object? lastAppliedCheckpointRequestId() {
+    final rows = db.select(
+        "SELECT value FROM ps_kv WHERE key = 'last_applied_checkpoint_request_id'");
+    return rows.isEmpty ? null : rows.single.columnAt(0);
+  }
+
+  Object? streamCheckpointRequest(List<Object?> instructions) {
+    final instruction = instructions.whereType<Map>().firstWhere(
+        (instruction) => instruction.containsKey('EstablishSyncStream'));
+    final establish = instruction['EstablishSyncStream'] as Map;
+    return establish['checkpoint_request'];
+  }
+
+  int nextCheckpointRequestId() {
+    return invokeControlScalar('next_checkpoint_request_id', null) as int;
+  }
+
+  Object? probeTargetCheckpointRequestId([Object? opId]) {
+    return invokeControlScalar('target_checkpoint_request_id', opId);
+  }
+
+  Object? currentCheckpointRequestId() {
+    return invokeControlScalar('current_checkpoint_request_id', null);
+  }
+
+  ResultSet fetchRows() {
+    return db.select('select * from items');
+  }
+
+  group('goldens', () {
+    syncTest('starting stream', (_) {
+      matcher.load('starting_stream');
+      invokeControl(
+        'start',
+        json.encode({
+          'parameters': {'foo': 'bar'}
+        }),
+      );
+    });
+
+    syncTest('simple sync iteration', (_) {
+      matcher.load('simple_iteration');
+      invokeControl('start', null);
+
+      syncLine({
+        'checkpoint': {
+          'last_op_id': '1',
+          'write_checkpoint': null,
+          'buckets': [
+            {
+              'bucket': 'a',
+              'checksum': 0,
+              'priority': 3,
+              'count': 1,
+            }
+          ],
+        },
+      });
+      syncLine({'token_expires_in': 60});
+      pushSyncData('a', '1', '1', 'PUT', {'col': 'hi'});
+
+      syncLine({
+        'checkpoint_complete': {'last_op_id': '1'},
+      });
+
+      syncLine({'token_expires_in': 10});
+    });
+  });
+
+  syncTest('marks connected on keepalive line', (_) {
+    invokeControl('start', null);
+
+    final instructions = syncLine({'token_expires_in': 60});
+    expect(instructions, [
+      {
+        'UpdateSyncStatus': {'status': containsPair('connected', true)}
+      }
+    ]);
+  });
+
+  syncTest('app_metadata is passed to EstablishSyncStream request', (_) {
+    final startInstructions = invokeControlRaw(
+      'start',
+      json.encode({
+        'app_metadata': {'key1': 'value1', 'key2': 'value2'}
+      }),
+    );
+
+    expect(
+      startInstructions,
+      contains(
+        containsPair(
+          'EstablishSyncStream',
+          containsPair(
+            'request',
+            containsPair('app_metadata', {'key1': 'value1', 'key2': 'value2'}),
+          ),
+        ),
+      ),
+    );
+  });
+
+  syncTest('prepares initial checkpoint request state when enabled', (_) {
+    final initial = invokeControlRaw(
+      'start',
+      json.encode({'checkpoint_mode': 'requests'}),
+    );
+    expect(streamCheckpointRequest(initial), {
+      'client_id': 'test-test-test-test',
+      'checkpoint_request_id': '1',
+    });
+
+    // A concrete target is a lower bound even when the allocation counter has not been seeded.
+    probeTargetCheckpointRequestId(4);
+    final fromTarget = invokeControlRaw(
+      'start',
+      json.encode({'checkpoint_mode': 'requests'}),
+    );
+    expect(streamCheckpointRequest(fromTarget), {
+      'client_id': 'test-test-test-test',
+      'checkpoint_request_id': '4',
+    });
+
+    // The larger persisted allocation counter wins over the concrete target.
+    expect(seedCheckpointRequestId(7), 7);
+    final fromCounter = invokeControlRaw(
+      'start',
+      json.encode({'checkpoint_mode': 'requests'}),
+    );
+    expect(streamCheckpointRequest(fromCounter), {
+      'client_id': 'test-test-test-test',
+      'checkpoint_request_id': '7',
+    });
+
+    // The max-op local-write sentinel is not a concrete checkpoint request id.
+    probeTargetCheckpointRequestId(9223372036854775807);
+    final ignoringSentinel = invokeControlRaw(
+      'start',
+      json.encode({'checkpoint_mode': 'requests'}),
+    );
+    expect(streamCheckpointRequest(ignoringSentinel), {
+      'client_id': 'test-test-test-test',
+      'checkpoint_request_id': '7',
+    });
+  });
+
+  syncTest('omits initial checkpoint request state in legacy mode', (_) {
+    final instructions = invokeControlRaw('start', null);
+    final establish = instructions.whereType<Map>().firstWhere((instruction) =>
+        instruction
+            .containsKey('EstablishSyncStream'))['EstablishSyncStream'] as Map;
+    expect(establish, isNot(contains('checkpoint_request')));
+  });
+
+  test('handles connection events', () {
+    invokeControl('start', null);
+    expect(invokeControl('connection', 'established'), [
+      containsPair('UpdateSyncStatus',
+          containsPair('status', containsPair('connected', true)))
+    ]);
+    expect(invokeControl('connection', 'end'), [
+      {
+        'UpdateSyncStatus': {
+          'status': containsPair('connected', false),
+        }
+      },
+      {
+        'CloseSyncStream': {'hide_disconnect': false}
+      }
+    ]);
+  });
+
+  test('does not publish until reaching checkpoint', () {
+    invokeControl('start', null);
+    pushCheckpoint(buckets: priorityBuckets);
+    expect(fetchRows(), isEmpty);
+    db.execute("insert into items (id, col) values ('local', 'data');");
+
+    pushSyncData('prio1', '1', 'row-0', 'PUT', {'col': 'hi'});
+
+    pushCheckpointComplete();
+    expect(fetchRows(), [
+      {'id': 'local', 'col': 'data'}
+    ]);
+  });
+
+  group('publishes with local data for prio=0 buckets', () {
+    test('for explicit partial checkpoint', () {
+      invokeControl('start', null);
+      pushCheckpoint(buckets: priorityBuckets);
+      expect(fetchRows(), isEmpty);
+      db.execute("insert into items (id, col) values ('local', 'data');");
+
+      pushSyncData('prio0', '1', 'row-0', 'PUT', {'col': 'hi'});
+
+      pushCheckpointComplete(priority: 0);
+      expect(fetchRows(), [
+        {'id': 'local', 'col': 'data'},
+        {'id': 'row-0', 'col': 'hi'},
+      ]);
+    });
+
+    test('for full checkpoint', () {
+      // A full checkpoint might consist entirely of prio 0 buckets, in which
+      // case it should still be applied.
+      invokeControl('start', null);
+      pushCheckpoint(buckets: [bucketDescription('prio0', priority: 0)]);
+      expect(fetchRows(), isEmpty);
+      db.execute("insert into items (id, col) values ('local', 'data');");
+
+      pushSyncData('prio0', '1', 'row-0', 'PUT', {'col': 'hi'});
+
+      final results = pushCheckpointComplete();
+      expect(results, [
+        // The full checkpoint is still delayed, we only applied prio 0 buckets.
+        {
+          'CheckpointDelayedDueToLocalData': {},
+        },
+        containsPair('LogLine', {
+          'severity': 'INFO',
+          'line': contains('Will retry at completed upload')
+        }),
+        {
+          'UpdateSyncStatus': {
+            'status': {
+              'connected': true,
+              'connecting': false,
+              'priority_status': [
+                {'priority': 0, 'last_synced_at': isNotNull, 'has_synced': true}
+              ],
+              'downloading': isNotNull,
+              'streams': [],
+            },
+          }
+        }
+      ]);
+      expect(fetchRows(), [
+        {'id': 'local', 'col': 'data'},
+        {'id': 'row-0', 'col': 'hi'},
+      ]);
+    });
+  });
+
+  test('does not publish with pending local data', () {
+    invokeControl('start', null);
+    pushCheckpoint(buckets: priorityBuckets);
+    db.execute("insert into items (id, col) values ('local', 'data');");
+    expect(fetchRows(), isNotEmpty);
+
+    pushCheckpoint(buckets: priorityBuckets);
+    pushSyncData('prio1', '1', 'row-0', 'PUT', {'col': 'hi'});
+    pushCheckpointComplete();
+
+    expect(fetchRows(), [
+      {'id': 'local', 'col': 'data'}
+    ]);
+  });
+
+  test('can publish partial checkpoints under different priorities', () {
+    invokeControl('start', null);
+    pushCheckpoint(buckets: priorityBuckets);
+    for (var i = 0; i < 4; i++) {
+      pushSyncData('prio$i', '1', 'row-$i', 'PUT', {'col': '$i'});
+    }
+
+    expect(fetchRows(), isEmpty);
+
+    // Simulate a partial checkpoint complete for each of the buckets.
+    for (var i = 0; i < 4; i++) {
+      pushCheckpointComplete(
+        priority: i,
+      );
+
+      expect(fetchRows(), [
+        for (var j = 0; j <= i; j++) {'id': 'row-$j', 'col': '$j'},
+      ]);
+
+      expect(db.select('select 1 from ps_sync_state where priority = ?', [i]),
+          isNotEmpty);
+      // A sync at this priority includes all higher priorities too, so they
+      // should be cleared.
+      expect(db.select('select 1 from ps_sync_state where priority < ?', [i]),
+          isEmpty);
+    }
+  });
+
+  syncTest('can sync multiple times', (controller) {
+    invokeControl('start', null);
+
+    for (var i = 0; i < 10; i++) {
+      pushCheckpoint(buckets: priorityBuckets);
+
+      for (var prio in const [1, 2, 3, null]) {
+        pushCheckpointComplete(priority: prio);
+
+        // Make sure there's only a single row in last_synced_at
+        expect(
+          db.select(
+              "SELECT datetime(last_synced_at / 1_000_000, 'unixepoch') AS last_synced_at FROM ps_sync_state WHERE priority = ?",
+              [prio ?? 2147483647]),
+          [
+            {'last_synced_at': '2025-03-01 ${10 + i}:00:00'}
+          ],
+        );
+      }
+
+      controller.elapse(const Duration(hours: 1));
+    }
+  });
+
+  syncTest('remembers sync state', (controller) {
+    invokeControl('start', null);
+
+    pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+    expect(
+      pushCheckpointComplete(),
+      contains(
+        containsPair(
+          'DidCompleteSync',
+          {'applied_checkpoint_request_id': '1'},
+        ),
+      ),
+    );
+
+    controller.elapse(Duration(minutes: 10));
+    pushCheckpoint(buckets: priorityBuckets);
+    pushCheckpointComplete(priority: 2);
+    invokeControl('stop', null);
+
+    final instructions = invokeControl('start', null);
+    expect(
+      instructions,
+      isNot(contains(containsPair(
+          'UpdateSyncStatus',
+          containsPair(
+              'status',
+              containsPair(
+                  'internal_last_applied_checkpoint_request_id', anything))))),
+    );
+    expect(
+      instructions,
+      contains(
+        containsPair(
+            'UpdateSyncStatus',
+            containsPair(
+              'status',
+              containsPair(
+                'priority_status',
+                [
+                  {
+                    'priority': 2,
+                    'last_synced_at': timestamp(),
+                    'has_synced': true
+                  },
+                  {
+                    'priority': 2147483647,
+                    'last_synced_at': timestamp(plusMinutes: -10),
+                    'has_synced': true
+                  },
+                ],
+              ),
+            )),
+      ),
+    );
+
+    final [row] = db.select('select powersync_offline_sync_status();');
+    expect(json.decode(row[0]), {
+      'connected': false,
+      'connecting': false,
+      'priority_status': [
+        {'priority': 2, 'last_synced_at': timestamp(), 'has_synced': true},
+        {
+          'priority': 2147483647,
+          'last_synced_at': timestamp(plusMinutes: -10),
+          'has_synced': true
+        }
+      ],
+      'downloading': null,
+      'streams': [],
+    });
+  });
+
+  syncTest('allocates requested checkpoint request ids', (_) {
+    invokeControl('start', null);
+
+    expect(nextCheckpointRequestId(), 2);
+    expect(lastRequestedCheckpointRequestId(), 2);
+
+    expect(nextCheckpointRequestId(), 3);
+    expect(lastRequestedCheckpointRequestId(), 3);
+  });
+
+  syncTest('reports current checkpoint request id without incrementing', (_) {
+    expect(currentCheckpointRequestId(), isNull);
+
+    invokeControlRaw('start', null);
+    expect(seedCheckpointRequestId(1), 1);
+    expect(currentCheckpointRequestId(), 1);
+
+    expect(currentCheckpointRequestId(), 1);
+    expect(nextCheckpointRequestId(), 2);
+    expect(currentCheckpointRequestId(), 2);
+    expect(lastRequestedCheckpointRequestId(), 2);
+
+    pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '2');
+    pushCheckpointComplete();
+    expect(lastAppliedCheckpointRequestId(), 2);
+    expect(currentCheckpointRequestId(), 2);
+
+    db.execute("insert into items (id, col) values ('local', 'data');");
+    expect(lastAppliedCheckpointRequestId(), isNull);
+    expect(currentCheckpointRequestId(), 2);
+
+    expect(nextCheckpointRequestId(), 3);
+    expect(currentCheckpointRequestId(), 3);
+  });
+
+  syncTest('seeds requested checkpoint request ids from service state', (_) {
+    final startInstructions = invokeControlRaw(
+      'start',
+      json.encode({'checkpoint_mode': 'requests'}),
+    );
+    expect(streamCheckpointRequest(startInstructions), {
+      'client_id': 'test-test-test-test',
+      'checkpoint_request_id': '1',
+    });
+    expect(seedCheckpointRequestId(41), 41);
+
+    expect(nextCheckpointRequestId(), 42);
+    expect(lastRequestedCheckpointRequestId(), 42);
+
+    final restartInstructions = invokeControlRaw(
+      'start',
+      json.encode({'checkpoint_mode': 'requests'}),
+    );
+    expect(streamCheckpointRequest(restartInstructions), {
+      'client_id': 'test-test-test-test',
+      'checkpoint_request_id': '42',
+    });
+    expect(seedCheckpointRequestId(100), 100);
+
+    expect(nextCheckpointRequestId(), 101);
+    expect(lastRequestedCheckpointRequestId(), 101);
+  });
+
+  syncTest('stores seeded checkpoint request ids verbatim', (_) {
+    invokeControlRaw('start', null);
+    expect(seedCheckpointRequestId(41), 41);
+    expect(lastRequestedCheckpointRequestId(), 41);
+
+    // Core does not enforce monotonicity when seeding. SDKs own reconciliation and seed the
+    // effective state accepted by the service, which may be below the local counter (e.g. after
+    // switching users).
+    expect(seedCheckpointRequestId(5), 5);
+    expect(lastRequestedCheckpointRequestId(), 5);
+    expect(nextCheckpointRequestId(), 6);
+  });
+
+  syncTest('rejects absent checkpoint request ids when seeding', (_) {
+    invokeControlRaw('start', null);
+
+    expect(
+      () => invokeControlRaw('seed_checkpoint_request_id', null),
+      throwsA(isSqliteException(
+        3091,
+        contains('checkpoint request id must be an integer or integer string'),
+      )),
+    );
+    expect(lastRequestedCheckpointRequestId(), isNull);
+  });
+
+  syncTest('rejects zero checkpoint request ids when seeding', (_) {
+    invokeControlRaw('start', null);
+
+    expect(
+      () => invokeControlRaw('seed_checkpoint_request_id', 0),
+      throwsA(isSqliteException(
+        3091,
+        contains('checkpoint request id must be a positive integer'),
+      )),
+    );
+    expect(lastRequestedCheckpointRequestId(), isNull);
+  });
+
+  syncTest('accepts text checkpoint request ids when seeding', (_) {
+    invokeControlRaw('start', null);
+    expect(seedCheckpointRequestId('41'), 41);
+
+    expect(lastRequestedCheckpointRequestId(), 41);
+    expect(nextCheckpointRequestId(), 42);
+  });
+
+  syncTest('requires active sync iteration before seeding checkpoint ids', (_) {
+    expect(
+      () => seedCheckpointRequestId(1),
+      throwsA(isSqliteException(
+        21,
+        contains('No iteration is active'),
+      )),
+    );
+    expect(lastRequestedCheckpointRequestId(), isNull);
+  });
+
+  syncTest('requires checkpoint request state before allocating checkpoint ids',
+      (_) {
+    invokeControlRaw('start', null);
+
+    expect(
+      () => invokeControlRaw('next_checkpoint_request_id', null),
+      throwsA(isSqliteException(
+        21,
+        contains('Checkpoint request state has not been seeded'),
+      )),
+    );
+    expect(probeTargetCheckpointRequestId(), isNull);
+  });
+
+  syncTest(
+      'probes and updates target checkpoint request id without sync iteration',
+      (_) {
+    expect(probeTargetCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(1), isNull);
+    expect(lastRequestedCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(), 1);
+
+    expect(probeTargetCheckpointRequestId(2), 1);
+    expect(lastRequestedCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(), 2);
+  });
+
+  syncTest(
+      'accepts text checkpoint request ids for target checkpoint request id',
+      (_) {
+    expect(probeTargetCheckpointRequestId('1'), isNull);
+    expect(lastRequestedCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(), 1);
+  });
+
+  syncTest('rejects negative target checkpoint request ids', (_) {
+    expect(
+      () => invokeControlRaw('target_checkpoint_request_id', -1),
+      throwsA(isSqliteException(
+        3091,
+        contains('target checkpoint request id must be a non-negative integer'),
+      )),
+    );
+  });
+
+  syncTest('target checkpoint request id does not update checkpoint request id',
+      (_) {
+    invokeControlRaw('start', null);
+    expect(seedCheckpointRequestId(10), 10);
+
+    expect(lastRequestedCheckpointRequestId(), 10);
+    expect(probeTargetCheckpointRequestId(7), isNull);
+    expect(probeTargetCheckpointRequestId(), 7);
+    expect(lastRequestedCheckpointRequestId(), 10);
+  });
+
+  syncTest('does not store target ops as checkpoint request id', (_) {
+    expect(probeTargetCheckpointRequestId(0), isNull);
+    expect(lastRequestedCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(), isNull);
+
+    expect(probeTargetCheckpointRequestId(1), isNull);
+    expect(lastRequestedCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(), 1);
+
+    expect(probeTargetCheckpointRequestId(0), 1);
+    expect(probeTargetCheckpointRequestId(), isNull);
+
+    expect(probeTargetCheckpointRequestId(9223372036854775807), isNull);
+    expect(lastRequestedCheckpointRequestId(), isNull);
+    expect(probeTargetCheckpointRequestId(), 9223372036854775807);
+  });
+
+  syncTest('does not persist placeholder checkpoint request id', (_) {
+    db.execute("insert into items (id, col) values ('local', 'data');");
+
+    invokeControlRaw('start', null);
+
+    expect(lastRequestedCheckpointRequestId(), isNull);
+  });
+
+  syncTest(
+    'does not emit applied checkpoint request id for partial checkpoint',
+    (_) {
+      invokeControl('start', null);
+
+      pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+      final instructions = pushCheckpointComplete(priority: 2);
+
+      expect(
+        instructions,
+        isNot(contains(containsPair('DidCompleteSync',
+            containsPair('applied_checkpoint_request_id', anything)))),
+      );
+      expect(
+        instructions,
+        isNot(contains(containsPair(
+            'UpdateSyncStatus',
+            containsPair(
+                'status',
+                containsPair('internal_last_applied_checkpoint_request_id',
+                    anything))))),
+      );
+      expect(lastAppliedCheckpointRequestId(), isNull);
+
+      final [row] = db.select('select powersync_offline_sync_status();');
+      expect(
+        json.decode(row[0]),
+        isNot(containsPair('last_applied_checkpoint_request_id', anything)),
+      );
+    },
+  );
+
+  syncTest('emits applied checkpoint request id for full checkpoint', (_) {
+    invokeControl('start', null);
+
+    pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+    final appliedInstructions = pushCheckpointComplete();
+
+    expect(
+      appliedInstructions,
+      contains(
+        containsPair(
+          'DidCompleteSync',
+          {'applied_checkpoint_request_id': '1'},
+        ),
+      ),
+    );
+    expect(
+      appliedInstructions,
+      contains(containsPair('LogLine',
+          {'severity': 'DEBUG', 'line': 'Applied checkpoint request id 1'})),
+    );
+    expect(
+      appliedInstructions,
+      contains(containsPair(
+        'UpdateSyncStatus',
+        containsPair(
+          'status',
+          containsPair('internal_last_applied_checkpoint_request_id', '1'),
+        ),
+      )),
+    );
+    expect(lastAppliedCheckpointRequestId(), 1);
+
+    pushCheckpoint(buckets: priorityBuckets);
+    final instructions = pushCheckpointComplete();
+
+    expect(
+      instructions,
+      contains(containsPair('DidCompleteSync', <String, Object?>{})),
+    );
+    expect(
+      instructions,
+      isNot(contains(containsPair(
+          'UpdateSyncStatus',
+          containsPair(
+              'status',
+              containsPair(
+                  'internal_last_applied_checkpoint_request_id', anything))))),
+    );
+
+    final [row] = db.select('select powersync_offline_sync_status();');
+    expect(
+      json.decode(row[0]),
+      isNot(containsPair('last_applied_checkpoint_request_id', anything)),
+    );
+
+    expect(
+        db.select(r"SELECT * FROM ps_buckets WHERE name = '$local'"), isEmpty);
+  });
+
+  syncTest('disconnect clears applied checkpoint request id from status', (_) {
+    invokeControl('start', null);
+
+    pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+    pushCheckpointComplete();
+
+    final instructions = invokeControl('stop', null);
+    expect(
+      instructions,
+      contains(containsPair(
+        'UpdateSyncStatus',
+        containsPair(
+          'status',
+          allOf(
+            containsPair('connected', false),
+            isNot(containsPair(
+                'internal_last_applied_checkpoint_request_id', anything)),
+          ),
+        ),
+      )),
+    );
+  });
+
+  syncTest('local writes clear checkpoint request high-water marks', (_) {
+    invokeControl('start', null);
+
+    pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '5');
+    pushCheckpointComplete();
+    expect(lastAppliedCheckpointRequestId(), 5);
+
+    // A local write can only be acknowledged by a checkpoint request id observed after it. Stale
+    // seen/applied values (which may predate a request counter restart) must not remain to open
+    // the apply gate for a smaller new target id.
+    db.execute("insert into items (id, col) values ('local', 'data');");
+
+    expect(lastAppliedCheckpointRequestId(), isNull);
+    expect(
+      db.select(
+          "SELECT 1 FROM ps_kv WHERE key = 'last_seen_checkpoint_request_id'"),
+      isEmpty,
+    );
+    expect(probeTargetCheckpointRequestId(), 9223372036854775807);
+  });
+
+  test('clearing database clears sync status', () {
+    invokeControl('start', null);
+    pushCheckpoint(buckets: priorityBuckets);
+    pushCheckpointComplete();
+
+    expect(db.select('SELECT priority FROM ps_sync_state').single,
+        {'priority': 2147483647});
+
+    db.executeInTx('SELECT powersync_clear(0)');
+    expect(db.select('SELECT * FROM ps_sync_state'), hasLength(0));
+  });
+
+  test('can soft clear', () {
+    invokeControl('start', null);
+    pushCheckpoint(buckets: [bucketDescription('a', count: 1)]);
+    pushSyncData('a', '1', 'row-0', 'PUT', {'col': 'hi'});
+    pushCheckpointComplete();
+
+    db.execute(
+        'insert into items (id, col) values (uuid(), ?)', ['local item']);
+    expect(db.select('SELECT * FROM items'), hasLength(2));
+    invokeControl('stop', null);
+
+    // Soft clear
+    db.executeInTx('SELECT powersync_clear(2)');
+    db.executeInTx(
+        'select powersync_replace_schema(?)', [json.encode(testSchema)]);
+    expect(db.select('SELECT * FROM items'), hasLength(0));
+    expect(
+        db.select(r"SELECT * FROM ps_buckets WHERE name = '$local'"), isEmpty);
+
+    final request = invokeControl('start', null);
+    expect(
+      request,
+      contains(
+        containsPair(
+          'EstablishSyncStream',
+          containsPair(
+            // Should request state from before clear
+            'request',
+            containsPair('buckets', [
+              {'name': 'a', 'after': '1'}
+            ]),
+          ),
+        ),
+      ),
+    );
+
+    pushCheckpoint(buckets: [bucketDescription('a', count: 1)]);
+    pushCheckpointComplete();
+    expect(db.select('SELECT * FROM items'), hasLength(1));
+  });
+
+  group('trigger resync', () {
+    test('forbidden during sync', () {
+      invokeControl('start', null);
+
+      expect(
+        () => db.executeInTx('SELECT powersync_trigger_resync(1)'),
+        throwsA(
+          isSqliteException(
+            3091,
+            contains(
+                'Cannot clear or trigger resync while a sync iteration is active.'),
+          ),
+        ),
+      );
+    });
+
+    test('re-applies data', () {
+      invokeControl('start', null);
+      pushCheckpoint(buckets: [bucketDescription('a', count: 1)]);
+      pushSyncData('a', '1', 'row-0', 'PUT', {'col': 'hi'});
+      pushCheckpointComplete();
+      invokeControl('stop', null);
+
+      db.execute('delete from ps_data__items');
+      db.executeInTx('select powersync_trigger_resync(0)');
+
+      final instructions = invokeControl('start', null);
+      expect(
+        instructions,
+        contains(
+          containsPair(
+            'EstablishSyncStream',
+            containsPair(
+              'request',
+              containsPair('buckets', [
+                {'name': 'a', 'after': '1'}
+              ]),
+            ),
+          ),
+        ),
+      );
+
+      pushCheckpoint(buckets: [bucketDescription('a', count: 1)]);
+      pushCheckpointComplete();
+
+      expect(db.select('select * from items'), [
+        {'id': 'row-0', 'col': 'hi'}
+      ]);
+    });
+
+    test('can clear has synced', () {
+      invokeControl('start', null);
+      pushCheckpoint(buckets: [bucketDescription('a', count: 1)]);
+      pushSyncData('a', '1', 'row-0', 'PUT', {'col': 'hi'});
+      pushCheckpointComplete();
+      invokeControl('stop', null);
+
+      db.executeInTx('select powersync_trigger_resync(1)');
+      final [row] = db.select('select powersync_offline_sync_status()');
+      expect(json.decode(row.columnAt(0)),
+          containsPair('priority_status', isEmpty));
+    });
+  });
+
+  test('persists download progress', () {
+    const bucket = 'bkt';
+    void expectProgress(int atLast, int sinceLast) {
+      final [row] = db.select(
+        'SELECT count_at_last, count_since_last FROM ps_buckets WHERE name = ?',
+        [bucket],
+      );
+      final [actualAtLast, actualSinceLast] = row.values;
+
+      expect(actualAtLast, atLast, reason: 'count_at_last mismatch');
+      expect(actualSinceLast, sinceLast, reason: 'count_since_last mismatch');
+    }
+
+    invokeControl('start', null);
+    pushCheckpoint(buckets: [bucketDescription(bucket, count: 2)]);
+    pushCheckpointComplete();
+
+    pushSyncData(bucket, '1', 'row-0', 'PUT', {'col': 'hi'});
+    expectProgress(0, 1);
+
+    pushSyncData(bucket, '1', 'row-1', 'PUT', {'col': 'hi again'});
+    expectProgress(0, 2);
+
+    pushCheckpointComplete(lastOpId: '2');
+    expectProgress(2, 0);
+  });
+
+  test('deletes old buckets', () {
+    for (final name in ['one', 'two', 'three']) {
+      db.execute('INSERT INTO ps_buckets (name) VALUES (?)', [name]);
+    }
+
+    expect(
+      invokeControl('start', null),
+      contains(
+        containsPair(
+          'EstablishSyncStream',
+          containsPair('request', containsPair('buckets', hasLength(3))),
+        ),
+      ),
+    );
+
+    syncLine({
+      'checkpoint': {
+        'last_op_id': '1',
+        'write_checkpoint': null,
+        'buckets': [
+          {
+            'bucket': 'one',
+            'checksum': 0,
+            'priority': 3,
+            'count': 1,
+          }
+        ],
+      },
+    });
+
+    // Should delete the old buckets two and three
+    expect(db.select('select name from ps_buckets order by id'), [
+      {'name': 'one'},
+    ]);
+  });
+
+  if (isBson) {
+    test('can parse checksums from JS numbers', () {
+      invokeControl('start', null);
+      pushCheckpoint(buckets: [bucketDescription('global[]')]);
+
+      syncLine({
+        'data': {
+          'bucket': 'a',
+          'has_more': false,
+          'after': null,
+          'next_after': null,
+          'data': [
+            {
+              'op_id': '1',
+              'op': 'PUT',
+              'object_type': 'items',
+              'object_id': 'id',
+              'checksum': 3573495687.0,
+              'data': '{}',
+            }
+          ],
+        },
+      });
+    });
+  }
+
+  group('progress', () {
+    Map<String, BucketProgress>? progress = null;
+    var lastOpId = 0;
+
+    setUp(() {
+      lastOpId = 0;
+      return progress = null;
+    });
+
+    (int, int) totalProgress() {
+      return progress!.values.downloadAndTargetCount();
+    }
+
+    (int, int) priorityProgress(int priority) {
+      return progress!.values
+          .where((e) => e.priority <= priority)
+          .downloadAndTargetCount();
+    }
+
+    void applyInstructions(List<Object?> instructions) {
+      for (final instruction in instructions.cast<Map>()) {
+        if (instruction['UpdateSyncStatus'] case final updateStatus?) {
+          final downloading = updateStatus['status']['downloading'];
+          if (downloading == null) {
+            progress = null;
+          } else {
+            progress = {
+              for (final MapEntry(:key, :value)
+                  in downloading['buckets'].entries)
+                key: (
+                  atLast: value['at_last'] as int,
+                  sinceLast: value['since_last'] as int,
+                  targetCount: value['target_count'] as int,
+                  priority: value['priority'] as int,
+                ),
+            };
+          }
+        }
+      }
+    }
+
+    void pushSyncData(String bucket, int amount) {
+      final instructions = syncLine({
+        'data': {
+          'bucket': bucket,
+          'has_more': false,
+          'after': null,
+          'next_after': null,
+          'data': [
+            for (var i = 0; i < amount; i++)
+              {
+                'op_id': (++lastOpId).toString(),
+                'op': 'PUT',
+                'object_type': 'items',
+                'object_id': '$lastOpId',
+                'checksum': 0,
+                'data': '{}',
+              }
+          ],
+        },
+      });
+
+      applyInstructions(instructions);
+    }
+
+    void addCheckpointComplete({int? priority}) {
+      applyInstructions(
+          pushCheckpointComplete(priority: priority, lastOpId: '$lastOpId'));
+    }
+
+    test('without priorities', () {
+      applyInstructions(invokeControl('start', null));
+      expect(progress, isNull);
+
+      applyInstructions(pushCheckpoint(
+          buckets: [bucketDescription('a', count: 10)], lastOpId: 10));
+      expect(totalProgress(), (0, 10));
+
+      pushSyncData('a', 10);
+      expect(totalProgress(), (10, 10));
+
+      addCheckpointComplete();
+      expect(progress, isNull);
+
+      // Emit new data, progress should be 0/2 instead of 10/12
+      applyInstructions(syncLine({
+        'checkpoint_diff': {
+          'last_op_id': '12',
+          'updated_buckets': [
+            {
+              'bucket': 'a',
+              'priority': 3,
+              'checksum': 0,
+              'count': 12,
+              'last_op_id': null
+            },
+          ],
+          'removed_buckets': [],
+          'write_checkpoint': null,
+        }
+      }));
+      expect(totalProgress(), (0, 2));
+
+      pushSyncData('a', 2);
+      expect(totalProgress(), (2, 2));
+
+      addCheckpointComplete();
+      expect(progress, isNull);
+    });
+
+    test('interrupted sync', () {
+      applyInstructions(invokeControl('start', null));
+      applyInstructions(pushCheckpoint(
+          buckets: [bucketDescription('a', count: 10)], lastOpId: 10));
+      expect(totalProgress(), (0, 10));
+
+      pushSyncData('a', 5);
+      expect(totalProgress(), (5, 10));
+
+      // Emulate stream closing
+      applyInstructions(invokeControl('stop', null));
+      expect(progress, isNull);
+
+      applyInstructions(invokeControl('start', null));
+      applyInstructions(pushCheckpoint(
+          buckets: [bucketDescription('a', count: 10)], lastOpId: 10));
+      expect(totalProgress(), (5, 10));
+
+      pushSyncData('a', 5);
+      expect(totalProgress(), (10, 10));
+      addCheckpointComplete();
+      expect(progress, isNull);
+    });
+
+    test('interrupted sync with new checkpoint', () {
+      applyInstructions(invokeControl('start', null));
+      applyInstructions(pushCheckpoint(
+          buckets: [bucketDescription('a', count: 10)], lastOpId: 10));
+      expect(totalProgress(), (0, 10));
+
+      pushSyncData('a', 5);
+      expect(totalProgress(), (5, 10));
+
+      // Emulate stream closing
+      applyInstructions(invokeControl('stop', null));
+      expect(progress, isNull);
+
+      applyInstructions(invokeControl('start', null));
+      applyInstructions(pushCheckpoint(
+          buckets: [bucketDescription('a', count: 12)], lastOpId: 12));
+      expect(totalProgress(), (5, 12));
+
+      pushSyncData('a', 7);
+      expect(totalProgress(), (12, 12));
+      addCheckpointComplete();
+      expect(progress, isNull);
+    });
+
+    test('interrupt and defrag', () {
+      applyInstructions(invokeControl('start', null));
+      applyInstructions(pushCheckpoint(
+        buckets: [
+          bucketDescription('a', count: 10),
+          bucketDescription('b', count: 5),
+        ],
+        lastOpId: 10,
+      ));
+      expect(totalProgress(), (0, 15));
+
+      pushSyncData('a', 5);
+      pushSyncData('b', 4);
+      expect(totalProgress(), (9, 15));
+
+      // Emulate stream closing
+      applyInstructions(invokeControl('stop', null));
+      expect(progress, isNull);
+
+      applyInstructions(invokeControl('start', null));
+      // A defrag in the meantime shrank bucket a.
+      applyInstructions(pushCheckpoint(buckets: [
+        bucketDescription('a', count: 4),
+        bucketDescription('b', count: 5),
+      ], lastOpId: 14));
+      // The progress in a should no longer count, e.g. we shouldn't report 9/9.
+      expect(totalProgress(), (4, 9));
+
+      // This should also reset the persisted progress counters.
+      final [a, b] = db.select('SELECT * FROM ps_buckets ORDER BY name');
+      expect(a, containsPair('count_since_last', 0));
+      expect(a, containsPair('count_at_last', 0));
+      expect(b, containsPair('count_since_last', 4));
+      expect(b, containsPair('count_at_last', 0));
+    });
+
+    test('different priorities', () {
+      void expectProgress((int, int) prio0, (int, int) prio2) {
+        expect(priorityProgress(0), prio0);
+        expect(priorityProgress(1), prio0);
+        expect(priorityProgress(2), prio2);
+        expect(totalProgress(), prio2);
+      }
+
+      applyInstructions(invokeControl('start', null));
+      applyInstructions(pushCheckpoint(buckets: [
+        bucketDescription('a', count: 5, priority: 0),
+        bucketDescription('b', count: 5, priority: 2),
+      ], lastOpId: 10));
+      expectProgress((0, 5), (0, 10));
+
+      pushSyncData('a', 5);
+      expectProgress((5, 5), (5, 10));
+
+      pushSyncData('b', 2);
+      expectProgress((5, 5), (7, 10));
+
+      // Before syncing b fully, send a new checkpoint
+      applyInstructions(pushCheckpoint(buckets: [
+        bucketDescription('a', count: 8, priority: 0),
+        bucketDescription('b', count: 6, priority: 2),
+      ], lastOpId: 14));
+      expectProgress((5, 8), (7, 14));
+
+      pushSyncData('a', 3);
+      expectProgress((8, 8), (10, 14));
+      pushSyncData('b', 4);
+      expectProgress((8, 8), (14, 14));
+
+      addCheckpointComplete();
+      expect(progress, isNull);
+    });
+  });
+
+  group('applies pending changes', () {
+    test('write checkpoint before upload complete', () {
+      // local write while offline
+      db.execute("insert into items (id, col) values ('local', 'data');");
+      invokeControl('start', null);
+
+      // Start upload process. Assume data has been uploaded and a write
+      // checkpoint has been requested, but not received yet.
+      db.execute('DELETE FROM ps_crud');
+      pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+      pushSyncData('prio1', '1', 'row-0', 'PUT', {'col': 'hi'});
+      expect(pushCheckpointComplete(), [
+        {
+          'CheckpointDelayedDueToLocalData': {},
+        },
+        containsPair('LogLine', {
+          'severity': 'INFO',
+          'line': contains('Will retry at completed upload')
+        }),
+      ]);
+
+      // Now complete the upload process.
+      probeTargetCheckpointRequestId(1);
+      final uploadCompleteInstructions =
+          invokeControl('completed_upload', null);
+      expect(
+        uploadCompleteInstructions,
+        contains(containsPair('LogLine',
+            {'severity': 'DEBUG', 'line': 'Applied checkpoint request id 1'})),
+      );
+
+      // This should apply the pending write checkpoint.
+      expect(fetchRows(), [
+        {'id': 'row-0', 'col': 'hi'}
+      ]);
+    });
+
+    test('write checkpoint before upload complete, only prio 0', () {
+      // local write while offline
+      db.execute("insert into items (id, col) values ('local', 'data');");
+      invokeControl('start', null);
+
+      db.execute('DELETE FROM ps_crud');
+      pushCheckpoint(
+          buckets: [bucketDescription('prio0', priority: 0)],
+          writeCheckpoint: '1');
+      pushSyncData('prio0', '1', 'row-0', 'PUT', {'col': 'hi'});
+      expect(
+          pushCheckpointComplete(),
+          containsAllInOrder([
+            {
+              'CheckpointDelayedDueToLocalData': {},
+            },
+            containsPair('LogLine', {
+              'severity': 'INFO',
+              'line': contains('Will retry at completed upload')
+            }),
+          ]));
+
+      // Prio 0 buckets have been applied as a partial checkpoint already.
+      expect(fetchRows(), [
+        {'id': 'local', 'col': 'data'},
+        {'id': 'row-0', 'col': 'hi'},
+      ]);
+
+      // Completing the upload should apply the full checkpoint.
+      probeTargetCheckpointRequestId(1);
+      expect(
+        invokeControl('completed_upload', null),
+        contains(containsPair('LogLine',
+            {'severity': 'DEBUG', 'line': 'Applied checkpoint request id 1'})),
+      );
+      expect(fetchRows(), [
+        {'id': 'row-0', 'col': 'hi'}
+      ]);
+    });
+
+    test('write checkpoint with synced data', () {
+      // local write while offline
+      db.execute("insert into items (id, col) values ('local', 'data');");
+      invokeControl('start', null);
+
+      // Complete upload process
+      db.execute('DELETE FROM ps_crud');
+      probeTargetCheckpointRequestId(1);
+      expect(invokeControl('completed_upload', null), isEmpty);
+      expect(lastRequestedCheckpointRequestId(), 1);
+
+      // Sync afterwards containing data and write checkpoint.
+      pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+      pushSyncData('prio1', '1', 'row-0', 'PUT', {'col': 'hi'});
+      pushCheckpointComplete();
+      expect(fetchRows(), [
+        {'id': 'row-0', 'col': 'hi'}
+      ]);
+    });
+
+    test('write checkpoint after synced data', () {
+      // local write while offline
+      db.execute("insert into items (id, col) values ('local', 'data');");
+      invokeControl('start', null);
+
+      // Upload changes, assume that triggered a checkpoint.
+      db.execute('DELETE FROM ps_crud');
+      pushCheckpoint(buckets: priorityBuckets);
+      pushSyncData('prio1', '1', 'row-0', 'PUT', {'col': 'hi'});
+      expect(pushCheckpointComplete(), [
+        {
+          'CheckpointDelayedDueToLocalData': {},
+        },
+        containsPair('LogLine', {
+          'severity': 'INFO',
+          'line': contains('Will retry at completed upload')
+        }),
+      ]);
+
+      // Now the upload is complete and requests a write checkpoint
+      probeTargetCheckpointRequestId(1);
+      expect(invokeControl('completed_upload', null), isEmpty);
+
+      // Which triggers a new iteration
+      pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+      expect(
+          pushCheckpointComplete(),
+          contains(containsPair('LogLine', {
+            'severity': 'DEBUG',
+            'line': contains('Validated and applied checkpoint')
+          })));
+
+      expect(fetchRows(), [
+        {'id': 'row-0', 'col': 'hi'}
+      ]);
+    });
+
+    test('second local write', () {
+      // first local write while offline
+      db.execute("insert into items (id, col) values ('local', 'data');");
+      invokeControl('start', null);
+
+      // Upload changes, assume that triggered a checkpoint.
+      db.execute('DELETE FROM ps_crud');
+      pushCheckpoint(buckets: priorityBuckets, writeCheckpoint: '1');
+      pushSyncData('prio1', '1', 'row-0', 'PUT', {'col': 'hi'});
+      expect(pushCheckpointComplete(), [
+        {
+          'CheckpointDelayedDueToLocalData': {},
+        },
+        containsPair('LogLine', {
+          'severity': 'INFO',
+          'line': contains('Will retry at completed upload')
+        }),
+      ]);
+
+      // Second local write during sync
+      db.execute("insert into items (id, col) values ('local2', 'data2');");
+
+      // Now the upload is complete and requests a write checkpoint
+      probeTargetCheckpointRequestId(1);
+      expect(invokeControl('completed_upload', null), [
+        containsPair('LogLine', {
+          'severity': 'WARNING',
+          'line':
+              'Could not apply pending checkpoint even after completed upload'
+        })
+      ]);
+
+      expect(fetchRows(), [
+        {'id': 'local', 'col': 'data'},
+        {'id': 'local2', 'col': 'data2'},
+      ]);
+    });
+  });
+
+  group('errors', () {
+    syncTest('diff without prior checkpoint', (_) {
+      invokeControl('start', null);
+
+      expect(
+        () => syncLine({
+          'checkpoint_diff': {
+            'last_op_id': '1',
+            'write_checkpoint': null,
+            'updated_buckets': [],
+            'removed_buckets': [],
+          },
+        }),
+        throwsA(
+          isA<SqliteException>().having(
+            (e) => e.message,
+            'message',
+            contains('checkpoint_diff without previous checkpoint'),
+          ),
+        ),
+      );
+    });
+
+    syncTest('checksum mismatch', (_) {
+      invokeControl('start', null);
+
+      syncLine({
+        'checkpoint': {
+          'last_op_id': '1',
+          'write_checkpoint': null,
+          'buckets': [
+            {
+              'bucket': 'a',
+              'checksum': 1234,
+              'priority': 3,
+              'count': 1,
+            }
+          ],
+        },
+      });
+      pushSyncData('a', '1', '1', 'PUT', {'col': 'hi'}, checksum: 4321);
+
+      expect(db.select('SELECT * FROM ps_buckets'), hasLength(1));
+
+      expect(
+        syncLine({
+          'checkpoint_complete': {'last_op_id': '1'},
+        }),
+        [
+          {
+            'LogLine': {
+              'severity': 'WARNING',
+              'line': contains(
+                  "Checksums didn't match, failed for: a (expected 0x000004d2, got 0x000010e1 = 0x000010e1 (op) + 0x00000000 (add))")
+            }
+          },
+          {
+            'UpdateSyncStatus': {
+              'status': allOf(
+                containsPair('connected', false),
+                containsPair('connecting', false),
+              ),
+            }
+          },
+          {
+            'CloseSyncStream': {'hide_disconnect': false}
+          },
+        ],
+      );
+
+      // Should delete bucket with checksum mismatch
+      expect(db.select('SELECT * FROM ps_buckets'), isEmpty);
+    });
+
+    syncTest('can retry', (_) {
+      invokeControl('start', null);
+
+      expect(
+        () => syncLine(
+          {
+            'checkpoint': {
+              'last_op_id': 'invalid op id',
+              'write_checkpoint': null,
+              'buckets': [],
+            },
+          },
+        ),
+        throwsA(anything),
+      );
+
+      // Realistically, client SDKs would abort on this error. Still, verify
+      // that we're able to try again and resume from the previous initial
+      // state.
+      final instructions = syncLine(
+        {
+          'checkpoint': {
+            'last_op_id': '1',
+            'write_checkpoint': null,
+            'buckets': [],
+          },
+        },
+      );
+
+      expect(instructions, [
+        {
+          'UpdateSyncStatus': {
+            'status': allOf(
+                containsPair(
+                  'connected',
+                  true,
+                ),
+                containsPair(
+                  'downloading',
+                  isNotNull,
+                ))
+          }
+        }
+      ]);
+    });
+
+    group('recoverable',
+        skip: testingWithSanitizers != null
+            ? 'Unsupported in memory VFS'
+            : null, () {
+      late CommonDatabase secondary;
+      final checkpoint = {
+        'checkpoint': {
+          'last_op_id': '1',
+          'write_checkpoint': null,
+          'buckets': [
+            {
+              'bucket': 'a',
+              'checksum': 0,
+              'priority': 3,
+              'count': 1,
+            }
+          ],
+        },
+      };
+
+      setUp(() {
+        final fileName = d.path('test.db');
+
+        db = openTestDatabase(fileName: fileName)
+          ..executeInTx('select powersync_init();')
+          ..executeInTx(
+              'select powersync_replace_schema(?)', [json.encode(testSchema)])
+          ..execute('update ps_kv set value = ?2 where key = ?1',
+              ['client_id', 'test-test-test-test']);
+
+        secondary = openTestDatabase(fileName: fileName);
+      });
+
+      test('starting checkpoints', () {
+        db.execute('INSERT INTO ps_buckets (name) VALUES (?)', ['unrelated']);
+        invokeControl('start', null);
+
+        // Lock the db so that the checkpoint line can't delete the unrelated
+        // bucket.
+        secondary.execute('begin exclusive');
+        expect(
+          () => syncLine(checkpoint),
+          throwsA(
+            isSqliteException(5,
+                'powersync_control: statement DELETE FROM ps_buckets WHERE name = ?1 RETURNING id: internal SQLite call returned BUSY: database is locked'),
+          ),
+        );
+        secondary.execute('commit');
+        expect(db.select('SELECT name FROM ps_buckets'), [
+          {'name': 'unrelated'}
+        ]);
+
+        syncLine(checkpoint);
+        expect(db.select('SELECT name FROM ps_buckets'), isEmpty);
+      });
+
+      test('saving oplog data', () {
+        invokeControl('start', null);
+        syncLine(checkpoint);
+
+        // Lock the database before the data line
+        secondary.execute('begin exclusive');
+
+        // This should make powersync_control unable to save oplog data.
+        expect(
+          () => pushSyncData('a', '1', '1', 'PUT', {'col': 'hi'}),
+          throwsA(isSqliteException(
+              5, contains('internal SQLite call returned BUSY'))),
+        );
+
+        // But we should be able to retry
+        secondary.execute('commit');
+
+        expect(pushSyncData('a', '1', '1', 'PUT', {'col': 'hi'}), [
+          containsPair(
+            'UpdateSyncStatus',
+            containsPair(
+              'status',
+              containsPair(
+                'downloading',
+                {
+                  'buckets': {
+                    'prio_3': {
+                      'priority': 3,
+                      'at_last': 0,
+                      'since_last': 1,
+                      'target_count': 1
+                    },
+                  }
+                },
+              ),
+            ),
+          )
+        ]);
+      });
+
+      test('applying local changes', () {
+        invokeControl('start', null);
+        syncLine(checkpoint);
+        pushSyncData('a', '1', '1', 'PUT', {'col': 'hi'});
+
+        secondary.execute('begin exclusive');
+        expect(
+          () => pushCheckpointComplete(),
+          throwsA(
+            isSqliteException(
+                5, contains('internal SQLite call returned BUSY')),
+          ),
+        );
+        secondary.execute('commit');
+
+        pushCheckpointComplete();
+        expect(db.select('SELECT * FROM items'), hasLength(1));
+      });
+    });
+  });
+
+  syncTest('sets powersync_in_sync_operation', (_) {
+    var [row] = db.select('SELECT powersync_in_sync_operation() as r');
+    expect(row, {'r': 0});
+
+    var testInSyncInvocations = <bool>[];
+
+    db.createFunction(
+      functionName: 'test_in_sync',
+      function: (args) {
+        testInSyncInvocations.add((args[0] as int) != 0);
+        return null;
+      },
+      argumentCount: const AllowedArgumentCount(1),
+      directOnly: false,
+    );
+
+    db.execute('''
+CREATE TRIGGER foo AFTER INSERT ON ps_data__items BEGIN
+  SELECT test_in_sync(powersync_in_sync_operation());
+END;
+''');
+
+    // Run an insert sync iteration to start the trigger
+    invokeControl('start', null);
+    pushCheckpoint(buckets: [bucketDescription('a')]);
+    pushSyncData(
+      'a',
+      '1',
+      '1',
+      'PUT',
+      {'col': 'foo'},
+      objectType: 'items',
+    );
+    pushCheckpointComplete();
+
+    expect(testInSyncInvocations, [true]);
+
+    [row] = db.select('SELECT powersync_in_sync_operation() as r');
+    expect(row, {'r': 0});
+  });
+
+  group('raw tables', () {
+    const rawUsersTable = {
+      'name': 'users',
+      'put': {
+        'sql': 'INSERT OR REPLACE INTO users (id, name) VALUES (?, ?);',
+        'params': [
+          'Id',
+          {'Column': 'name'}
+        ],
+      },
+      'delete': {
+        'sql': 'DELETE FROM users WHERE id = ?',
+        'params': ['Id'],
+      },
+      'clear': 'DELETE FROM users;',
+    };
+    const schema = {
+      'raw_tables': [rawUsersTable],
+      'tables': [],
+    };
+
+    void setupRawTables() {
+      db.execute('''
+CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL) STRICT;
+
+CREATE TRIGGER users_insert
+   AFTER INSERT ON users
+   FOR EACH ROW
+   BEGIN
+      INSERT INTO powersync_crud (op, id, type, data) VALUES ('PUT', NEW.id, 'users', json_object(
+         'name', NEW.name
+      ));
+   END;
+
+CREATE TRIGGER users_update
+   AFTER UPDATE ON users
+   FOR EACH ROW
+   BEGIN
+      SELECT CASE
+         WHEN (OLD.id != NEW.id)
+         THEN RAISE (FAIL, 'Cannot update id')
+      END;
+
+      INSERT INTO powersync_crud (op, id, type, data) VALUES ('PATCH', NEW.id, 'users', json_object(
+         'name', NEW.name
+      ));
+   END;
+
+CREATE TRIGGER users_delete
+   AFTER DELETE ON users
+   FOR EACH ROW
+   BEGIN
+      INSERT INTO powersync_crud (op, id, type) VALUES ('DELETE', OLD.id, 'users');
+   END;
+''');
+    }
+
+    syncTest('smoke test', (_) {
+      setupRawTables();
+      invokeControl('start', json.encode({'schema': schema}));
+
+      // Insert
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      final users = db.select('SELECT * FROM users;');
+      expect(users, [
+        {'id': 'my_user', 'name': 'First user'}
+      ]);
+
+      // Delete
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'REMOVE',
+        null,
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      expect(db.select('SELECT * FROM users'), isEmpty);
+    });
+
+    syncTest('inferred schema smoke test', (_) {
+      db.execute(
+          'CREATE TABLE local_users (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, local TEXT) STRICT;');
+      final table = {
+        'name': 'users',
+        'table_name': 'local_users',
+        'synced_columns': ['name', 'email'],
+        // This also tests that the trigger preventing updates and deletes on
+        // insert-only tables is inert during sync_local.
+        'insert_only': true,
+      };
+
+      invokeControl(
+          'start',
+          json.encode({
+            'schema': {
+              'raw_tables': [table],
+              'tables': [],
+            }
+          }));
+
+      // Insert
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {
+          'name': 'First user',
+          'local': 'ignored because the column is local-only'
+        },
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      var users = db.select('SELECT * FROM local_users;');
+      expect(users, [
+        {
+          'id': 'my_user',
+          'name': 'First user',
+          'local': null,
+        }
+      ]);
+
+      // Now, alter the underlying table to add a new column
+      db.execute('ALTER TABLE local_users ADD COLUMN email TEXT');
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '2',
+        'my_user',
+        'PUT',
+        {
+          'name': 'First user',
+          'email': 'email@example.org',
+          'local': 'still ignored'
+        },
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      users = db.select('SELECT * FROM local_users;');
+      expect(users, [
+        {
+          'id': 'my_user',
+          'name': 'First user',
+          'email': 'email@example.org',
+          'local': null,
+        }
+      ]);
+    });
+
+    test('inferred schema with changes', () {
+      db.execute(
+          'CREATE TABLE local_users (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL) STRICT;');
+      final table = {
+        'name': 'users',
+        'table_name': 'local_users',
+        // This also tests that the trigger preventing updates and deletes on
+        // insert-only tables is inert during sync_local.
+        'insert_only': true,
+      };
+      db.execute('''
+SELECT
+  powersync_create_raw_table_crud_trigger(?1, 'test_insert', 'INSERT'),
+  powersync_create_raw_table_crud_trigger(?1, 'test_update', 'UPDATE'),
+  powersync_create_raw_table_crud_trigger(?1, 'test_delete', 'DELETE')
+''', [json.encode(table)]);
+
+      invokeControl(
+          'start',
+          json.encode({
+            'schema': {
+              'raw_tables': [table],
+              'tables': [],
+            }
+          }));
+
+      // Insert
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      final users = db.select('SELECT * FROM local_users;');
+      expect(users, [
+        {'id': 'my_user', 'name': 'First user'}
+      ]);
+
+      // Delete
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'REMOVE',
+        null,
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      expect(db.select('SELECT * FROM local_users'), isEmpty);
+    });
+
+    test('reports errors from underlying statements', () {
+      setupRawTables();
+      invokeControl('start', json.encode({'schema': schema}));
+
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {},
+        objectType: 'users',
+      );
+
+      expect(
+        pushCheckpointComplete,
+        throwsA(
+          isSqliteException(
+            1299,
+            'powersync_control: statement INSERT OR REPLACE INTO users (id, name) VALUES (?, ?);: '
+            'internal SQLite call returned CONSTRAINT_NOTNULL: NOT NULL constraint failed: users.name '
+            '(context: replacing into users, id = my_user, data = {})',
+          ),
+        ),
+      );
+    });
+
+    test('rest column', () {
+      db.execute(
+          'CREATE TABLE users (id TEXT NOT NULL, name TEXT, _rest TEXT)');
+      invokeControl(
+        'start',
+        json.encode({
+          'schema': {
+            'tables': [],
+            'raw_tables': [
+              {
+                'name': 'users',
+                'put': {
+                  'sql':
+                      'INSERT OR REPLACE INTO users (id, name, _rest) VALUES (?, ?, ?);',
+                  'params': [
+                    'Id',
+                    {'Column': 'name'},
+                    'Rest'
+                  ],
+                },
+                'delete': {
+                  'sql': 'DELETE FROM users WHERE id = ?',
+                  'params': ['Id'],
+                },
+                'clear': 'DELETE FROM users;',
+              }
+            ]
+          }
+        }),
+      );
+
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'user1',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+      pushSyncData(
+        'a',
+        '2',
+        'user2',
+        'PUT',
+        {'name': 'Second user', 'foo': 'bar', 'another': 3},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      final users = db.select('SELECT * FROM users;');
+      expect(users, [
+        {'id': 'user1', 'name': 'First user', '_rest': null},
+        {
+          'id': 'user2',
+          'name': 'Second user',
+          '_rest': json.encode({'another': 3, 'foo': 'bar'})
+        },
+      ]);
+    });
+
+    test('crud vtab', () {
+      // This is mostly a test for the triggers, validating the suggestions we
+      // give on https://docs.powersync.com/usage/use-case-examples/raw-tables#capture-local-writes-with-triggers
+      setupRawTables();
+
+      db.execute('''
+BEGIN;
+INSERT INTO users (id, name) VALUES ('test-id', 'test user');
+UPDATE users SET name = name || '2';
+DELETE FROM users;
+END;
+''');
+
+      expect(db.select('SELECT * FROM ps_crud'), [
+        {
+          'id': 1,
+          'data':
+              '{"op":"PUT","id":"test-id","type":"users","data":{"name":"test user"}}',
+          'tx_id': 1
+        },
+        {
+          'id': 2,
+          'data':
+              '{"op":"PATCH","id":"test-id","type":"users","data":{"name":"test user2"}}',
+          'tx_id': 1
+        },
+        {
+          'id': 3,
+          'data': '{"op":"DELETE","id":"test-id","type":"users"}',
+          'tx_id': 1
+        },
+      ]);
+    });
+
+    test("crud vtab is no-op during sync", () {
+      setupRawTables();
+      invokeControl('start', json.encode({'schema': schema}));
+
+      // Insert
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+
+      pushCheckpointComplete();
+      expect(db.select('SELECT * FROM ps_crud'), isEmpty);
+    });
+
+    test('clear', () {
+      setupRawTables();
+      db.executeInTx(
+          'SELECT powersync_replace_schema(?)', [json.encode(schema)]);
+      db.execute('INSERT INTO users (id, name) VALUES (uuid(), ?)', ['test']);
+
+      expect(db.select('SELECT * FROM users'), hasLength(1));
+      db.executeInTx('SELECT powersync_clear(0)');
+      expect(db.select('SELECT * FROM users'), hasLength(0));
+    });
+
+    test('can use foreign key constraints', () {
+      db.execute('pragma foreign_keys = on');
+      setupRawTables();
+      db.execute('''
+CREATE TABLE user_reference(
+  id TEXT NOT NULL PRIMARY KEY,
+  user TEXT NOT NULL REFERENCES users (id)
+    ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+
+CREATE TRIGGER users_ref_delete
+   AFTER DELETE ON user_reference
+   FOR EACH ROW
+   BEGIN
+      INSERT INTO powersync_crud (op, id, type) VALUES ('DELETE', OLD.id, 'user_reference');
+   END;
+''');
+
+      invokeControl(
+        'start',
+        json.encode({
+          'schema': {
+            'raw_tables': [
+              rawUsersTable,
+              {
+                'name': 'user_reference',
+                'put': {
+                  'sql':
+                      'INSERT OR REPLACE INTO user_reference (id, user) VALUES (?, ?);',
+                  'params': [
+                    'Id',
+                    {'Column': 'user'}
+                  ],
+                },
+                'delete': {
+                  'sql': 'DELETE FROM user_reference WHERE id = ?',
+                  'params': ['Id'],
+                },
+                'clear': 'DELETE FROM user_reference;',
+              }
+            ],
+            'tables': [],
+          }
+        }),
+      );
+
+      // Insert - send reference before user.
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_ref',
+        'PUT',
+        {'user': 'my_user'},
+        objectType: 'user_reference',
+      );
+      pushSyncData(
+        'a',
+        '2',
+        'my_user',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      expect(db.select('select * from user_reference'), isNotEmpty);
+
+      {
+        // Ensure deleting users creates a ps_crud entry for deleting references.
+        db.execute('BEGIN');
+
+        db.execute('DELETE FROM users');
+        final crud = db.select('SELECT * FROM ps_crud');
+        expect(crud, [
+          {
+            'id': 1,
+            'tx_id': 2,
+            'data': '{"op":"DELETE","id":"my_ref","type":"user_reference"}',
+          },
+          {
+            'id': 2,
+            'tx_id': 2,
+            'data': '{"op":"DELETE","id":"my_user","type":"users"}',
+          }
+        ]);
+
+        // Rollback local changes to test deleting from server.
+        db.execute('ROLLBACK');
+      }
+
+      // Delete - delete user before reference.
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '3',
+        'my_user',
+        'REMOVE',
+        null,
+        objectType: 'users',
+      );
+      pushSyncData(
+        'a',
+        '3',
+        'my_ref',
+        'REMOVE',
+        null,
+        objectType: 'user_reference',
+      );
+      pushCheckpointComplete();
+
+      expect(db.select('select * from user_reference'), isEmpty);
+    });
+  });
+
+  group('direct tables', () {
+    Object schema({
+      Map<String, Object?> additionalOptions = const {},
+      List<Object?> additionalColumns = const [],
+    }) {
+      return {
+        'tables': [
+          {
+            'name': 'users',
+            'columns': [
+              {'name': 'name', 'type': 'text'},
+              ...additionalColumns,
+            ],
+            'direct': true,
+            ...additionalOptions,
+          }
+        ]
+      };
+    }
+
+    test('smoke test', () {
+      db.executeInTx(
+          'SELECT powersync_replace_schema(?)', [json.encode(schema())]);
+      invokeControl('start', json.encode({'schema': schema()}));
+
+      // Insert
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      final users = db.select('SELECT * FROM users;');
+      expect(users, [
+        {
+          'id': 'my_user',
+          'name': 'First user',
+        }
+      ]);
+
+      // Delete
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'REMOVE',
+        null,
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      expect(db.select('SELECT * FROM users'), isEmpty);
+    });
+
+    test('local only', () {
+      final localOnlySchema = schema(additionalOptions: {'local_only': true});
+
+      db.executeInTx(
+          'SELECT powersync_replace_schema(?)', [json.encode(localOnlySchema)]);
+      invokeControl('start', json.encode({'schema': localOnlySchema}));
+
+      // Insert
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {'name': 'First user'},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+
+      expect(db.select('SELECT * FROM ps_untyped'), hasLength(1));
+    });
+
+    test('re-applies data after adding new column', () {
+      final initialSchema = schema();
+      db.executeInTx(
+          'SELECT powersync_replace_schema(?)', [json.encode(initialSchema)]);
+      invokeControl('start', json.encode({'schema': initialSchema}));
+
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushSyncData(
+        'a',
+        '1',
+        'my_user',
+        'PUT',
+        {'name': 'First user', 'email': 'powersync@example.com'},
+        objectType: 'users',
+      );
+      pushCheckpointComplete();
+      invokeControl('stop', null);
+
+      // Adding a new column should resync from ps_oplog on the next checkpoint.
+      final updatedSchema = schema(additionalColumns: [
+        {'name': 'email', 'type': 'text'},
+      ]);
+      db.executeInTx(
+          'SELECT powersync_replace_schema(?)', [json.encode(updatedSchema)]);
+      invokeControl('start', json.encode({'schema': updatedSchema}));
+      pushCheckpoint(buckets: [bucketDescription('a')]);
+      pushCheckpointComplete();
+      expect(db.select('SELECT name, email FROM users'), [
+        {'name': 'First user', 'email': 'powersync@example.com'}
+      ]);
+    });
+  });
+
+  test('binds numbers correctly', () {
+    // Regression test for https://github.com/powersync-ja/powersync-sqlite-core/pull/221#pullrequestreview-5534872991.
+    final schema = {
+      'tables': [
+        {
+          'name': 'tbl',
+          'columns': [
+            {'name': 'value', 'type': 'real'}
+          ],
+          'direct': true,
+        }
+      ]
+    };
+    db.executeInTx('SELECT powersync_replace_schema(?)', [json.encode(schema)]);
+    invokeControl('start', json.encode({'schema': schema}));
+
+    // Insert
+    pushCheckpoint(buckets: [bucketDescription('a')]);
+
+    (String, String, String) expectExact(String formatted, String type) {
+      return (formatted, formatted, type);
+    }
+
+    final testValues = [
+      expectExact('10', 'integer'),
+      expectExact('9007199254740993', 'integer'),
+      expectExact('9223372036854775807', 'integer'), // max i64
+      expectExact('-9223372036854775808', 'integer'), // min i64
+      // Out of bound i64 formatted as float
+      ('9223372036854775808', '9.22337203685478e+18', 'real'),
+      expectExact('10.2', 'real')
+    ];
+    syncLine({
+      'data': {
+        'bucket': 'a',
+        'has_more': false,
+        'after': null,
+        'next_after': null,
+        'data': [
+          for (final (i, (number, _, _)) in testValues.indexed)
+            {
+              'op_id': '${i + 1}',
+              'op': 'PUT',
+              'object_type': 'tbl',
+              'object_id': '${i + 1}',
+              'checksum': 0,
+              'data': '{"value": $number}',
+            }
+        ],
+      },
+    });
+    pushCheckpointComplete(lastOpId: '${testValues.length}');
+
+    final results =
+        db.select('SELECT CAST(value AS TEXT), typeof(value) FROM tbl;');
+    for (final (i, (_, number, type)) in testValues.indexed) {
+      expect(results[i].values, [number, type]);
+    }
+    expect(results, hasLength(testValues.length));
+  });
+
+  test('can close database while iteration is active', () {
+    // The sync client caches prepared statements, we need to ensure those are
+    // freed when we close the connection since SQLite would keep files open
+    // otherwise.
+    final vfs = TrackingFileSystem(
+        parent: InMemoryFileSystem(), name: 'sync-test-cleanup');
+    sqlite3.registerVirtualFileSystem(vfs);
+    addTearDown(() => sqlite3.unregisterVirtualFileSystem(vfs));
+
+    db = openTestDatabase(vfs: vfs, fileName: '/test.db')
+      ..executeInTx('select powersync_init();');
+    invokeControl('start', null);
+    expect(vfs.openFiles, isPositive);
+    db.close();
+    expect(vfs.openFiles, isZero);
+  });
+
+  test('resolving the offline sync status allows closing the database', () {
+    final vfs = TrackingFileSystem(
+        parent: InMemoryFileSystem(), name: 'sync-test-resolve-offline');
+    sqlite3.registerVirtualFileSystem(vfs);
+    addTearDown(() => sqlite3.unregisterVirtualFileSystem(vfs));
+
+    {
+      db = openTestDatabase(vfs: vfs, fileName: '/test.db')
+        ..executeInTx('select powersync_init();');
+      expect(vfs.openFiles, isNonZero);
+      db.close();
+      expect(vfs.openFiles, isZero);
+    }
+
+    db = openTestDatabase(
+        vfs: vfs, fileName: '/test.db', mode: OpenMode.readOnly)
+      ..executeInTx('select powersync_init();');
+
+    db.execute('SELECT powersync_offline_sync_status();');
+    expect(vfs.openFiles, isNonZero);
+    db.close();
+    expect(vfs.openFiles, isZero);
+  });
+
+  test('tracks download size', () {
+    invokeControl('start', null);
+    pushCheckpoint(buckets: [bucketDescription('a', count: 2)]);
+
+    void expectDownloadSize(int size) {
+      final [row] = db.select('SELECT downloaded_size FROM ps_buckets');
+      expect(row[0], size);
+    }
+
+    pushSyncData('a', '1', 'row-0', 'PUT', {'col': 'hi'});
+    expectDownloadSize(isBson ? 185 : 186);
+
+    pushSyncData('a', '1', 'row-1', 'PUT', {'col': 'hi again'});
+    expectDownloadSize(isBson ? 376 : 378);
+  });
+
+  group('diagnostics', () {
+    test('infers schema', () {
+      invokeControl('start', json.encode({'diagnostics': {}}));
+      pushCheckpoint(buckets: priorityBuckets);
+      var instructions = pushSyncData('prio1', '1', 'row-0', 'PUT', {
+        'text': 'text',
+        'int': 3,
+        'double': 3.14,
+        'null': null,
+      });
+      expect(
+        instructions,
+        containsAll(
+          [
+            schemaChange('items', 'text', 'String'),
+            schemaChange('items', 'int', 'Integer'),
+            schemaChange('items', 'double', 'Real'),
+          ],
+        ),
+      );
+
+      instructions = pushSyncData('prio1', '2', 'row-1', 'PUT', {
+        'text': null,
+        'int': 3.123,
+        'double': 1.23,
+      });
+
+      // Should only report the changed type
+      expect(
+        instructions.skip(2),
+        [
+          schemaChange('items', 'int', 'Real'),
+        ],
+      );
+    });
+
+    test('reports per-bucket progress', () {
+      invokeControl('start', json.encode({'diagnostics': {}}));
+
+      var instructions = pushCheckpoint(
+        buckets: [
+          bucketDescription('a', count: 1),
+          bucketDescription('b', count: 1),
+        ],
+        lastOpId: 10,
+      );
+      expect(
+        instructions[1],
+        {
+          'HandleDiagnostics': {
+            'BucketStateChange': {
+              'incremental': false,
+              'changes': [
+                {
+                  'name': 'a',
+                  'progress': {
+                    'priority': 3,
+                    'at_last': 0,
+                    'since_last': 0,
+                    'target_count': 1
+                  },
+                },
+                {
+                  'name': 'b',
+                  'progress': {
+                    'priority': 3,
+                    'at_last': 0,
+                    'since_last': 0,
+                    'target_count': 1
+                  },
+                }
+              ]
+            }
+          }
+        },
+      );
+
+      instructions = pushSyncData('a', '1', 'a', 'PUT', {'foo': 'bar'});
+      expect(
+        instructions[1],
+        {
+          'HandleDiagnostics': {
+            'BucketStateChange': {
+              'incremental': true,
+              'changes': [
+                {
+                  'name': 'a',
+                  'progress': {
+                    'priority': 3,
+                    'at_last': 0,
+                    'since_last': 1,
+                    'target_count': 1
+                  },
+                }
+              ]
+            }
+          }
+        },
+      );
+    });
+  });
+}
+
+final priorityBuckets = [
+  for (var i = 0; i < 4; i++) bucketDescription('prio$i', priority: i)
+];
+
+typedef BucketProgress = ({
+  int priority,
+  int atLast,
+  int sinceLast,
+  int targetCount
+});
+
+extension on Iterable<BucketProgress> {
+  (int, int) downloadAndTargetCount() {
+    return fold((0, 0), (counters, entry) {
+      final (downloaded, total) = counters;
+
+      return (
+        downloaded + entry.sinceLast,
+        total + entry.targetCount - entry.atLast
+      );
+    });
+  }
+}
+
+extension on Uint8List {
+  // ignore: unused_element
+  String get asRustByteString {
+    final buffer = StringBuffer('b"');
+
+    for (final byte in this) {
+      switch (byte) {
+        case >= 32 && < 127:
+          buffer.writeCharCode(byte);
+        default:
+          // Escape
+          buffer.write('\\x${byte.toRadixString(16).padLeft(2, '0')}');
+      }
+    }
+
+    buffer.write('"');
+    return buffer.toString();
+  }
+}
+
+final class SyncLinesGoldenTest {
+  static bool _update = Platform.environment['UPDATE_GOLDENS'] == '1';
+
+  final List<Object?> Function(String operation, Object? data) _invokeControl;
+
+  String? name;
+
+  final bool isBson;
+  final List<ExpectedSyncLine> expectedLines = [];
+  final List<ExpectedSyncLine> actualLines = [];
+
+  String get path => join('test', 'goldens', '$name.json');
+
+  bool get enabled => name != null;
+
+  SyncLinesGoldenTest(this.isBson, this._invokeControl);
+
+  ExpectedSyncLine get _nextExpectation {
+    return expectedLines[actualLines.length];
+  }
+
+  void _checkMismatch(void Function() compare) {
+    try {
+      compare();
+    } catch (e) {
+      print(
+          'Golden test for sync lines failed, set UPDATE_GOLDENS=1 to update');
+      rethrow;
+    }
+  }
+
+  void load(String name) {
+    this.name = name;
+    final file = File(path);
+    try {
+      final loaded = json.decode(file.readAsStringSync());
+      for (final entry in loaded) {
+        expectedLines.add(ExpectedSyncLine.fromJson(entry));
+      }
+    } catch (e) {
+      if (!_update) {
+        rethrow;
+      }
+    }
+  }
+
+  List<Object?> invoke(String operation, Object? data) {
+    final matchData = switch (data) {
+      final String s => json.decode(s),
+      _ => data,
+    };
+
+    if (_update) {
+      final result = _invokeControl(operation, data);
+      actualLines.add(ExpectedSyncLine(operation, matchData, result));
+      return result;
+    } else {
+      final expected = _nextExpectation;
+      if (!isBson) {
+        // We only want to compare the JSON inputs. We compare outputs
+        // regardless of the encoding mode.
+        _checkMismatch(() {
+          expect(operation, expected.operation);
+          expect(matchData, expected.data);
+        });
+      }
+
+      final result = _invokeControl(operation, data);
+      _checkMismatch(() {
+        expect(result, expected.output);
+      });
+
+      actualLines.add(ExpectedSyncLine(operation, matchData, result));
+      return result;
+    }
+  }
+
+  void finish() {
+    if (_update && enabled) {
+      if (!isBson) {
+        File(path).writeAsStringSync(
+            JsonEncoder.withIndent('  ').convert(actualLines));
+      }
+    } else {
+      _checkMismatch(
+          () => expect(actualLines, hasLength(expectedLines.length)));
+    }
+  }
+}
+
+final class ExpectedSyncLine {
+  final String operation;
+  final Object? data;
+  final List<Object?> output;
+
+  ExpectedSyncLine(this.operation, this.data, this.output);
+
+  factory ExpectedSyncLine.fromJson(Map<String, Object?> json) {
+    return ExpectedSyncLine(
+        json['operation'] as String, json['data'], json['output'] as List);
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'operation': operation,
+      'data': data,
+      'output': output,
+    };
+  }
+}

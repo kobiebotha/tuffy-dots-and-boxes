@@ -1,0 +1,27 @@
+$ size -m /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/host/target/release/badge-native-sdk-proof
+Segment __PAGEZERO: 4294967296 (zero fill) 
+Segment __TEXT: 2523136
+	Section __text: 2147208
+	Section __stubs: 1260
+	Section __stub_helper: 1284
+	Section __const: 242660
+	Section __cstring: 62502
+	Section __gcc_except_tab: 4724
+	Section __unwind_info: 17344
+	Section __eh_frame: 29948
+	total 2506930
+Segment __DATA_CONST: 49152
+	Section __const: 45392
+	Section __got: 32
+	total 45424
+Segment __DATA: 557056
+	Section __la_symbol_ptr: 840
+	Section __data: 15632
+	Section __thread_vars: 192
+	Section __thread_data: 32
+	Section __thread_bss: 112 (zerofill)
+	Section __common: 524448 (zerofill)
+	Section __bss: 1096 (zerofill)
+	total 542352
+Segment __LINKEDIT: 573440
+total 4298670080

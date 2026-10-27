@@ -1,0 +1,8 @@
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/release/deps/unicode_xid-b42b6372e8ee162d.d: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/tables.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/release/deps/libunicode_xid-b42b6372e8ee162d.rlib: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/tables.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/release/deps/libunicode_xid-b42b6372e8ee162d.rmeta: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/tables.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/lib.rs:
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-xid-0.2.6/src/tables.rs:

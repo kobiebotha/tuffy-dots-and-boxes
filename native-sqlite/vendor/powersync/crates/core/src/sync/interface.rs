@@ -1,0 +1,514 @@
+use core::cell::RefCell;
+use core::ffi::{c_int, c_void};
+use core::num::NonZeroI64;
+
+use super::streaming_sync::SyncClient;
+use super::sync_status::DownloadSyncStatus;
+use crate::constants::SUBTYPE_JSON;
+use crate::create_sqlite_text_fn;
+use crate::error::{PowerSyncError, Result};
+use crate::schema::Schema;
+use crate::state::DatabaseState;
+use crate::sync::diagnostics::{DiagnosticOptions, DiagnosticsEvent};
+use crate::sync::subscriptions::{StreamKey, apply_subscriptions};
+use crate::utils::database::Database;
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::rc::Rc;
+use alloc::{string::String, vec::Vec};
+use powersync_sqlite_nostd::bindings::SQLITE_RESULT_SUBTYPE;
+use powersync_sqlite_nostd::{self as sqlite, ColumnType};
+use powersync_sqlite_nostd::{Connection, Context};
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
+use serde_with::{DisplayFromStr, serde_as};
+use sqlite::{ResultCode, Value};
+
+use crate::sync::BucketPriority;
+use crate::utils::{JsonString, verify_in_transaction};
+
+/// Payload provided by SDKs when requesting a sync iteration.
+#[derive(Deserialize)]
+pub struct StartSyncStream {
+    /// Bucket parameters to include in the request when opening a sync stream.
+    #[serde(default)]
+    pub parameters: Option<serde_json::Map<String, serde_json::Value>>,
+    #[serde(default)]
+    pub schema: Schema,
+
+    /// Whether to request default streams in the generated sync request.
+    #[serde(default = "StartSyncStream::include_defaults_by_default")]
+    pub include_defaults: bool,
+    /// Streams that are currently active in the app.
+    ///
+    /// We will increase the expiry date for those streams at the time we connect and disconnect.
+    #[serde(default)]
+    pub active_streams: Rc<Vec<StreamKey>>,
+    #[serde(default)]
+    pub app_metadata: Option<Box<RawValue>>,
+
+    /// The checkpoint mechanism used by this SDK.
+    ///
+    /// In [CheckpointMode::Requests], [Instruction::EstablishSyncStream] includes the initial
+    /// checkpoint request payload the SDK should reconcile with the service before allocating
+    /// request ids.
+    #[serde(default)]
+    pub checkpoint_mode: CheckpointMode,
+
+    /// Whether sync diagnostics with detailed download stats and inferred schema should be reported
+    /// by the sync client.
+    pub diagnostics: Option<DiagnosticOptions>,
+}
+
+impl StartSyncStream {
+    pub const fn include_defaults_by_default() -> bool {
+        true
+    }
+}
+
+impl Default for StartSyncStream {
+    fn default() -> Self {
+        Self {
+            parameters: Default::default(),
+            schema: Default::default(),
+            include_defaults: Self::include_defaults_by_default(),
+            active_streams: Default::default(),
+            app_metadata: Default::default(),
+            checkpoint_mode: CheckpointMode::default(),
+            diagnostics: Default::default(),
+        }
+    }
+}
+
+/// Selects the checkpoint mechanism used for a sync iteration.
+#[derive(Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckpointMode {
+    /// Uses the legacy write-checkpoint flow.
+    #[default]
+    Legacy,
+    /// Uses client-generated checkpoint request ids.
+    Requests,
+}
+
+/// A request sent from a client SDK to the [SyncClient] with a `powersync_control` invocation.
+pub enum SyncControlRequest<'a> {
+    /// The client requests to start a sync iteration.
+    ///
+    /// Earlier iterations are implicitly dropped when receiving this request.
+    StartSyncStream(StartSyncStream),
+    /// The client requests to stop the current sync iteration.
+    StopSyncStream,
+    /// The client is forwading a sync event to the core extension.
+    SyncEvent(SyncEvent<'a>),
+}
+
+pub enum SyncEvent<'a> {
+    /// A synthetic event forwarded to the [SyncClient] after being started.
+    Initialize,
+    /// An event requesting the sync client to shut down.
+    TearDown,
+    /// Notifies the sync client that a token has been refreshed.
+    ///
+    /// In response, we'll stop the current iteration to begin another one with the new token.
+    DidRefreshToken,
+    /// Notifies the sync client that the current CRUD upload (for which the client SDK is
+    /// responsible) has finished.
+    ///
+    /// If pending CRUD entries have previously prevented a sync from completing, this even can be
+    /// used to try again.
+    UploadFinished,
+    ConnectionEstablished,
+    StreamEnded,
+    /// Forward a text line (JSON) received from the sync service.
+    TextLine {
+        data: &'a str,
+    },
+    /// Forward a binary line (BSON) received from the sync service.
+    BinaryLine {
+        data: &'a [u8],
+    },
+    /// The active stream subscriptions (as in, `SyncStreamSubscription` instances active right now)
+    /// have changed.
+    ///
+    /// The client will compare the new active subscriptions with the current one and will issue a
+    /// request to restart the sync iteration if necessary.
+    DidUpdateSubscriptions {
+        active_streams: Rc<Vec<StreamKey>>,
+    },
+}
+
+/// An instruction sent by the core extension to the SDK.
+#[serde_as]
+#[derive(Serialize)]
+pub enum Instruction {
+    LogLine {
+        severity: LogSeverity,
+        line: Cow<'static, str>,
+    },
+    /// Update the download status for the ongoing sync iteration.
+    UpdateSyncStatus {
+        status: Rc<RefCell<DownloadSyncStatus>>,
+    },
+    /// Connect to the sync service using the [StreamingSyncRequest] created by the core extension,
+    /// and then forward received lines via [SyncEvent::TextLine] and [SyncEvent::BinaryLine].
+    EstablishSyncStream {
+        request: StreamingSyncRequest,
+        /// The checkpoint request state SDKs using checkpoint-request mode should affirm with the
+        /// service before allocating request ids.
+        ///
+        /// Core combines its local allocation counter with any concrete local-write target and
+        /// supplies the larger value. This is omitted unless checkpoint requests were enabled on
+        /// [StartSyncStream].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        checkpoint_request: Option<CheckpointRequestPayload>,
+    },
+    FetchCredentials {
+        /// Whether the credentials currently used have expired.
+        ///
+        /// If false, this is a pre-fetch.
+        did_expire: bool,
+    },
+    /// Close the websocket / HTTP stream to the sync service.
+    CloseSyncStream(CloseSyncStream),
+    /// Notify that a sync has been completed, prompting client SDKs to clear earlier errors.
+    DidCompleteSync {
+        /// The checkpoint request id applied by this completed sync, if the checkpoint had one.
+        ///
+        /// Serialized as a decimal string to preserve the full 64-bit value in JSON clients, the
+        /// same as [CheckpointRequestPayload::checkpoint_request_id].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde_as(as = "Option<DisplayFromStr>")]
+        applied_checkpoint_request_id: Option<i64>,
+    },
+    /// The sync client has received a `checkpoint_complete` message that couldn't be applied due to
+    /// pending local writes that have not been uploaded yet.
+    ///
+    /// SDKs notify the sync client (via [SyncEvent::UploadFinished]) once writes have been
+    /// uploaded, which the client uses as a signal to try applying the checkpoint again.
+    ///
+    /// SDKs connected in download-only mode raise this as an error, since these sync-preventing
+    /// writes would never be uploaded. Otherwise, handling this instruction is a noop.
+    CheckpointDelayedDueToLocalData {},
+
+    /// Handle a diagnostic event.
+    ///
+    /// This instruction is only emitted if diagnostics have been enabled on [StartSyncStream].
+    HandleDiagnostics(DiagnosticsEvent),
+}
+
+#[derive(Serialize, Default)]
+pub struct CloseSyncStream {
+    /// Whether clients should hide the brief disconnected status from the public sync status and
+    /// reconnect immediately.
+    pub hide_disconnect: bool,
+}
+
+#[derive(Serialize)]
+pub enum LogSeverity {
+    DEBUG,
+    INFO,
+    WARNING,
+}
+
+#[derive(Serialize)]
+pub struct StreamingSyncRequest {
+    pub buckets: Vec<BucketRequest>,
+    pub include_checksum: bool,
+    pub raw_data: bool,
+    pub binary_data: bool,
+    pub client_id: String,
+    pub parameters: Option<serde_json::Map<String, serde_json::Value>>,
+    pub streams: Rc<StreamSubscriptionRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_metadata: Option<Box<RawValue>>,
+}
+
+/// Initial payload for reconciling checkpoint-request state with the service.
+#[derive(Debug, Serialize, PartialEq)]
+pub struct CheckpointRequestPayload {
+    pub client_id: String,
+    /// A decimal string to preserve the full 64-bit value in JSON clients.
+    pub checkpoint_request_id: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct StreamSubscriptionRequest {
+    pub include_defaults: bool,
+    pub subscriptions: Vec<RequestedStreamSubscription>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct RequestedStreamSubscription {
+    /// The name of the sync stream to subscribe to.
+    pub stream: String,
+    /// Parameters to make available in the stream's definition.
+    pub parameters: Option<Box<JsonString>>,
+    pub override_priority: Option<BucketPriority>,
+}
+
+#[derive(Serialize)]
+pub struct BucketRequest {
+    pub name: String,
+    pub after: String,
+}
+
+pub fn register(
+    db: *mut sqlite::sqlite3,
+    state: Rc<DatabaseState>,
+) -> core::result::Result<(), ResultCode> {
+    extern "C" fn control(
+        ctx: *mut sqlite::context,
+        argc: c_int,
+        argv: *mut *mut sqlite::value,
+    ) -> () {
+        let result = (|| -> Result<()> {
+            let db = Database::from(ctx.db_handle());
+            verify_in_transaction(db)?;
+
+            let state = unsafe { DatabaseState::from_context(&ctx) };
+            let args = sqlite::args!(argc, argv);
+            let [op, payload] = args else {
+                // This should be unreachable, we register the function with two arguments.
+                return Err(PowerSyncError::unknown_internal());
+            };
+
+            if op.value_type() != ColumnType::Text {
+                return Err(PowerSyncError::argument_error(
+                    "First argument must be a string",
+                ));
+            }
+
+            let op = op.text();
+            let event = match op {
+                "start" => SyncControlRequest::StartSyncStream({
+                    if payload.value_type() == ColumnType::Text {
+                        serde_json::from_str(payload.text())
+                            .map_err(PowerSyncError::as_argument_error)?
+                    } else {
+                        StartSyncStream::default()
+                    }
+                }),
+                "stop" => SyncControlRequest::StopSyncStream,
+                "seed_checkpoint_request_id" => {
+                    require_active_sync_iteration(&state)?;
+
+                    let request_id = parse_positive_i64_payload(
+                        *payload,
+                        "checkpoint request id",
+                        "checkpoint request id must be an integer or integer string",
+                    )?;
+                    let adapter = state.storage_adapter(db)?;
+                    adapter.seed_checkpoint_request_id(request_id.get())?;
+                    ctx.result_int64(request_id.get());
+                    return Ok(());
+                }
+                "next_checkpoint_request_id" => {
+                    require_active_sync_iteration(&state)?;
+
+                    let adapter = state.storage_adapter(db)?;
+                    if !adapter.has_checkpoint_request_id()? {
+                        return Err(PowerSyncError::state_error(
+                            "Checkpoint request state has not been seeded",
+                        ));
+                    }
+
+                    let request_id = adapter.next_checkpoint_request_id()?;
+                    ctx.result_int64(request_id);
+                    return Ok(());
+                }
+                "target_checkpoint_request_id" => {
+                    let target = parse_optional_i64_payload(
+                        *payload,
+                        "target checkpoint request id",
+                        "target checkpoint request id must be an integer, integer string, or null",
+                    )?;
+                    let adapter = state.storage_adapter(db)?;
+                    let previous_target = adapter.probe_target_checkpoint_request_id(target)?;
+
+                    match previous_target {
+                        Some(target) => ctx.result_int64(target),
+                        None => ctx.result_null(),
+                    }
+
+                    return Ok(());
+                }
+                "current_checkpoint_request_id" => {
+                    let adapter = state.storage_adapter(db)?;
+                    match adapter.last_checkpoint_request_id()? {
+                        Some(request_id) => ctx.result_int64(request_id),
+                        None => ctx.result_null(),
+                    }
+                    return Ok(());
+                }
+                "line_text" => SyncControlRequest::SyncEvent(SyncEvent::TextLine {
+                    data: if payload.value_type() == ColumnType::Text {
+                        payload.text()
+                    } else {
+                        return Err(PowerSyncError::argument_error(
+                            "Second argument must be a string",
+                        ));
+                    },
+                }),
+                "line_binary" => SyncControlRequest::SyncEvent(SyncEvent::BinaryLine {
+                    data: if payload.value_type() == ColumnType::Blob {
+                        payload.blob()
+                    } else {
+                        return Err(PowerSyncError::argument_error(
+                            "Second argument must be a byte array",
+                        ));
+                    },
+                }),
+                "refreshed_token" => SyncControlRequest::SyncEvent(SyncEvent::DidRefreshToken),
+                "completed_upload" => SyncControlRequest::SyncEvent(SyncEvent::UploadFinished),
+                "update_subscriptions" => {
+                    SyncControlRequest::SyncEvent(SyncEvent::DidUpdateSubscriptions {
+                        active_streams: serde_json::from_str(payload.text())
+                            .map_err(PowerSyncError::as_argument_error)?,
+                    })
+                }
+                "connection" => SyncControlRequest::SyncEvent(match payload.text() {
+                    "established" => SyncEvent::ConnectionEstablished,
+                    "end" => SyncEvent::StreamEnded,
+                    _ => {
+                        return Err(PowerSyncError::argument_error("unknown connection event"));
+                    }
+                }),
+                "subscriptions" => {
+                    let adapter = state.storage_adapter(db)?;
+                    let request = serde_json::from_str(payload.text())
+                        .map_err(PowerSyncError::as_argument_error)?;
+                    return apply_subscriptions(&adapter, request);
+                }
+                _ => {
+                    return Err(PowerSyncError::argument_error("Unknown operation"));
+                }
+            };
+
+            let instructions = {
+                let mut client = state.sync_client.borrow_mut();
+                let client = match *client {
+                    Some(ref mut client) => client,
+                    None => {
+                        let state = unsafe { DatabaseState::clone_from(ctx.user_data()) };
+                        let created = SyncClient::new(db, &state)?;
+                        client.insert(created)
+                    }
+                };
+                client.push_event(event)
+            }?;
+
+            let formatted =
+                serde_json::to_string(&instructions).map_err(PowerSyncError::internal)?;
+            ctx.result_text_transient(&formatted);
+            ctx.result_subtype(SUBTYPE_JSON);
+
+            Ok(())
+        })();
+
+        if let Err(e) = result {
+            e.apply_to_ctx("powersync_control", ctx);
+        }
+    }
+
+    db.create_function_v2(
+        "powersync_control",
+        2,
+        sqlite::UTF8 | sqlite::DIRECTONLY | SQLITE_RESULT_SUBTYPE,
+        Some(Rc::into_raw(state.clone()) as *mut c_void),
+        Some(control),
+        None,
+        None,
+        Some(DatabaseState::destroy_rc),
+    )?;
+
+    db.create_function_v2(
+        "powersync_offline_sync_status",
+        0,
+        sqlite::UTF8 | sqlite::DIRECTONLY | SQLITE_RESULT_SUBTYPE,
+        Some(Rc::into_raw(state.clone()) as *mut c_void),
+        Some(powersync_offline_sync_status),
+        None,
+        None,
+        Some(DatabaseState::destroy_rc),
+    )?;
+
+    Ok(())
+}
+
+fn powersync_offline_sync_status_impl(
+    ctx: *mut sqlite::context,
+    _args: &[*mut sqlite::value],
+) -> Result<String> {
+    let db_state = unsafe { DatabaseState::from_context(&ctx) };
+    let adapter = db_state.storage_adapter(ctx.db_handle().into())?;
+
+    let state = adapter.offline_sync_state()?;
+    let serialized = serde_json::to_string(&state).map_err(PowerSyncError::internal)?;
+
+    Ok(serialized)
+}
+
+create_sqlite_text_fn!(
+    powersync_offline_sync_status,
+    powersync_offline_sync_status_impl,
+    "powersync_offline_sync_status"
+);
+
+/// Errors with a state error unless a sync iteration is currently active.
+///
+/// Checkpoint request ids can only be seeded or allocated in the context of a running iteration.
+fn require_active_sync_iteration(state: &DatabaseState) -> Result<()> {
+    let has_sync_iteration = state
+        .sync_client
+        .borrow()
+        .as_ref()
+        .map(|client| client.has_sync_iteration())
+        .unwrap_or(false);
+
+    if !has_sync_iteration {
+        return Err(PowerSyncError::state_error("No iteration is active"));
+    }
+
+    Ok(())
+}
+
+fn parse_optional_i64_payload(
+    payload: *mut sqlite::value,
+    name: &'static str,
+    type_error: &'static str,
+) -> Result<Option<i64>> {
+    let value = match payload.value_type() {
+        ColumnType::Null => return Ok(None),
+        ColumnType::Integer => payload.int64(),
+        // Allow decimal strings as a fallback for JavaScript SQLite drivers that can't bind
+        // 64-bit integers as BigInt without losing precision through Number.
+        ColumnType::Text => payload
+            .text()
+            .parse::<i64>()
+            .map_err(|_| PowerSyncError::argument_error(type_error))?,
+        _ => return Err(PowerSyncError::argument_error(type_error)),
+    };
+
+    if value < 0 {
+        return Err(PowerSyncError::argument_error(format!(
+            "{name} must be a non-negative integer"
+        )));
+    }
+
+    Ok(Some(value))
+}
+
+fn parse_positive_i64_payload(
+    payload: *mut sqlite::value,
+    name: &'static str,
+    type_error: &'static str,
+) -> Result<NonZeroI64> {
+    let Some(value) = parse_optional_i64_payload(payload, name, type_error)? else {
+        return Err(PowerSyncError::argument_error(type_error));
+    };
+
+    NonZeroI64::new(value)
+        .ok_or_else(|| PowerSyncError::argument_error(format!("{name} must be a positive integer")))
+}

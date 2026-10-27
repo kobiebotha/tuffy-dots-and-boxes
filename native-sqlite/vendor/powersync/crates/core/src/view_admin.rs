@@ -1,0 +1,254 @@
+extern crate alloc;
+
+use alloc::format;
+use alloc::rc::Rc;
+use alloc::string::String;
+use core::ffi::{c_int, c_void};
+
+use powersync_sqlite_nostd as sqlite;
+use powersync_sqlite_nostd::{Connection, Context};
+use sqlite::{ResultCode, Value};
+
+use crate::create_sqlite_text_fn;
+use crate::error::{PowerSyncError, Result};
+use crate::migrations::{initialize_database, powersync_migrate};
+use crate::schema::inspection::{ExistingTable, ExistingView};
+use crate::state::DatabaseState;
+use crate::utils::database::Database;
+use crate::utils::{SqlBuffer, verify_in_transaction};
+
+// Used in old down migrations, do not remove.
+extern "C" fn powersync_drop_view(
+    ctx: *mut sqlite::context,
+    argc: c_int,
+    argv: *mut *mut sqlite::value,
+) {
+    let args = sqlite::args!(argc, argv);
+    let name = args[0].text();
+
+    if let Err(e) = ExistingView::drop_by_name(ctx.db_handle().into(), name) {
+        e.apply_to_ctx("powersync_drop_view", ctx);
+    }
+}
+
+fn powersync_init_impl(ctx: *mut sqlite::context, _args: &[*mut sqlite::value]) -> Result<String> {
+    let db = Database::from(ctx.db_handle());
+    initialize_database(db)?;
+
+    Ok(String::from(""))
+}
+
+create_sqlite_text_fn!(powersync_init, powersync_init_impl, "powersync_init");
+
+fn powersync_test_migration_impl(
+    ctx: *mut sqlite::context,
+    args: &[*mut sqlite::value],
+) -> Result<String> {
+    let db = Database::from(ctx.db_handle());
+    verify_in_transaction(db)?;
+
+    let target_version = args[0].int();
+    powersync_migrate(db, target_version)?;
+
+    Ok(String::from(""))
+}
+
+create_sqlite_text_fn!(
+    powersync_test_migration,
+    powersync_test_migration_impl,
+    "powersync_test_migration"
+);
+
+fn powersync_clear_impl(ctx: *mut sqlite::context, args: &[*mut sqlite::value]) -> Result<String> {
+    let local_db = Database::from(ctx.db_handle());
+    verify_in_transaction(local_db)?;
+    let state = unsafe { DatabaseState::from_context(&ctx) };
+
+    let flags = PowerSyncClearFlags(args[0].int());
+
+    if !flags.soft_clear() {
+        // With a soft clear, we want to delete public data while keeping internal data around. When
+        // connect() is called with compatible JWTs yielding a large overlap of buckets, this can
+        // speed up the next sync.
+        local_db.exec_safe(c"DELETE FROM ps_oplog; DELETE FROM ps_buckets")?;
+    } else {
+        trigger_resync(local_db, state)?;
+    }
+
+    // language=SQLite
+    local_db.exec_safe(
+        c"\
+DELETE FROM ps_crud;
+DELETE FROM ps_untyped;
+DELETE FROM ps_updated_rows;
+DELETE FROM ps_kv WHERE key != 'client_id';
+DELETE FROM ps_stream_subscriptions;
+",
+    )?;
+    clear_has_synced(local_db)?;
+
+    // Pretend to be in a sync_local step when clearing raw and direct tables. For json-based tables
+    // we delete from underlying ps_data__ tables to sidestep crud triggers, but some tables have
+    // triggers directly on the table.
+    let _skip_crud = state.sync_local_guard();
+
+    let existing_tables = ExistingTable::list(local_db)?;
+    for table in &existing_tables {
+        if !flags.clear_local() && table.local_only {
+            continue;
+        }
+
+        let quoted = SqlBuffer::quote_identifier(&table.internal_name);
+        // The first delete statement deletes a single row, to trigger an update notification for the table.
+        // The second delete statement uses the truncate optimization to delete the remainder of the data.
+        let delete_sql = format!(
+            "\
+DELETE FROM {table} WHERE rowid IN (SELECT rowid FROM {table} LIMIT 1);
+DELETE FROM {table};",
+            table = quoted
+        );
+        local_db.exec_safe_str(&delete_sql)?;
+    }
+
+    if let Some(schema) = state.view_schema() {
+        for raw_table in &schema.raw_tables {
+            if let Some(stmt) = &raw_table.clear {
+                local_db
+                    .exec_safe_str(&stmt)
+                    .map_err(|e| e.context(format!("Clearing raw table {}", raw_table.name)))?;
+            }
+        }
+    }
+
+    Ok(String::from(""))
+}
+
+pub fn trigger_resync(db: Database, state: &DatabaseState) -> Result<()> {
+    {
+        let client = state.sync_client.borrow();
+        if let Some(client) = client.as_ref()
+            && client.has_sync_iteration()
+        {
+            return Err(PowerSyncError::argument_error(
+                "Cannot clear or trigger resync while a sync iteration is active.",
+            ));
+        }
+    }
+
+    db.exec_safe(c"UPDATE ps_buckets SET last_applied_op = 0")?;
+    Ok(Default::default())
+}
+
+fn clear_has_synced(db: Database) -> Result<()> {
+    db.exec_safe(c"DELETE FROM ps_sync_state;")?;
+    db.exec_safe(c"UPDATE ps_stream_subscriptions SET last_synced_at = NULL")?;
+    Ok(())
+}
+
+fn powersync_trigger_resync_impl(
+    ctx: *mut sqlite::context,
+    args: &[*mut sqlite::value],
+) -> Result<String> {
+    let local_db = Database::from(ctx.db_handle());
+    verify_in_transaction(local_db)?;
+
+    let state = unsafe { DatabaseState::from_context(&ctx) };
+    trigger_resync(local_db, state)?;
+
+    let clear_progress = args[0].int() != 0;
+    if clear_progress {
+        clear_has_synced(local_db)?;
+    }
+
+    Ok(Default::default())
+}
+
+create_sqlite_text_fn!(
+    powersync_trigger_resync,
+    powersync_trigger_resync_impl,
+    "powersync_trigger_resync"
+);
+
+#[derive(Clone, Copy)]
+struct PowerSyncClearFlags(i32);
+
+impl PowerSyncClearFlags {
+    const MASK_CLEAR_LOCAL: i32 = 0x01;
+    const MASK_SOFT_CLEAR: i32 = 0x02;
+
+    fn clear_local(self) -> bool {
+        self.0 & Self::MASK_CLEAR_LOCAL != 0
+    }
+
+    fn soft_clear(self) -> bool {
+        self.0 & Self::MASK_SOFT_CLEAR != 0
+    }
+}
+
+create_sqlite_text_fn!(powersync_clear, powersync_clear_impl, "powersync_clear");
+
+pub fn register(
+    db: *mut sqlite::sqlite3,
+    state: Rc<DatabaseState>,
+) -> core::result::Result<(), ResultCode> {
+    // This entire module is just making it easier to edit sqlite_master using queries.
+
+    // Internal function, used exclusively in existing migrations.
+    db.create_function_v2(
+        "powersync_drop_view",
+        1,
+        sqlite::UTF8,
+        None,
+        Some(powersync_drop_view),
+        None,
+        None,
+        None,
+    )?;
+
+    // Initialize the extension internal tables, and start a migration.
+    db.create_function_v2(
+        "powersync_init",
+        0,
+        sqlite::UTF8,
+        None,
+        Some(powersync_init),
+        None,
+        None,
+        None,
+    )?;
+
+    db.create_function_v2(
+        "powersync_test_migration",
+        1,
+        sqlite::UTF8,
+        None,
+        Some(powersync_test_migration),
+        None,
+        None,
+        None,
+    )?;
+
+    db.create_function_v2(
+        "powersync_clear",
+        1,
+        sqlite::UTF8,
+        Some(Rc::into_raw(state.clone()) as *mut c_void),
+        Some(powersync_clear),
+        None,
+        None,
+        Some(DatabaseState::destroy_rc),
+    )?;
+
+    db.create_function_v2(
+        "powersync_trigger_resync",
+        1,
+        sqlite::UTF8,
+        Some(Rc::into_raw(state) as *mut c_void),
+        Some(powersync_trigger_resync),
+        None,
+        None,
+        Some(DatabaseState::destroy_rc),
+    )?;
+
+    Ok(())
+}

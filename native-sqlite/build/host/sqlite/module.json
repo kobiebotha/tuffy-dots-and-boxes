@@ -1,0 +1,25 @@
+{
+  "file": "native_sqlite_host.dylib",
+  "variant": "sqlite",
+  "kind": "host",
+  "bytes": 1078200,
+  "sha256": "e30ce3ef1811204804e7afb74d866b547c66698ebab8da13b865a9a571a3ac63",
+  "sqlite": "3.54.1",
+  "sourceSha256": "99e0fa2d20e7a2dcb666529ed2142a5b467c1533489d28f6edc3df3576d3ebb5",
+  "sourceFiles": {
+    "Makefile": "e0bb35cbcfc0829b0419ca244f577dd48b8af3b4e3aa0437c9fa360e1a13f44d",
+    "dependencies.json": "44bd3a0c2855c37511cf7ffce500ff92f8920d8532db35134209b58ff5d3aad3",
+    "requirements-build.txt": "48fe8ef66d370e0ed9df9b0dbbdb34011d1414ce0f256ce9f4bc79b4cec29224",
+    "sqlite-adaptations.json": "d0286923bb7c8740260a89cf8658d9fed826a6a9d7c580b6b227048db818479d",
+    "src/config.h": "caf80970c9163de8b36cc682671a4a197cd64df63cf2ef68b2175b598d8b507e",
+    "src/libc_shim.c": "d3d49cd6cf93d61a0926fc62d1249ffed1a9918e9eba02a8bd5fd62134ca27a6",
+    "src/module.c": "e017c249b173a96cabb3dca8b3e948d3cef2f4059e02607e249db59a9bf0f118",
+    "src/sqlite_port.c": "a89e2d6de36cc482553f9a814d410180ea1bc144c8903b2ce96442c5de9de010",
+    "src/vfs.c": "e201859f50a88be65c7a860ab2be07ece76481557fa114734d2bd733399a949e",
+    "tests/host_config.h": "44b3abc793d0567f9b39ac50d38419169c87daf3c86cc4a28d8ad058acf8cd60",
+    "tests/host_shim.c": "37d66562ee13e3a74dfd2bdfba7edc40db7b208ee64b8922357ddd9c3d9f1185",
+    "tools/build.py": "e58579008fac010edd1d681068eb1c0b1e21decf04fa9801dda23e05797b36ac",
+    "tools/fetch.py": "25aeb0a4206f5ab08fb3d62b2a65e095bd5034be9e923a0ac2b17a813187f136",
+    "tools/prepare.py": "82cc255f1f000ccd0767a57f956a62d6e477f3281751bc2ffdec9a263b979f01"
+  }
+}

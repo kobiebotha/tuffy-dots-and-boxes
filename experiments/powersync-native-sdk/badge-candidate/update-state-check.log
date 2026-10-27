@@ -1,0 +1,2 @@
+PERFORMANCE_FINAL_CHECK {"pending_move": null, "raw_state_sha256": "6247094d3c65672dd1b9daecdf10c44883ae4b9436bb09d080d1ce0bd98ab747", "move_count": 9, "schema_version": 6, "native_cache_restored": true, "crud_rows": 0, "scratch_removed": true, "native_stats": [109120, 137536, 6336, 13, 286591145, 287708608, 287692200, "3.54.1"], "paired_room": "6ad058a8-d19b-4d8c-b32d-e6f2b6945ccb", "quick_check": "ok"}
+

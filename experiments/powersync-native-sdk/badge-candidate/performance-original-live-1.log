@@ -1,0 +1,19 @@
+BADGELINK_NETWORK installed=1 enabled=1 state=connecting
+BADGELINK_NETWORK event=placement_unknown_context state=connecting reason=/
+BADGELINK_WATCHDOG armed=1 timeout_ms=16000
+BADGELINK_NETWORK event=credential_tier state=connecting reason=fleet
+BADGELINK_NETWORK event=wifi_online state=connecting reason=connected attempts=1 failures=0
+BADGELINK_NETWORK event=clock_resynced state=connecting shift_s=0 ntp_ms=373
+BADGELINK_NETWORK event=link_prepared state=connecting reason=synced ntp_ms=373 resolve_ms=138 pm_ms=1152 prepare_ms=1666
+BADGELINK_NETWORK event=reconnect_requested state=disconnected
+BADGELINK_NETWORK event=push_withheld state=disconnected reason=waiting
+BADGELINK_NETWORK event=connecting state=connecting
+BADGELINK_NETWORK event=open_phases state=connecting total_ms=1236 shim_ms=0 build_ms=1 start_ms=14 worker_ms=490 sleep_ms=0 finish_ms=1 updates=19 outcome=opened open_step_max_ms=428 open_stall_ms=0 open_deadline_ms=9000 open_span_ms=1236 open_busy_ms=527 open_wait_ms=709 open_steps=19 open_frame_max_ms=429 dns_ms=0 connect_ms=11 send_ms=440 headers_ms=4 body_ms=35 other_ms=0
+BADGELINK_NETWORK event=opened state=connecting
+BADGELINK_NETWORK event=connected state=connected open_ms=430
+BADGELINK_NETWORK event=settings_phased state=connected due_ms=243804
+BADGELINK_NETWORK event=score_stalled state=connected reason=spool_empty
+BADGELINK_NETWORK event=push_moment state=connected moment=session_start ms=64
+BADGELINK_NETWORK event=push_withheld state=connected reason=connecting
+PERFORMANCE_LIVE_RESULT {"frame_count": 67, "variant": "original", "scope": "Actual same paired room cold download on managed VSYNC loop. send phase includes TLS handshake and HTTP write.", "synced": true, "move_count": 9, "frame_cpu_us": 10036078, "frame_max_us": 1411211, "render_cpu_us": 59539, "render_max_us": 11575, "http": [{"first_body_us": 6073182, "closed_us": 16236643, "cpu_us": {"dns": 30147, "send": 291444, "tcp": 15744, "read": 33200}, "close_phase": "read", "start_us": 4548147, "calls": {"dns": 5, "send": 12, "tcp": 5, "read": 42}, "status": 200, "path": "/sync/stream", "bytes": 10129, "max_call_us": 283496, "wall_us": {"dns": 120672, "send": 1110075, "tcp": 129898}, "phase": "read"}], "first_synced_us": 15082198, "render_calls": 67, "room": "6ad058a8-d19b-4d8c-b32d-e6f2b6945ccb", "native": {"sdk_poll_max_us": 0, "sdk_start_us": 0, "sdk_reply_calls": 0, "exec_calls": 114, "python_sql_commits": 10, "exec_us_inclusive": 9471386, "sdk_poll_us_inclusive": 0, "sdk_reply_us": 0, "sdk_poll_calls": 0}, "last_error": "", "vfs": {"callback_total_us": 8326664, "database_image_writes": 9, "database_image_sync_us": 5134808, "callback_counts": [10, 11, 74, 255, 0, 30, 23, 10, 23, 0, 4], "journal_write_bytes": 62508, "callback_us": [144376, 1964, 37216, 2049159, 0, 6699167, 2122, 99229, 41058, 0, 1169], "database_image_bytes": 332800, "op_names": ["open", "close", "read", "write", "truncate", "sync", "size", "delete", "access", "random", "time"]}, "full_generation": 1}
+

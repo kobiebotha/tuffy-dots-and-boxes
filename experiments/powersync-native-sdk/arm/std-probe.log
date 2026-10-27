@@ -1,0 +1,12 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/rustc --crate-type lib --target thumbv8m.main-none-eabi -C target-cpu=cortex-m33 -C relocation-model=pic -C panic=abort /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/std-probe.rs -o /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/std-probe.rlib
+error[E0463]: can't find crate for `std`
+ --> /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/std-probe.rs:4:1
+  |
+4 | extern crate std;
+  | ^^^^^^^^^^^^^^^^^ can't find crate
+  |
+  = note: the `thumbv8m.main-none-eabi` target may not support the standard library
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0463`.

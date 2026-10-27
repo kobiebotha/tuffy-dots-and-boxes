@@ -1,0 +1,46 @@
+[package]
+name = "powersync_core"
+edition.workspace = true
+version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+authors.workspace = true
+keywords.workspace = true
+description = "The PowerSync SQLite extension"
+readme = "README.md"
+rust-version = "1.96"
+
+[lib]
+name = "powersync_core"
+crate-type = ["rlib"]
+
+[dependencies]
+powersync_sqlite_nostd = { version = "=0.5.4", path = "../sqlite_nostd" }
+bytes = { version = "1.4", default-features = false }
+num-traits = { version = "0.2.15", default-features = false }
+num-derive = "0.3"
+serde_json = { version = "1.0", default-features = false, features = ["alloc", "raw_value"] }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive", "rc"] }
+const_format = "0.2.34"
+rustc-hash = { version = "2.1", default-features = false }
+thiserror = { version = "2", default-features = false }
+serde_with = { version = "3.14.0", default-features = false, features = ["alloc", "macros"] }
+
+[dependencies.uuid]
+version = "1.4.1"
+default-features = false
+features = []
+
+
+[dev-dependencies]
+
+
+[features]
+default = ["getrandom"]
+
+static = ["powersync_sqlite_nostd/static"]
+# Enable to use the getrandom crate instead of sqlite3_randomness
+# Enable for Windows builds; do not enable for WASM
+getrandom = ["uuid/v4"]
+

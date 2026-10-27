@@ -1,0 +1,3 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/arm-none-eabi-size /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/async-leaf.o
+   text	   data	    bss	    dec	    hex	filename
+   2495	     40	      0	   2535	    9e7	/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/async-leaf.o

@@ -1,0 +1,33 @@
+{
+  "app": "/system/apps/dots_boxes_native",
+  "native_sha256": "c5bd5fe3b43c482f3757e921b6a134d232d2882da026894e0e117171f0cccd06",
+  "verified_files": [
+    "ca/sectigo-r46.der",
+    "controls.py",
+    "dots_client.py",
+    "dots_codec.py",
+    "dots_config.py",
+    "dots_pairing.py",
+    "dots_session.py",
+    "dots_storage.py",
+    "dots_sync.py",
+    "game.py",
+    "icon.png",
+    "logos.py",
+    "powersync/__init__.py",
+    "powersync/database.py",
+    "powersync/http.py",
+    "powersync/native_powersync_sdk.LICENSE.txt",
+    "powersync/native_powersync_sdk.mpy",
+    "powersync/powersync-native.LICENSE.txt",
+    "powersync/runtime.py",
+    "powersync/sync.py",
+    "sqlite_shadow_vfs.py",
+    "view.py",
+    "__init__.py"
+  ],
+  "original_app_and_state_unchanged": true,
+  "native_save_and_pending_move_unchanged": true,
+  "system_readonly_restored": true,
+  "firmware_replaced": false
+}

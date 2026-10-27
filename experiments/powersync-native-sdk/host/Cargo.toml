@@ -1,0 +1,19 @@
+[package]
+name = "badge-native-sdk-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+powersync = { path = "sdk", default-features = false }
+powersync_sqlite_nostd = { version = "=0.5.4", features = ["static"] }
+async-channel = "2.5.0"
+async-task = "4.7.1"
+async-trait = "0.1.89"
+bytes = "1"
+futures-lite = "2.6.1"
+log = "0.4"
+serde_json = { version = "1", features = ["raw_value"] }
+
+[profile.release]
+panic = "abort"

@@ -1,0 +1,23 @@
+(name='micropython', version=(1, 29, 0, ''), _machine='Pimoroni Tufty 2350 with RP2350', _mpy=7942, _build='tufty')
+BADGELINK_NETWORK installed=1 enabled=1 state=connecting
+MANAGED_NETWORK_READY True
+RECOVERY_PENDING 6ad058a8-d19b-4d8c-b32d-e6f2b6945ccb 659dcdf0-780f-4026-872f-7e0e04d7eaa9
+BADGELINK_WATCHDOG armed=1 timeout_ms=16000
+RECOVERY_RPC_ATTEMPT 1 659dcdf0-780f-4026-872f-7e0e04d7eaa9
+RECOVERY_PROGRESS 7353 retry OFFLINE False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+BADGELINK_NETWORK event=credential_tier state=connecting reason=fleet
+BADGELINK_NETWORK event=wifi_online state=connecting reason=connected attempts=1 failures=0
+BADGELINK_NETWORK event=push_withheld state=connecting reason=in an app
+BADGELINK_NETWORK event=score_stalled state=connecting reason=offline
+RECOVERY_PROGRESS 9354 retry OFFLINE False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_RPC_ATTEMPT 2 659dcdf0-780f-4026-872f-7e0e04d7eaa9
+RECOVERY_PROGRESS 11367 upload SENDING False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_PROGRESS 13373 upload SENDING False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_PROGRESS 16448 stream CONNECTING False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_PROGRESS 18577 stream CONNECTING False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_PROGRESS 20615 stream CONNECTING False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_PROGRESS 22640 stream CONNECTING False False 0 659dcdf0-780f-4026-872f-7e0e04d7eaa9 SQLite:  failed with IOERR
+RECOVERY_PROGRESS 27885 stream SYNCED True True 1 None SQLite:  failed with IOERR
+RECOVERY_EXACT_MOVE_CONFIRMED 659dcdf0-780f-4026-872f-7e0e04d7eaa9 1
+RECOVERY_RPC_ATTEMPTS ['659dcdf0-780f-4026-872f-7e0e04d7eaa9', '659dcdf0-780f-4026-872f-7e0e04d7eaa9']
+RECOVERY_RESULT True

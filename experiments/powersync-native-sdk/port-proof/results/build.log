@@ -1,0 +1,3 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/rustup/toolchains/1.96.0-aarch64-apple-darwin/bin/cargo build --manifest-path /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/port-proof/Cargo.toml --release --locked --offline
+   Compiling badge-native-sdk-embassy-proof v0.0.0 (/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/port-proof)
+    Finished `release` profile [optimized] target(s) in 0.89s

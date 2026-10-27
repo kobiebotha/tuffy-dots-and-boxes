@@ -1,0 +1,42 @@
+VERIFIED ca/sectigo-r46.der 1422
+VERIFIED controls.py 6068
+VERIFIED dots_client.py 13841
+VERIFIED dots_codec.py 1869
+VERIFIED dots_config.py 614
+VERIFIED dots_pairing.py 1086
+VERIFIED dots_session.py 7408
+VERIFIED dots_storage.py 8066
+VERIFIED dots_sync.py 5364
+VERIFIED game.py 3927
+VERIFIED icon.png 149
+VERIFIED logos.py 2625
+VERIFIED powersync/__init__.py 153
+VERIFIED powersync/database.py 19326
+VERIFIED powersync/http.py 13809
+VERIFIED powersync/native_powersync_sdk.LICENSE.txt 14420
+VERIFIED powersync/native_powersync_sdk.mpy 1092287
+VERIFIED powersync/powersync-native.LICENSE.txt 10174
+VERIFIED powersync/runtime.py 2216
+VERIFIED powersync/sync.py 16816
+VERIFIED sqlite_shadow_vfs.py 9321
+VERIFIED view.py 11628
+VERIFIED __init__.py 4157
+ORIGINAL_APP_AND_STATE_UNCHANGED
+SYSTEM_READONLY_RESTORED
+INSTALL_COMPLETE /system/apps/dots_boxes_native
+(name='micropython', version=(1, 29, 0, ''), _machine='Pimoroni Tufty 2350 with RP2350', _mpy=7942, _build='tufty')
+NATIVE_IMPORT_OK
+NATIVE_GC_OK 6329152
+IO_CONFIGURED
+CORE_OPEN_BEGIN
+CORE_OPEN_OK
+CORE_IDENTITY_OK
+SDK_START_BEGIN
+SDK_START_RETURNED
+SDK_POLL_BEGIN
+SDK_POLL_RETURNED
+SDK_EMBASSY_START_OK
+SDK_ACTIVE_GC_OK
+SDK_REQUESTS 1
+SDK_SQL_GUARD_OK [['0']]
+SDK_STOP_CLOSE_GC_OK 6326272

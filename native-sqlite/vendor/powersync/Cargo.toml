@@ -1,0 +1,37 @@
+[workspace]
+
+members = [
+    "crates/*"
+]
+resolver = "2"
+# We cannot build shell and lodable and the same time
+default-members = ["crates/shell", "crates/sqlite"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+strip = true
+opt-level = "z"
+lto = true
+
+[profile.release_apple]
+inherits = "release"
+strip = false
+debug = true
+
+[profile.wasm]
+inherits = "release"
+
+[profile.wasm_asyncify]
+inherits = "wasm"
+
+[workspace.package]
+version = "0.5.4"
+edition = "2024"
+authors = ["JourneyApps"]
+keywords = ["sqlite", "powersync"]
+license = "Apache-2.0"
+homepage = "https://powersync.com"
+repository = "https://github.com/powersync-ja/powersync-sqlite-core"

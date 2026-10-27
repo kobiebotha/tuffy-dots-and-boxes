@@ -1,0 +1,8 @@
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/release/deps/darling-d3329f6feaca24da.d: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/macros_public.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/release/deps/libdarling-d3329f6feaca24da.rlib: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/macros_public.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/build/core/release/deps/libdarling-d3329f6feaca24da.rmeta: /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/lib.rs /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/macros_public.rs
+
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/lib.rs:
+/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/cache/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0/src/macros_public.rs:

@@ -1,0 +1,33 @@
+{
+  "sdkRevision": "96a94f3e6e9442c4181d793f95241c2ee9cab4d8",
+  "sdkVersion": "0.1.1",
+  "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: aarch64-apple-darwin\nrelease: 1.96.0\nLLVM version: 22.1.2\n",
+  "target": "thumbv8m.main-none-eabi",
+  "cpu": "cortex-m33",
+  "relocationModel": "pic",
+  "panic": "abort",
+  "defaultFeatures": false,
+  "checkExitCode": 101,
+  "loadableModuleProduced": false,
+  "stdProbeExitCode": 1,
+  "asyncLeafBuildExitCode": 0,
+  "asyncLeafScope": "Only selected no_std dependencies, not SDK orchestration or a final link",
+  "commandExitCodes": {
+    "sdk-check.log": 101,
+    "features.log": 0,
+    "parking-chain.log": 0,
+    "getrandom-chain.log": 0,
+    "std-probe.log": 1,
+    "target-cfg.log": 0,
+    "async-leaf-build.log": 0,
+    "async-leaf-members.log": 0,
+    "async-leaf-extract": 0,
+    "async-leaf-attributes.log": 0,
+    "async-leaf-sections.log": 0,
+    "async-leaf-relocations.log": 0,
+    "async-leaf-symbols.log": 0,
+    "async-leaf-size.log": 0
+  },
+  "validatedExpectedResults": true,
+  "validationErrors": []
+}

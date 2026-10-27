@@ -1,0 +1,9 @@
+{
+  "scope": "every SDK archive object, including compiler-builtins",
+  "candidateOnly": true,
+  "atomicLowering": "LLVM lower-atomic",
+  "requiresSingleForegroundOwner": true,
+  "concurrentSdkHeapAccessAllowed": false,
+  "exclusiveInstructionCount": 0,
+  "exclusiveInstructions": []
+}

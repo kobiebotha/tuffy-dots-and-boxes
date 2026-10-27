@@ -1,0 +1,19 @@
+use core::ffi::c_int;
+
+pub const CORE_PKG_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const FULL_GIT_HASH: &'static str = env!("GIT_HASH");
+
+// We need 3.44 or later to use an `ORDER BY` in an aggregate function invocation.
+//
+// When raising the minimum version requirement, also change it in generate_sbom.dart.
+pub const MIN_SQLITE_VERSION_NUMBER: c_int = 3044000;
+
+pub const SUBTYPE_JSON: u32 = 'J' as u32;
+
+pub fn short_git_hash() -> &'static str {
+    if FULL_GIT_HASH.len() >= 8 {
+        &FULL_GIT_HASH[..8]
+    } else {
+        "no-git-unknown"
+    }
+}

@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "appId": "dots_boxes_native",
+  "name": "Dots & Boxes Native SDK",
+  "stateRoot": "/state/dots_boxes_native",
+  "native": {
+    "file": "native_powersync_sdk.mpy",
+    "bytes": 1107030,
+    "sha256": "c5bd5fe3b43c482f3757e921b6a134d232d2882da026894e0e117171f0cccd06",
+    "sdkBaseRevision": "96a94f3e6e9442c4181d793f95241c2ee9cab4d8",
+    "sdkArchiveSha256": "73efd33fbbe892d99dfb8b7539f7f95ee8577f69891531a4dad82b7d80fad1c3",
+    "sourceFiles": {
+      "native/Makefile": "890bb8b444653dca85a3471a26e1ec0f9ec23b526da1be7c124b25aa497ddbde",
+      "native/src/config.h": "caf80970c9163de8b36cc682671a4a197cd64df63cf2ef68b2175b598d8b507e",
+      "native/src/libc_shim.c": "d3d49cd6cf93d61a0926fc62d1249ffed1a9918e9eba02a8bd5fd62134ca27a6",
+      "native/src/module.c": "f7a932438cb2aae41906e5faacf0f89fba892c27337a58d3b224e84d5383fcc3",
+      "native/src/sqlite_port.c": "a89e2d6de36cc482553f9a814d410180ea1bc144c8903b2ce96442c5de9de010",
+      "native/src/vfs.c": "e201859f50a88be65c7a860ab2be07ece76481557fa114734d2bd733399a949e",
+      "build.py": "be4135e97d7548bdb1891eb0ba86f0026fa8e017cd228549230167628d75fc42"
+    },
+    "bridgeSourceFiles": {
+      "rust/Cargo.toml": "a4fff4c1e3963cae4afc327e3f48c9ccff31acc1f935ae39d37fb22607b801d2",
+      "rust/Cargo.lock": "fc614f548fa096964121cb8ff1b185af33a790939e34d3430c8c4ae870b40257",
+      "rust/psbadge.h": "ff8225504fb61f59cd7a8e26d361c391652fcd022e97a3f55893111da5079239",
+      "rust/src/lib.rs": "edd05cd9c0366abed1ad831a8196e8203dee3ec47e87241456be055f005ff55c",
+      "vendor/foldhash/src/convenience.rs": "60338e1ca7bfc781724819cd82ef4a9bd61f4f5c17772b3c0f776fb2257c60dc",
+      "vendor/foldhash/src/fast.rs": "807f098a619303f9e4d5cf582e0eb3b25c14451a36fa4e7a4ab440d3c95bf29e",
+      "vendor/foldhash/src/lib.rs": "777319e7f2919bede856e13594169cfc4bdbaf2e541463da58c86e7e832dc45f",
+      "vendor/foldhash/src/quality.rs": "33073e1869642a0c8689cfe3e8a1ecdc0a5c939b4e0a9ba03c111babf5b92849",
+      "vendor/foldhash/src/seed.rs": "c85e7b009a92cb870aaa54765583d0718705521be64d7dbcef7e45a84ba897d5",
+      "vendor/foldhash/Cargo.toml": "0a76cc29da1c33f4bdb505f5828ecdc20859c4cb9faa402e000f5f10511a27cc"
+    },
+    "sdkSourceFiles": {
+      "Cargo.lock": "62af1c91ab6b67e5a758449696024d02933ef4acc24d56bcd52241147e2fe10b",
+      "powersync/Cargo.toml": "34d13817063aed9f47232785682c877599bebb3f45598c60a700a38d21b92917",
+      "powersync/src/compat.rs": "f80e95d8c6c92f5789acc654444d30862033d23bac7ac321c53b0b9204f1b8ea",
+      "powersync/src/db/connection.rs": "47d8a3c9905fe6b5289cb51cc8e8d584a5bbf1d51f95adf8ad1449a4aea045c0",
+      "powersync/src/db/core_extension.rs": "ef0076a4749747d3b4ea9e13df5de31f486b1e5c88bdd8e3b0df2fe3a3e922bf",
+      "powersync/src/db/crud.rs": "6253345682e46e79755b4d1d56cda97f440a66f4dc04bf6f844ce2f34fc55a1f",
+      "powersync/src/db/internal.rs": "2a85a89fdb49aadab9524400aaf86b204039c884c7d06af215bcdc6db9379c4b",
+      "powersync/src/db/mod.rs": "83410d9fd9cc2419718d9e113e188f5b1e6e520e5a72f4a1e41ee41c35fb1032",
+      "powersync/src/db/pool.rs": "1c5b61d2b2afdef2cf947250bcdf13789ef68c3959403ff393251d554974d914",
+      "powersync/src/db/schema.rs": "e3e9487964eba94fcbbc27024f2abf21c80bf97feeb05fbde86210cb76e40031",
+      "powersync/src/db/streams.rs": "466857448e14378b6b1ef31a02c4167f1a541ae6daf3d8cc560bd24df0679f47",
+      "powersync/src/db/watch.rs": "d0b33f2dd68b5ca24e1d70a652785c925001f5137753fe567022d0d01bd8040a",
+      "powersync/src/env/embassy.rs": "922408b6850956055e73812eb4a49f787317bf1831ffab5953b48938de060e3a",
+      "powersync/src/env.rs": "23680fff13e52a02f910dcd2dbb5ecab861e894d0203a962dbc3a4dc89dd0af2",
+      "powersync/src/error.rs": "c27f0f7702659e1e2bdd81231aed1d97cfa59cc232a1edfe6291e9f00a642d77",
+      "powersync/src/http.rs": "e224c61b5abb6ef89bf722f4d85e57c8cfd773ff96dc89d9d45b756f9763c798",
+      "powersync/src/lib.rs": "a62019569069024d18becbd90a6a694bfd98748ed93e874d6d382f3a2b18a632",
+      "powersync/src/sync/checkpoint.rs": "50edecfbe8d859c70762f6a9a5418c438e0528549b8b5cc14ff65f74fdb93acd",
+      "powersync/src/sync/connector.rs": "ff1db497c85d25c99b05f1b0aac7d87170b8c016faa1feef8446a9d8c261dba9",
+      "powersync/src/sync/coordinator.rs": "2fb222e28aea2659828fb3d4a9733326e166c19f3a85dcb86ce89f497a5508fb",
+      "powersync/src/sync/download/http.rs": "6f87b70a9bf2203204a976a0d1d5d210799bec818abb4b75ccba09cab78fd02d",
+      "powersync/src/sync/download/mod.rs": "6bc0970689bc8716428041dca740dbf255505f91ed21fde80faa42463b7d005e",
+      "powersync/src/sync/download/sync_iteration.rs": "147682cbeef0efaee4f465101834fe260e9fce49e5c2e9ee68ba81b6dbd5baac",
+      "powersync/src/sync/instruction.rs": "7b488f7b8e2dbf7b121f8ba67af9c36219b2b284ecc2016389923adee1e44d85",
+      "powersync/src/sync/mod.rs": "1c277837b80bf031a12138e427ad3df4ce3047a6c2b88332c75492cbaf09d1f3",
+      "powersync/src/sync/options.rs": "32d9b328eb17b31045c1f12357446049458e9075ee5a1219601b9e5ab6dd852a",
+      "powersync/src/sync/progress.rs": "f4b5cc025b9a14512eefede90cb059815214d0ad3115ac2fdf4a2d064cf448b0",
+      "powersync/src/sync/state.rs": "b23d547deb68d191b95d3d7c95455ef317ffca1e62f3af2a70a403ddb504439e",
+      "powersync/src/sync/status.rs": "d8d665048d06ab6d53568b44e58d89f3792683b5d5f447eb15d2b39867d6bb01",
+      "powersync/src/sync/stream_priority.rs": "aa4b0e2485e589c477b8d4c434c57364fc4c7a63b42830dd5c71b15f764fd723",
+      "powersync/src/sync/streams.rs": "cf09e2c631c5734513be440c7f6c092f415e91df57c0472acbaa581106b4b93d",
+      "powersync/src/sync/upload.rs": "42e5afd892a218b5c788cb5bb2eff3f728d596003886d24b6fd1a2356d74e82b",
+      "powersync/src/time.rs": "3bb67f31c657217d3f4765cc6f049803f1cdd919f3c98af03022e511ae7d4b7c",
+      "powersync/src/util/bson_split.rs": "af996be2c494396ca16fc8be9e2180af2d7387e42fd1b88f929441c745e613b7",
+      "powersync/src/util/line_split.rs": "c52a68f190b2e81c4fa52be7fa3a44880b435d73c9938db67bd3b5ee2b475db2",
+      "powersync/src/util/mod.rs": "e633870258fb10fe4f4cedd1738dba56cb80118d8789a2572a40384ff7f417a4",
+      "powersync/src/util/shared_future.rs": "f623fdc5ea94fe0abaab77f43f9b81122e80fd2b159a148ecd830d75e382cbd4"
+    },
+    "sqlite": "3.54.1",
+    "powersync": "0.5.4",
+    "micropython": "1.29.0",
+    "micropythonCommit": "41d1e007537f9b15cf13a9436228dd59d6485eca",
+    "mpy": 7942,
+    "board": "tufty2350",
+    "floatAbi": "softfp",
+    "armGcc": "13.2.1",
+    "kind": "native-powersync-sdk-candidate",
+    "firmwareReplaced": false,
+    "atomicLowering": "LLVM lower-atomic",
+    "requiresSingleForegroundOwner": true,
+    "concurrentSdkHeapAccessAllowed": false,
+    "exclusiveInstructionCount": 0
+  },
+  "manualHardwareQualificationPending": true,
+  "files": [
+    {
+      "path": "__init__.py",
+      "bytes": 4721,
+      "sha256": "8985c9232b62fe28232de6981eef9c5544427f52ce36b695b1c184c69b849aa8"
+    },
+    {
+      "path": "ca/sectigo-r46.der",
+      "bytes": 1422,
+      "sha256": "7bb647a62aeeac88bf257aa522d01ffea395e0ab45c73f93f65654ec38f25a06"
+    },
+    {
+      "path": "controls.py",
+      "bytes": 6068,
+      "sha256": "88eba637c396ed77bad34919c31eddc06e6385aa3b362499bcea517d49a422b8"
+    },
+    {
+      "path": "dots_client.py",
+      "bytes": 12865,
+      "sha256": "3440867bde1ff3696e7902614b8f05c54f04c0a930dae76d33469532732943bd"
+    },
+    {
+      "path": "dots_codec.py",
+      "bytes": 1869,
+      "sha256": "80b6a099d3832a42393c1714375a2749bad1c8b6ebca9fb03e578fa092442e89"
+    },
+    {
+      "path": "dots_config.py",
+      "bytes": 614,
+      "sha256": "610700813ab0afad4c8c0d4fea3c6fab7c03217526b0d1aba9be2ae2ea3f3890"
+    },
+    {
+      "path": "dots_pairing.py",
+      "bytes": 1086,
+      "sha256": "32d448fcb07f94890dc3d303fa1bda35e1acf08dd359a71da95fd19fab954331"
+    },
+    {
+      "path": "dots_session.py",
+      "bytes": 7551,
+      "sha256": "387cd3b5cf9fd9883171fb42abd88af11607ac533e0ca0e2b27960d5a41c9082"
+    },
+    {
+      "path": "dots_storage.py",
+      "bytes": 13279,
+      "sha256": "1fe20e44d134bb1af400b3b11fdd883bb520c3098b617bb85b66b594d0ddc36b"
+    },
+    {
+      "path": "dots_sync.py",
+      "bytes": 5438,
+      "sha256": "9a2394c0e83a18b21f874f9ab8b1f9a0f2fcb97196081d53a53ff71ea066b47c"
+    },
+    {
+      "path": "game.py",
+      "bytes": 3927,
+      "sha256": "760661f95be01aaf9fafa02da1013dcae4433b7cbd17306606a26ffe9a6a9bc0"
+    },
+    {
+      "path": "icon.png",
+      "bytes": 149,
+      "sha256": "ca9f4c67cc3c0d2e921979ad7b916585bdf927e50c89cd8940f8cd02656cf17b"
+    },
+    {
+      "path": "logos.py",
+      "bytes": 2625,
+      "sha256": "f9ffbe34a9a5c154a8420136ede3ec026cb225e6c3be2c2b97301adcbae764e7"
+    },
+    {
+      "path": "powersync/__init__.py",
+      "bytes": 153,
+      "sha256": "378aeca988473e9d9c0d542c011f02b7dd6a6edae7999a948874668ff007b997"
+    },
+    {
+      "path": "powersync/database.py",
+      "bytes": 19311,
+      "sha256": "b10eba1eb9d259ed2508faa787c8cc779eac1ad8d4096bb3a033cb31b6f63863"
+    },
+    {
+      "path": "powersync/http.py",
+      "bytes": 14291,
+      "sha256": "0fbe13d24ffc5a231f595a0ca4661a035b54c39b2307161246533f5487a0c016"
+    },
+    {
+      "path": "powersync/native_powersync_sdk.LICENSE.txt",
+      "bytes": 14420,
+      "sha256": "40195d993172ef3ba8731ba633d342e53d8052b7637e910c5219fc7f5a7ef716"
+    },
+    {
+      "path": "powersync/native_powersync_sdk.mpy",
+      "bytes": 1107030,
+      "sha256": "c5bd5fe3b43c482f3757e921b6a134d232d2882da026894e0e117171f0cccd06"
+    },
+    {
+      "path": "powersync/powersync-native.LICENSE.txt",
+      "bytes": 10174,
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "powersync/runtime.py",
+      "bytes": 2216,
+      "sha256": "3ad0f1a9278cc0fc37964f358a3b064be8478ca841c8de79943e2da7ae26ead7"
+    },
+    {
+      "path": "powersync/sync.py",
+      "bytes": 19660,
+      "sha256": "abf9ee24208264c3b21d228984b6bc2ea0c43f16195375ea1867181d3f90f835"
+    },
+    {
+      "path": "sqlite_shadow_vfs.py",
+      "bytes": 9321,
+      "sha256": "0392ee099ff3c88610a24a3c18cdef9e63ff89405eec6a58e414bd9cf3bdd5be"
+    },
+    {
+      "path": "view.py",
+      "bytes": 11628,
+      "sha256": "81a13735cbfeacec0a9d30239361235b0a481c95b3848db886968aa131062f34"
+    }
+  ]
+}

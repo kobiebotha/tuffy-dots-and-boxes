@@ -1,0 +1,213 @@
+$ /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/arm-none-eabi-readelf -Wr /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/arm/async-leaf.o
+
+Relocation section '.rel.text.unlikely._ZN14event_listener14Event$LT$T$GT$6listen17h55bd3a0a5574ee9dE' at offset 0x10c4 contains 6 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000004  0000330a R_ARM_THM_CALL         00000000   _ZN14event_listener14Event$LT$T$GT$5inner17h4076a0b6305d3bf5E
+0000000a  0000340a R_ARM_THM_CALL         00000000   _ZN5alloc4sync11data_offset17h0bf7eb0445ebd034E
+00000024  0000350a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc35___rust_no_alloc_shim_is_unstable_v2
+0000002c  0000360a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc12___rust_alloc
+00000040  0000370a R_ARM_THM_CALL         00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h714099b5cf4048c8E
+0000004c  0000380a R_ARM_THM_CALL         00000000   _RNvNtCsgyynPeAfoom_5alloc5alloc18handle_alloc_error
+
+Relocation section '.rel.ARM.exidx.text.unlikely._ZN14event_listener14Event$LT$T$GT$6listen17h55bd3a0a5574ee9dE' at offset 0x10f4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000022a R_ARM_PREL31           00000000   .text.unlikely._ZN14event_listener14Event$LT$T$GT$6listen17h55bd3a0a5574ee9dE
+
+Relocation section '.rel.text._ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop12__drop_inner17h8f689e65b468a0a4E' at offset 0x10fc contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000018  00003a0a R_ARM_THM_CALL         00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h665be0e0e9ff1a7bE
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop12__drop_inner17h8f689e65b468a0a4E' at offset 0x1104 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000042a R_ARM_PREL31           00000000   .text._ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop12__drop_inner17h8f689e65b468a0a4E
+
+Relocation section '.rel.text._ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop17h131aaa14616efb37E' at offset 0x110c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000008  0000391e R_ARM_THM_JUMP24       00000001   _ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop12__drop_inner17h8f689e65b468a0a4E
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop17h131aaa14616efb37E' at offset 0x1114 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000062a R_ARM_PREL31           00000000   .text._ZN14event_listener1_94_$LT$impl$u20$core..ops..drop..Drop$u20$for$u20$event_listener..InnerListener$LT$T$C$B$GT$$GT$4drop17h131aaa14616efb37E
+
+Relocation section '.rel.text._ZN14event_listener23RegisterResult$LT$T$GT$8notified17h4b3bca2fd4f11438E' at offset 0x111c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000010  00003d0a R_ARM_THM_CALL         00000001   _ZN4core9panicking13panic_display17h618657bb0b18932dE.llvm.18072865125061273326
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener23RegisterResult$LT$T$GT$8notified17h4b3bca2fd4f11438E' at offset 0x1124 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000082a R_ARM_PREL31           00000000   .text._ZN14event_listener23RegisterResult$LT$T$GT$8notified17h4b3bca2fd4f11438E
+
+Relocation section '.rel.text._ZN14event_listener26InnerListener$LT$T$C$B$GT$13poll_internal17he53acf528096a693E' at offset 0x112c contains 2 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000014  00003f0a R_ARM_THM_CALL         00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h86370a60e990442cE
+0000002a  00003d0a R_ARM_THM_CALL         00000001   _ZN4core9panicking13panic_display17h618657bb0b18932dE.llvm.18072865125061273326
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener26InnerListener$LT$T$C$B$GT$13poll_internal17he53acf528096a693E' at offset 0x113c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00000a2a R_ARM_PREL31           00000000   .text._ZN14event_listener26InnerListener$LT$T$C$B$GT$13poll_internal17he53acf528096a693E
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h48517b3da317b6d4E' at offset 0x1144 contains 2 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000020  0000410a R_ARM_THM_CALL         00000000   _ZN14event_listener4sync4cell19UnsafeCell$LT$T$GT$3get17hd3741eed395595c5E
+0000002a  0000420a R_ARM_THM_CALL         00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner28_$u7b$$u7b$closure$u7d$$u7d$17hbd158a85622d1776E.llvm.18072865125061273326
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h48517b3da317b6d4E' at offset 0x1154 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00000c2a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h48517b3da317b6d4E
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h665be0e0e9ff1a7bE' at offset 0x115c contains 3 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000002c  0000410a R_ARM_THM_CALL         00000000   _ZN14event_listener4sync4cell19UnsafeCell$LT$T$GT$3get17hd3741eed395595c5E
+0000003e  0000430a R_ARM_THM_CALL         00000000   _ZN14event_listener3sys14Inner$LT$T$GT$6remove17hb037c8ecc8519521E
+00000044  0000440a R_ARM_THM_CALL         00000000   _ZN144_$LT$event_listener..sys..$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$..with_inner..ListWrapper$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17h92b2064e250fb436E
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h665be0e0e9ff1a7bE' at offset 0x1174 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00000e2a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h665be0e0e9ff1a7bE
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h714099b5cf4048c8E' at offset 0x117c contains 2 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000022  0000410a R_ARM_THM_CALL         00000000   _ZN14event_listener4sync4cell19UnsafeCell$LT$T$GT$3get17hd3741eed395595c5E
+00000068  0000440a R_ARM_THM_CALL         00000000   _ZN144_$LT$event_listener..sys..$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$..with_inner..ListWrapper$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17h92b2064e250fb436E
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h714099b5cf4048c8E' at offset 0x118c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000102a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h714099b5cf4048c8E
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h86370a60e990442cE' at offset 0x1194 contains 6 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000002a  0000410a R_ARM_THM_CALL         00000000   _ZN14event_listener4sync4cell19UnsafeCell$LT$T$GT$3get17hd3741eed395595c5E
+0000005c  0000450a R_ARM_THM_CALL         00000000   _ZN14event_listener7TaskRef9will_wake17h83df7409a59570aaE
+00000098  0000430a R_ARM_THM_CALL         00000000   _ZN14event_listener3sys14Inner$LT$T$GT$6remove17hb037c8ecc8519521E
+000000b8  0000460a R_ARM_THM_CALL         00000000   _ZN14event_listener7TaskRef9into_task17hd770abe9733822d2E
+000000d8  0000460a R_ARM_THM_CALL         00000000   _ZN14event_listener7TaskRef9into_task17hd770abe9733822d2E
+00000102  0000440a R_ARM_THM_CALL         00000000   _ZN144_$LT$event_listener..sys..$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$..with_inner..ListWrapper$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17h92b2064e250fb436E
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h86370a60e990442cE' at offset 0x11c4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000122a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h86370a60e990442cE
+
+Relocation section '.rel.text.unlikely._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner28_$u7b$$u7b$closure$u7d$$u7d$17hbd158a85622d1776E.llvm.18072865125061273326' at offset 0x11cc contains 2 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000000a  0000470a R_ARM_THM_CALL         00000000   _ZN14event_listener3sys14Inner$LT$T$GT$6notify17h94a8c700dbd19f8cE
+00000012  0000440a R_ARM_THM_CALL         00000000   _ZN144_$LT$event_listener..sys..$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$..with_inner..ListWrapper$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17h92b2064e250fb436E
+
+Relocation section '.rel.ARM.exidx.text.unlikely._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner28_$u7b$$u7b$closure$u7d$$u7d$17hbd158a85622d1776E.llvm.18072865125061273326' at offset 0x11dc contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000142a R_ARM_PREL31           00000000   .text.unlikely._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner28_$u7b$$u7b$closure$u7d$$u7d$17hbd158a85622d1776E.llvm.18072865125061273326
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6insert17h8a478ef460ae42b5E' at offset 0x11e4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000008  0000371e R_ARM_THM_JUMP24       00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h714099b5cf4048c8E
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6insert17h8a478ef460ae42b5E' at offset 0x11ec contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000162a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6insert17h8a478ef460ae42b5E
+
+Relocation section '.rel.text.unlikely._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6notify17h49829b3d6e2d674aE' at offset 0x11f4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000008  0000401e R_ARM_THM_JUMP24       00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h48517b3da317b6d4E
+
+Relocation section '.rel.ARM.exidx.text.unlikely._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6notify17h49829b3d6e2d674aE' at offset 0x11fc contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000182a R_ARM_PREL31           00000000   .text.unlikely._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6notify17h49829b3d6e2d674aE
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6remove17h784cfce0dd75103dE' at offset 0x1204 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000000c  00003a0a R_ARM_THM_CALL         00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h665be0e0e9ff1a7bE
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6remove17h784cfce0dd75103dE' at offset 0x120c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00001a2a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$6remove17h784cfce0dd75103dE
+
+Relocation section '.rel.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$8register17h1a8faaf03f8ae533E' at offset 0x1214 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000000a  00003f0a R_ARM_THM_CALL         00000001   _ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$10with_inner17h86370a60e990442cE
+
+Relocation section '.rel.ARM.exidx.text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$8register17h1a8faaf03f8ae533E' at offset 0x121c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00001c2a R_ARM_PREL31           00000000   .text._ZN14event_listener3sys48_$LT$impl$u20$event_listener..Inner$LT$T$GT$$GT$8register17h1a8faaf03f8ae533E
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded13Slot$LT$T$GT$10wait_write17h1de7b19e6aceb1bfE' at offset 0x1224 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00001e2a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded13Slot$LT$T$GT$10wait_write17h1de7b19e6aceb1bfE
+
+Relocation section '.rel.text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$3new17hd61c747099388be8E' at offset 0x122c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000006  00004e0a R_ARM_THM_CALL         00000000   __aeabi_memclr4
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$3new17hd61c747099388be8E' at offset 0x1234 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000202a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$3new17hd61c747099388be8E
+
+Relocation section '.rel.text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$7destroy17h48d31d136a04503eE' at offset 0x123c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000003e  0000501e R_ARM_THM_JUMP24       00000000   _RNvCsGIExRX8pES_7___rustc14___rust_dealloc
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$7destroy17h48d31d136a04503eE' at offset 0x1244 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000222a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$7destroy17h48d31d136a04503eE
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$9wait_next17hdae02db5eb57a7e5E' at offset 0x124c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000242a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded14Block$LT$T$GT$9wait_next17hdae02db5eb57a7e5E
+
+Relocation section '.rel.text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$3pop17h1d5e9fe214f08503E' at offset 0x1254 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+000000da  00004f0a R_ARM_THM_CALL         00000001   _ZN16concurrent_queue9unbounded14Block$LT$T$GT$7destroy17h48d31d136a04503eE
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$3pop17h1d5e9fe214f08503E' at offset 0x125c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000262a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$3pop17h1d5e9fe214f08503E
+
+Relocation section '.rel.text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$4push17h83fde23881d2a20bE' at offset 0x1264 contains 9 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000058  0000350a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc35___rust_no_alloc_shim_is_unstable_v2
+00000060  0000540a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc19___rust_alloc_zeroed
+0000006c  0000350a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc35___rust_no_alloc_shim_is_unstable_v2
+00000074  0000540a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc19___rust_alloc_zeroed
+000000b8  0000500a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc14___rust_dealloc
+00000154  0000500a R_ARM_THM_CALL         00000000   _RNvCsGIExRX8pES_7___rustc14___rust_dealloc
+00000168  0000380a R_ARM_THM_CALL         00000000   _RNvNtCsgyynPeAfoom_5alloc5alloc18handle_alloc_error
+00000170  0000550a R_ARM_THM_CALL         00000000   _RNvNtCs6hfeTR78s07_4core6option13unwrap_failed
+00000174  00005603 R_ARM_REL32            00000000   anon.6578128b215200acf1dd5c363f04ccf0.5.llvm.18072865125061273326
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$4push17h83fde23881d2a20bE' at offset 0x12ac contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000282a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$4push17h83fde23881d2a20bE
+
+Relocation section '.rel.ARM.exidx.text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$5close17h58ffde78872c08a8E' at offset 0x12b4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00002b2a R_ARM_PREL31           00000000   .text._ZN16concurrent_queue9unbounded18Unbounded$LT$T$GT$5close17h58ffde78872c08a8E
+
+Relocation section '.rel.text.unlikely._ZN4core9panicking13panic_display17h618657bb0b18932dE.llvm.18072865125061273326' at offset 0x12bc contains 5 entries:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+0000001e  0000580a R_ARM_THM_CALL         00000000   _RNvNtCs6hfeTR78s07_4core9panicking9panic_fmt
+00000024  00005960 R_ARM_GOT_PREL         00000000   _ZN44_$LT$$RF$T$u20$as$u20$core..fmt..Display$GT$3fmt17h8ffd6c9ab922398cE
+00000028  00005a03 R_ARM_REL32            00000000   anon.6578128b215200acf1dd5c363f04ccf0.1.llvm.18072865125061273326
+0000002c  00005b03 R_ARM_REL32            0000017e   anon.6578128b215200acf1dd5c363f04ccf0.6.llvm.18072865125061273326
+00000030  00005c03 R_ARM_REL32            00000000   anon.6578128b215200acf1dd5c363f04ccf0.3.llvm.18072865125061273326
+
+Relocation section '.rel.ARM.exidx.text.unlikely._ZN4core9panicking13panic_display17h618657bb0b18932dE.llvm.18072865125061273326' at offset 0x12e4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00002d2a R_ARM_PREL31           00000000   .text.unlikely._ZN4core9panicking13panic_display17h618657bb0b18932dE.llvm.18072865125061273326
+
+Relocation section '.rel.text._ZN89_$LT$concurrent_queue..unbounded..Unbounded$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17hb8860151cada69ddE' at offset 0x12ec contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000012  00005e0a R_ARM_THM_CALL         00000000   _ZN102_$LT$core..sync..atomic..Atomic$LT$usize$GT$$u20$as$u20$concurrent_queue..sync..prelude..AtomicExt$GT$8with_mut17h90e7375c02d21f9dE
+
+Relocation section '.rel.ARM.exidx.text._ZN89_$LT$concurrent_queue..unbounded..Unbounded$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17hb8860151cada69ddE' at offset 0x12f4 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  0000302a R_ARM_PREL31           00000000   .text._ZN89_$LT$concurrent_queue..unbounded..Unbounded$LT$T$GT$$u20$as$u20$core..ops..drop..Drop$GT$4drop17hb8860151cada69ddE
+
+Relocation section '.rel.data.rel.ro.anon.6578128b215200acf1dd5c363f04ccf0.1.llvm.18072865125061273326' at offset 0x12fc contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00005f02 R_ARM_ABS32            00000000   anon.6578128b215200acf1dd5c363f04ccf0.0.llvm.18072865125061273326
+
+Relocation section '.rel.data.rel.ro.anon.6578128b215200acf1dd5c363f04ccf0.3.llvm.18072865125061273326' at offset 0x1304 contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00006002 R_ARM_ABS32            00000000   anon.6578128b215200acf1dd5c363f04ccf0.2.llvm.18072865125061273326
+
+Relocation section '.rel.data.rel.ro.anon.6578128b215200acf1dd5c363f04ccf0.5.llvm.18072865125061273326' at offset 0x130c contains 1 entry:
+ Offset     Info    Type                Sym. Value  Symbol's Name
+00000000  00006102 R_ARM_ABS32            000000bb   anon.6578128b215200acf1dd5c363f04ccf0.4.llvm.18072865125061273326

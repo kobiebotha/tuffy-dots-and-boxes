@@ -1,0 +1,99 @@
+mod common;
+pub mod inspection;
+mod management;
+mod raw_table;
+mod table_info;
+
+use alloc::{rc::Rc, vec::Vec};
+pub use common::{ColumnFilter, SchemaTable};
+use powersync_sqlite_nostd::{self as sqlite, Connection, Context, Value, args};
+pub use raw_table::InferredSchemaCache;
+use serde::Deserialize;
+use sqlite::ResultCode;
+pub use table_info::{
+    Column, CommonTableOptions, PendingStatement, PendingStatementValue, RawTable, Table,
+    TableInfoFlags,
+};
+
+use crate::{
+    error::PowerSyncError,
+    schema::raw_table::generate_raw_table_trigger,
+    state::DatabaseState,
+    utils::{WriteType, database::Database},
+};
+
+#[derive(Deserialize, Default)]
+#[serde(try_from = "NonValidatedSchema")]
+pub struct Schema {
+    pub tables: Vec<table_info::Table>,
+    pub raw_tables: Vec<table_info::RawTable>,
+}
+
+#[derive(Deserialize)]
+struct NonValidatedSchema {
+    tables: Vec<table_info::Table>,
+    #[serde(default)]
+    raw_tables: Vec<table_info::RawTable>,
+}
+
+impl TryFrom<NonValidatedSchema> for Schema {
+    type Error = &'static str;
+
+    fn try_from(value: NonValidatedSchema) -> Result<Self, Self::Error> {
+        let NonValidatedSchema { tables, raw_tables } = value;
+
+        for table in &tables {
+            if table.direct && table.view_name_override.is_some() {
+                return Err("Direct tables can't have custom view names");
+            }
+        }
+
+        Ok(Schema { tables, raw_tables })
+    }
+}
+
+pub fn register(db: *mut sqlite::sqlite3, state: Rc<DatabaseState>) -> Result<(), ResultCode> {
+    management::register(db, state)?;
+
+    {
+        fn create_trigger(
+            context: *mut sqlite::context,
+            args: &[*mut sqlite::value],
+        ) -> Result<(), PowerSyncError> {
+            // Args: Table (JSON), trigger_name, write_type
+            let table: RawTable =
+                serde_json::from_str(args[0].text()).map_err(PowerSyncError::as_argument_error)?;
+            let trigger_name = args[1].text();
+            let write_type: WriteType = args[2].text().parse()?;
+
+            let db = Database::from(context.db_handle());
+            let create_trigger_stmt =
+                generate_raw_table_trigger(db, &table, trigger_name, write_type)?;
+            db.exec_safe_str(&create_trigger_stmt)?;
+            Ok(())
+        }
+
+        extern "C" fn create_raw_trigger_sqlite(
+            context: *mut sqlite::context,
+            argc: i32,
+            args: *mut *mut sqlite::value,
+        ) {
+            let args = args!(argc, args);
+            if let Err(e) = create_trigger(context, args) {
+                e.apply_to_ctx("powersync_create_raw_table_crud_trigger", context);
+            }
+        }
+
+        db.create_function_v2(
+            "powersync_create_raw_table_crud_trigger",
+            3,
+            sqlite::UTF8,
+            None,
+            Some(create_raw_trigger_sqlite),
+            None,
+            None,
+            None,
+        )?;
+    }
+    Ok(())
+}

@@ -1,0 +1,10 @@
+$ make -C /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/native BUILD=build/sdk PYTHON=/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/.venv/bin/python SDK_ARCHIVE=/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/rust/target/thumbv8m.main-none-eabi/release/libpsbadge_native.a MPY_DIR=/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/vendor/micropython SQLITE_DIR=/Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/native-sqlite/vendor/sqlite all
+LINK build/sdk/src/module.o
+Loading /Users/kobie/projects/powersync/skunkworks/tuffy-dots-and-boxes/experiments/powersync-native-sdk/badge-module/rust/target/thumbv8m.main-none-eabi/release/libpsbadge_native.a
+Loading /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/13.2.1/thumb/v7e-m+fp/softfp/libgcc.a
+Loading /Users/kobie/projects/powersync/skunkworks/powerbadge/native/.tools/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/13.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/softfp/libm.a
+arch:         EM_ARM
+text size:    1102372
+bss size:     803696
+GOT entries:  30
+GEN native_powersync_sdk.mpy

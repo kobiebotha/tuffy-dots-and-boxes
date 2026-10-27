@@ -1,0 +1,276 @@
+name: release
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+permissions: {}
+
+jobs:
+  draft_release:
+    name: Create Draft GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    permissions:
+      contents: write # Needed to create a release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set tag name
+        id: tag
+        run: |
+          tag=$(basename "${GITHUB_REF}")
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STEPS_TAG_OUTPUTS_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          tag="${STEPS_TAG_OUTPUTS_TAG}"
+          body="Release $tag"
+          gh release create --draft "$tag" --title "$tag" --notes "$body"
+
+  build_libs:
+    name: Build libraries
+    uses: ./.github/workflows/build.yml
+    permissions:
+      id-token: write # Needed to mint the OIDC token used to sign the attestation.
+      attestations: write # Needed to publish the attestation.
+      artifact-metadata: write # Create artifact storage record.
+    with:
+      attest: true
+      sign-publication: true
+    secrets:
+      gpg-key: ${{ secrets.GPG_PRIVATE_KEY }}
+      gpg-password: ${{ secrets.GPG_PASSWORD }}
+
+  publish_android:
+    name: Publish Android
+    needs: [ draft_release, build_libs ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_android }}
+
+      - name: Publish to Maven Central
+        env:
+          AUTH_TOKEN: ${{ secrets.CENTRAL_AUTH }}
+        run: |
+          curl --request POST \
+            --header "Authorization: Bearer $AUTH_TOKEN" \
+            --form bundle=@powersync_android.zip \
+            'https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC'
+
+  publish_ios_pod_and_spm_package:
+    name: Publish iOS
+    needs: [ draft_release, build_libs ]
+    runs-on: macos-latest
+    permissions:
+      contents: write # Needed to upload the XCFramework to the draft release.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download libs
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_xcframework }}
+
+      - name: Extract xcframework
+        run: unzip powersync-sqlite-core.xcframework.zip "powersync-sqlite-core.xcframework/*"
+
+      - name: Lint pod
+        run: |
+          pod lib lint
+
+      # For SPM package
+      - name: Set xcFramework file name used for SPM package
+        id: fileName
+        run: |
+          FILENAME=powersync-sqlite-core.xcframework.zip
+          echo "fileName=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload xcframework
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS_DRAFT_RELEASE_OUTPUTS_TAG: ${{ needs.draft_release.outputs.tag }}
+          STEPS_FILENAME_OUTPUTS_FILENAME: ${{ steps.fileName.outputs.fileName }}
+        run: |
+          gh release upload "${NEEDS_DRAFT_RELEASE_OUTPUTS_TAG}" ${STEPS_FILENAME_OUTPUTS_FILENAME}
+
+      # For SPM package
+      - name: Generate and add checksum to output
+        id: checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum ${STEPS_FILENAME_OUTPUTS_FILENAME})
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+        env:
+          STEPS_FILENAME_OUTPUTS_FILENAME: ${{ steps.fileName.outputs.fileName }}
+      - name: Dispatch release to SPM package
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.SWIFT_PUBLISH_TOKEN }}
+          repository: powersync-ja/powersync-sqlite-core-swift
+          event-type: spm-release
+          client-payload: |-
+            {
+              "repository": "${{ github.repository }}",
+              "title": "${{ needs.draft_release.outputs.tag }}",
+              "tag": "${{ needs.draft_release.outputs.tag }}",
+              "checksum": "${{ steps.checksum.outputs.checksum }}",
+              "fileName": "${{ steps.fileName.outputs.fileName }}"
+            }
+
+  publish_desktop:
+    name: Publish Desktop libraries
+    needs: [ draft_release, build_libs ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to upload binaries to release.
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download Linux libraries
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_linux }}
+      - name: Download macOS libraries
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_macos }}
+      - name: Download Windows libraries
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_windows }}
+      - name: Download static Android libraries
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_android_static }}
+      - name: Download SBOM
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.sbom }}
+
+      - name: Create archive of static libs for Kotlin
+        run: zip static_libs.zip *.lib *.a
+
+      - name: List libraries
+        run: ls -al
+
+      - name: Upload binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.draft_release.outputs.tag }}
+        run: |
+          gh release upload "${TAG}" *.dll
+          gh release upload "${TAG}" *.dylib
+          gh release upload "${TAG}" *.so
+          gh release upload "${TAG}" static_libs.zip
+          gh release upload "${TAG}" bom.json
+
+  publish_wasm:
+    name: Publish WASM builds
+    needs: [ draft_release, build_libs ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to upload binaries to release.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download wasm bundle
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build_libs.outputs.libs_wasm }}
+
+      - name: Upload wasm binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.draft_release.outputs.tag }}
+        run: |
+          gh release upload "${TAG}" libpowersync-wasm.a
+
+  publish_crates_io:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC token exchange
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - name: Publish powersync_sqlite_nostd
+        run: cargo publish
+        working-directory: crates/sqlite_nostd
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      - name: Publish powersync_core
+        run: cargo publish
+        working-directory: crates/core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  create_sdk_issue:
+    name: "Create issue for SDK updates"
+    permissions:
+      issues: write # To create issue
+    runs-on: macos-latest
+    needs:
+      - draft_release
+      - publish_android
+      - publish_ios_pod_and_spm_package
+      - publish_desktop
+      - publish_wasm
+      - publish_crates_io
+    steps:
+      - name: Create issue
+        run: |
+          gh issue create \
+            --title "$TITLE" \
+            --assignee "$ASSIGNEES" \
+            --body "$BODY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: "Release checklist: ${{ needs.draft_release.outputs.tag }}"
+          ASSIGNES: ${{ github.event.push.sender }}
+          BODY: |
+            This is a checklist to track the release of ${{ needs.draft_release.outputs.tag }}.
+            
+            Core build (this repo):
+            * [ ] GitHub Release (add release notes and make public)
+            * [x] New version released on crates.io
+            * [ ] Verify Android aar released on Maven Central
+            * [ ] Cocoapod released
+
+            SQLite + powersync bundles:
+            * [ ] wa-sqlite build: 
+            * [ ] sql.js dev adapter: 
+
+            User-facing SDK updates:
+            * [ ] powersync.dart (see instructions in [this file](https://github.com/powersync-ja/powersync.dart/blob/main/packages/powersync_core/lib/src/database/core_version.dart)):
+            * [ ] powersync-js (directly update node, react-native and capacitor packages; upgrade dependencies on wa-sqlite and sql-js in packages and demos):
+            * [ ] kotlin (update in `libs.versions.toml`):
+            * [ ] swift (update in `Package.swift`):
+            * [ ] native (update in `Cargo.toml`):
+            * [ ] dotnet (update `Tools/Setup/Setup.cs`)

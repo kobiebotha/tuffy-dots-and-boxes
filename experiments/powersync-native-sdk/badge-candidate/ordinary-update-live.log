@@ -1,0 +1,10 @@
+BADGELINK_NETWORK installed=1 enabled=1 state=connecting
+BADGELINK_WATCHDOG armed=1 timeout_ms=16000
+UPDATE_LIVE_PROGRESS 7442 warmup CONNECTING 0 False
+BADGELINK_NETWORK event=credential_tier state=connecting reason=fleet
+BADGELINK_NETWORK event=wifi_online state=connecting reason=connected attempts=1 failures=0
+BADGELINK_NETWORK event=push_withheld state=connecting reason=in an app
+BADGELINK_NETWORK event=score_stalled state=connecting reason=offline
+UPDATE_LIVE_PROGRESS 19287 warmup SYNCED 1 False
+ORDINARY_LIVE_RESULT {"full_generation": 2, "exact_uuid_room_confirmed": true, "workload": "execute/read/watch/reconcile via real SDK and TLS; idempotent canonical UUID; no move RPC", "sdk_http_requests": [[3, "checkpoint-request"]], "crud_rows": 0, "passed": true, "observed_local_rows": [0, 0, 1, 0], "same_stream_retained": true, "legacy_pending_files_removed": true, "receipts_removed": true, "sdk_http_errors": [], "single_tls": false, "installed_sync_sha256": "abf9ee24208264c3b21d228984b6bc2ea0c43f16195375ea1867181d3f90f835", "canonical_move_count": 12, "elapsed_ms": 7087, "initial_full_generation": 1}
+
