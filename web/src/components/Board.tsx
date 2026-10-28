@@ -8,14 +8,12 @@ export function BoardView({
   moves,
   onEdge,
   disabled = false,
-  selected,
 }: {
   cols: number;
   rows: number;
   moves: Move[];
   onEdge?: (edge: Move) => void;
   disabled?: boolean;
-  selected?: Move;
 }) {
   const game = replay(cols, rows, moves);
   const step = 72;
@@ -26,14 +24,13 @@ export function BoardView({
 
   function edgeTarget(orientation: "h" | "v", row: number, col: number, owner: number, x: number, y: number) {
     if (!onEdge || owner) return null;
-    const highlighted = selected?.orientation === orientation && selected.row === row && selected.col === col;
     const edge = { orientation, row, col };
     return (
       <g className={disabled ? "edge-control" : "edge-control enabled"}>
         <line
           className="edge-highlight"
           x1={x} y1={y} x2={x + (orientation === "h" ? step : 0)} y2={y + (orientation === "v" ? step : 0)}
-          stroke={highlighted ? "#f5cb68" : "transparent"} strokeWidth="12" strokeLinecap="square" pointerEvents="none"
+          stroke="transparent" strokeWidth="12" strokeLinecap="square" pointerEvents="none"
         />
         <rect
           className="edge-target"

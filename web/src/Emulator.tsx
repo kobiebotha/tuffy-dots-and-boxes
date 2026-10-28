@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BoardView } from "./components/Board";
 import { groupCode, replay, type Move } from "./game";
 import { openUserDatabase, startSync } from "./lib/database";
-import { emulatorClient, emulatorDeviceId, emulatorProfile, isPermanentMoveError, pairEmulator, readPendingMove, sameEdge, savePendingMove, sendEmulatorMove, type PendingMove } from "./lib/emulator";
+import { emulatorClient, emulatorDeviceId, emulatorProfile, isPermanentMoveError, pairEmulator, readPendingMove, savePendingMove, sendEmulatorMove, type PendingMove } from "./lib/emulator";
 import { cancelRoom, createRoom, joinRoom, leaveRoom, rememberedCode, rememberCode, type RoomTicket } from "./lib/rooms";
 import { ensureSession } from "./lib/supabase";
 import { connectionSummary, errorMessage } from "./lib/syncStatus";
@@ -134,7 +134,6 @@ export function EmulatorRoom({ application, roomId, back, embedded = false }: { 
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(pending ? "Recovered a saved move. Retry it to safely confirm the result." : null);
   const [autoPlay, setAutoPlay] = useState(false);
-  const [selectedEdge, setSelectedEdge] = useState<Move | undefined>();
   const inFlight = useRef(false);
   const pendingRef = useRef(pending);
   const code = me?.pairing_code || rememberedCode(roomId, userId);
@@ -146,7 +145,7 @@ export function EmulatorRoom({ application, roomId, back, embedded = false }: { 
     for (let row = 0; row <= game.rows; row++) for (let col = 0; col < game.cols; col++) if (!game.edgeOwner("h", row, col)) freeEdges.push({ orientation: "h", row, col });
     for (let row = 0; row < game.rows; row++) for (let col = 0; col <= game.cols; col++) if (!game.edgeOwner("v", row, col)) freeEdges.push({ orientation: "v", row, col });
   }
-  const selected = freeEdges.find((edge) => sameEdge(selectedEdge, edge)) ?? freeEdges[0];
+  const autoPlayEdge = freeEdges[0];
   const canPlay = Boolean(room?.status === "playing" && pairedHere && me?.seat === room.current_seat &&
     room.move_count === moves.length && stream?.subscription.hasSynced && live && !pending && !sending);
   const queryError = roomError ?? playerError ?? moveError;
@@ -188,10 +187,10 @@ export function EmulatorRoom({ application, roomId, back, embedded = false }: { 
   }, [canPlay, client, roomId, userId]);
 
   useEffect(() => {
-    if (!autoPlay || !canPlay || !selected) return;
-    const timeout = window.setTimeout(() => void send(selected), 500);
+    if (!autoPlay || !canPlay || !autoPlayEdge) return;
+    const timeout = window.setTimeout(() => void send(autoPlayEdge), 500);
     return () => window.clearTimeout(timeout);
-  }, [autoPlay, canPlay, selected?.orientation, selected?.row, selected?.col, send]);
+  }, [autoPlay, canPlay, autoPlayEdge?.orientation, autoPlayEdge?.row, autoPlayEdge?.col, send]);
 
   async function pair() {
     if (!code || pairing || !me) return;
@@ -213,12 +212,6 @@ export function EmulatorRoom({ application, roomId, back, embedded = false }: { 
     } catch (reason) { setError(errorMessage(reason)); }
   }
 
-  function cycle(delta: number) {
-    if (!selected || !freeEdges.length) return;
-    const index = freeEdges.findIndex((edge) => sameEdge(selected, edge));
-    setSelectedEdge(freeEdges[(index + delta + freeEdges.length) % freeEdges.length]);
-  }
-
   if (queryError) return <section><p className="error" role="alert">{errorMessage(queryError)}</p><button onClick={back}>All rooms</button></section>;
   if (!room) return <section><h2>{stream?.subscription.hasSynced ? "Room unavailable" : "Opening the board…"}</h2><button onClick={back}>All rooms</button></section>;
   const finished = room.status === "finished";
@@ -229,21 +222,11 @@ export function EmulatorRoom({ application, roomId, back, embedded = false }: { 
       <div className="emulator-room-top"><div><p className="kicker">{me ? `Virtual badge · Player ${me.seat}` : "Spectating"}</p><h2>{turn}</h2></div>{!embedded ? <a className="button-link" href={`/watch/${room.id}`} target="_blank" rel="noreferrer">Watch on dashboard ↗</a> : null}</div>
       {!embedded && me && !pairedHere && !finished ? <section className="code-panel"><p>{me.paired_at ? "This seat belongs to another device." : "Pair this virtual badge with its own code."}</p>{code ? <p className="code">{groupCode(code)}</p> : null}<button className="primary" disabled={!code || pairing || Boolean(me.paired_at) || !live} onClick={() => void pair()}>{pairing ? "Pairing…" : pairRequested ? "Pair again" : "Pair virtual badge"}</button>{pairRequested ? <p role="status">Pairing accepted. Waiting for the synced roster…</p> : null}</section> : null}
       <p role="status">{room.paired_count}/2 badges paired{pairedHere ? " · Virtual badge ready" : ""}. {room.status === "waiting" ? "Enter the other player's code on the physical Tufty." : `${room.move_count}/49 lines played.`}</p>
-      <div className="tufty-screen" tabIndex={0} role="region" aria-label="Virtual badge controls" onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        const key = event.key.toLowerCase();
-        if (["a", "c", "b", "arrowleft", "arrowright", "enter"].includes(key)) {
-          event.preventDefault();
-          if (key === "a" || key === "arrowleft") cycle(-1);
-          else if (key === "c" || key === "arrowright") cycle(1);
-          else if (canPlay && selected) void send(selected);
-        }
-      }}>
+      <div className="tufty-screen">
         {!embedded ? <div className="emulator-scores"><span className={room.current_seat === 1 && !finished ? "active" : ""}>P1 <strong>{room.score_p1}</strong></span><span className={room.current_seat === 2 && !finished ? "active" : ""}>P2 <strong>{room.score_p2}</strong></span></div> : null}
-        <BoardView cols={room.cols} rows={room.rows} moves={moves} onEdge={(edge) => void send(edge)} disabled={!canPlay} selected={selected} />
-        <div className="badge-buttons"><button disabled={!freeEdges.length || sending} onClick={() => cycle(-1)}>A · Previous</button><button className="primary" disabled={!canPlay || !selected} onClick={() => selected && void send(selected)}>B · Claim line</button><button disabled={!freeEdges.length || sending} onClick={() => cycle(1)}>C · Next</button></div>
+        <BoardView cols={room.cols} rows={room.rows} moves={moves} onEdge={(edge) => void send(edge)} disabled={!canPlay} />
       </div>
-      <p className="muted">Click a free line, or focus the badge and use A / B / C (← / Enter / →). Yellow marks the selected line.</p>
+      <p className="muted">Click or tap a free line to claim it.</p>
       {pending ? <div className="note"><p role="status">{notice}</p><button disabled={sending || !live} onClick={() => void send()}>{sending ? "Sending…" : "Retry saved move"}</button></div> : notice ? <p role="status">{notice}</p> : null}
       {pairedHere && !finished ? <label className="auto-play"><input type="checkbox" checked={autoPlay} onChange={(event) => setAutoPlay(event.target.checked)} /> Auto-play my turns <span className="muted">(one move every ½ second, after sync confirmation)</span></label> : null}
       <div className="actions">{!embedded ? <button onClick={back}>All rooms</button> : null}{me && room.status === "waiting" ? <button disabled={pairing || Boolean(pending)} onClick={() => void leave()}>{me.seat === 1 ? "Cancel room" : embedded ? "Leave as virtual badge" : "Leave room"}</button> : null}</div>
