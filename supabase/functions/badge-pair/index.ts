@@ -2,8 +2,6 @@ import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { type PairDeps, type PlayerRow } from "./handler.ts";
 import { ConfigurationError, createHandler } from "./http.ts";
 
-const POWERSYNC_URL = "https://6ad7f348423e048d1cdd5f03.powersync.journeyapps.com";
-
 function env(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new ConfigurationError(`Missing ${name}`);
@@ -76,4 +74,4 @@ function dependencies(): PairDeps {
   };
 }
 
-Deno.serve(createHandler(dependencies, POWERSYNC_URL));
+Deno.serve(createHandler(dependencies, () => env("POWERSYNC_URL")));

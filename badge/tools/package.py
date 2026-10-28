@@ -3,6 +3,9 @@ import argparse
 import hashlib
 import io
 import json
+import os
+import re
+import shlex
 import shutil
 import sys
 import zipfile
@@ -61,7 +64,49 @@ def refuse_mounted_destination(path):
         raise SystemExit("Refusing a symlinked release destination: " + str(path))
 
 
-def collect():
+CLIENT_SETTINGS = ("VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_POWERSYNC_URL")
+
+
+def load_client_settings(mode="production", allow_unconfigured=False):
+    """Read Vite's env files in precedence order; process values win.
+
+    Settings are literal values (no shell execution or variable expansion).
+    """
+    values = {}
+    for name in (".env", ".env.local", ".env." + mode, ".env." + mode + ".local"):
+        path = REPO / "web" / name
+        if not path.exists():
+            continue
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("export "):
+                line = line[7:].strip()
+            key, separator, value = line.partition("=")
+            key = key.strip()
+            if not separator or key not in CLIENT_SETTINGS:
+                continue
+            words = shlex.split(value, comments=True)
+            if len(words) > 1:
+                raise SystemExit("Quote values containing spaces in " + str(path))
+            values[key] = words[0] if words else ""
+    values.update({key: os.environ[key] for key in CLIENT_SETTINGS if key in os.environ})
+    missing = [key for key in CLIENT_SETTINGS if not values.get(key)]
+    if missing and not (allow_unconfigured and len(missing) == len(CLIENT_SETTINGS)):
+        raise SystemExit("Missing " + ", ".join(missing) +
+                         ". Copy web/.env.example to web/.env.local and configure it.")
+    for key in CLIENT_SETTINGS:
+        value = values.get(key, "")
+        if "YOUR_" in value:
+            raise SystemExit("Replace the placeholder for " + key + " in web/.env.local")
+        if key.endswith("URL") and value and not value.startswith("https://"):
+            raise SystemExit(key + " must use HTTPS for the badge")
+    return {key.removeprefix("VITE_"): values.get(key, "").rstrip("/")
+            if key.endswith("URL") else values.get(key, "") for key in CLIENT_SETTINGS}
+
+
+def collect(settings=None):
+    if settings is None:
+        settings = load_client_settings()
     files = {}
     for name in SOURCE_FILES:
         root, relative = (SDK, name[len("powersync/"):]) if name.startswith("powersync/") else (APP, name)
@@ -78,6 +123,13 @@ def collect():
         if any(part.is_symlink() for part in ancestors) or not path.is_file():
             raise SystemExit("Missing or symlinked app file: " + name)
         files[name] = path.read_bytes()
+    config = files["dots_config.py"].decode("utf-8")
+    for key, value in settings.items():
+        config, count = re.subn(r"^" + key + r" = .*?$",
+                               lambda match: key + " = " + repr(value), config, flags=re.MULTILINE)
+        if count != 1:
+            raise SystemExit("Missing or duplicate badge config assignment: " + key)
+    files["dots_config.py"] = config.encode("utf-8")
     if (NATIVE_METADATA.get("file") != "native_sqlite.mpy"
             or NATIVE_METADATA.get("variant") != "powersync" or NATIVE_METADATA.get("mpy") != 7942):
         raise SystemExit("Native metadata does not identify the PowerSync Tufty build")
@@ -199,11 +251,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true",
                         help="verify served files, manifest and both ZIPs without writing")
+    parser.add_argument("--mode", default="production", choices=("development", "production"),
+                        help="Vite environment mode (default: production)")
+    parser.add_argument("--allow-unconfigured", action="store_true",
+                        help="allow all three client settings to be empty for installer-only development")
     args = parser.parse_args(argv)
     refuse_mounted_destination(PUBLIC)
     if any(marker in str(APP.resolve()) for marker in ("/Volumes/", "/media/", "/mnt/")):
         raise SystemExit("Refusing to package from a mounted drive")
-    files = collect()
+    files = collect(load_client_settings(args.mode, args.allow_unconfigured))
     release, outputs = release_outputs(files)
     if args.check:
         check_outputs(outputs)

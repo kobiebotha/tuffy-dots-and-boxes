@@ -68,6 +68,22 @@ Deno.test("successful browser pairing includes credentials and CORS headers", as
   assertCors(response);
 });
 
+Deno.test("endpoint configuration is read lazily and failure cannot consume a code", async () => {
+  let backendAccessed = false;
+  const handler = createHandler(() => {
+    backendAccessed = true;
+    return dependencies();
+  }, () => { throw new ConfigurationError("Missing POWERSYNC_URL"); });
+  const preflight = await handler(new Request("https://functions.example/badge-pair", { method: "OPTIONS" }));
+  assert(preflight.status === 204);
+  const response = await handler(request());
+  assert(response.status === 500 && (await response.json()).error === "misconfigured");
+  assert(!backendAccessed);
+  assertCors(response);
+  const configured = await createHandler(() => dependencies(), () => powersyncUrl)(request());
+  assert(configured.status === 200 && (await configured.json()).powersync_url === powersyncUrl);
+});
+
 Deno.test("unknown and already paired codes expose their errors to the browser", async () => {
   const variants: PairDeps[] = [
     dependencies({ findPlayer: () => Promise.resolve(null) }),

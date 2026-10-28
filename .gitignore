@@ -1,7 +1,6 @@
 .vercel
-.env
-.env.local
-.env*.local
+.env*
+!.env.example
 node_modules
 dist
 web/dist
@@ -30,3 +29,10 @@ supabase/.temp
 /experiments/powersync-native-sdk/badge-module/rust/target/
 /experiments/powersync-native-sdk/badge-module/vendor/*/Cargo.lock
 /experiments/powersync-native-sdk/badge-module/evidence/*disassembly.log
+
+# Local project bindings and generated badge releases contain public endpoints.
+/powersync-cloud/cli.yaml
+/powersync-cloud/service.yaml
+/web/public/apps/dots_boxes/
+/web/public/badge-app/
+/web/public/dots-boxes.zip

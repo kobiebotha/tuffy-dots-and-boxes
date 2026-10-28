@@ -2,7 +2,7 @@
 
 Two Tufty 2350 badges, or one badge and a virtual badge in the browser, play one Dots and Boxes board. A web dashboard creates the room, shows a five-letter pairing code (A, B, and C only), and lets you join the other seat in the same tab. PowerSync delivers the board to each badge and to anyone watching in the browser. Moves are sent with a Supabase call, then synced back.
 
-The linked projects are Supabase `rjjvtmqicwtikbveofyq`, PowerSync instance `6ad7f348423e048d1cdd5f03`, and the Vercel project `tufty-dots-and-boxes`.
+Project endpoints and public client keys belong in ignored local configuration files. Committed examples contain placeholders.
 
 Play at [tufty-dots-and-boxes.vercel.app](https://tufty-dots-and-boxes.vercel.app).
 
@@ -10,7 +10,7 @@ Play at [tufty-dots-and-boxes.vercel.app](https://tufty-dots-and-boxes.vercel.ap
 
 ```bash
 cp web/.env.example web/.env.local
-# Fill VITE_SUPABASE_ANON_KEY with the Supabase anon / publishable key.
+# Fill all three values with your Supabase URL, publishable key and PowerSync URL.
 npm --prefix web ci
 npm --prefix web test
 npm --prefix web run dev
@@ -60,7 +60,15 @@ and server rules still enforce access and turns.
 
 ## Badge
 
-The app is prepared under `badge/app/dots_boxes`. Package it with:
+The app is prepared under `badge/app/dots_boxes`. The packager fills
+`dots_config.py` from the same `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and
+`VITE_POWERSYNC_URL` settings as the web app. Configure `web/.env.local` first.
+Process environment variables override the env files. The packager reads
+`web/.env`, `.env.local`, `.env.production`, and `.env.production.local` in that
+order; `--mode development` selects the development equivalents. Use literal
+values rather than variable interpolation in these files.
+
+Package it with:
 
 ```bash
 python3 badge/tools/package.py
@@ -97,7 +105,7 @@ Those boundaries also provide a place to substitute a native implementation
 in a future experiment. Host scripts add `badge/lib` and `sqlite-shadow-vfs`
 to their import path.
 
-That stages `web/public/dots-boxes.zip` and a manifest with content-versioned app files under `web/public/badge-app/`. It refreshes the original `web/public/apps/dots_boxes` copies and replaces only the generated `badge-app` subtree, keeping one release. Run `python3 badge/tools/package.py --check` to verify every served copy, manifest, and ZIP against the explicit app sources and reviewed native module; the web build runs this check too. Packaging never copies onto a USB drive.
+That stages `web/public/dots-boxes.zip` and a manifest with content-versioned app files under `web/public/badge-app/`. It refreshes the original `web/public/apps/dots_boxes` copies and replaces only the generated `badge-app` subtree, keeping one release. Run `python3 badge/tools/package.py --check` to verify every served copy, manifest, and ZIP against the explicit app sources and reviewed native module; the web build regenerates and verifies the release from its environment. Generated badge releases are ignored by Git. Packaging never copies onto a USB drive.
 
 On `/install`, desktop Chrome or Edge can ask you to select the mounted Badgeware drive, copy the app, and read every file back to verify it. An existing `apps/dots_boxes` folder offers **Update game on badge**. Only packaged app paths are replaced; unknown files and `/state/dots_boxes` (pairing, database, pending moves) are retained. The browser snapshots replaced files in memory and attempts verified restoration on failure. If recovery cannot be verified, keep the drive connected and retry before resetting. Avoid editing the app from another program while copying; browser file operations cannot form a transaction against other OS writers. A successful readback does not replace safe OS ejection. Eject the drive in your operating system and press Reset once.
 
@@ -178,14 +186,30 @@ conservative checkpoint barrier. Entering a code from a different browser accoun
 safely replaces the synced cache after saving the new session; an unconfirmed
 move must sync before changing accounts.
 
-Deploy the matching sync config before installing this badge version. The linked
-PowerSync instance is named `Production`; obtain approval before deploying:
+Deploy the matching sync config before installing this badge version. Copy `powersync-cloud/cli.example.yaml` and `service.example.yaml` to
+`cli.yaml` and `service.yaml`, replacing the placeholders for your own instance
+and replication connection. These local bindings are ignored by Git; existing
+local copies are retained. Obtain approval before deploying to production:
 
 ```bash
 powersync deploy sync-config --directory powersync-cloud
 ```
 
 Changing sync streams does not require a service-config or Vercel deployment.
+
+## Pairing function configuration
+
+Copy `supabase/functions/.env.example` to `supabase/functions/.env` and set
+`POWERSYNC_URL` for local Edge Functions. Supabase supplies its own URL and API
+keys to the function runtime. Before deploying the updated pairing function,
+configure `POWERSYNC_URL` in the hosted function environment as well, using the
+Supabase secret settings or CLI. Missing configuration returns a `misconfigured`
+error without consuming a pairing code.
+
+The web host must also have the three `VITE_*` values configured for builds.
+URLs and publishable keys remain visible in the built web app and badge download;
+the env files keep deployment-specific values out of source control. Previous
+Git commits still contain the old values.
 
 ## Checks
 

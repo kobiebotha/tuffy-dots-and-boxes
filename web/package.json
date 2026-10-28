@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "predev": "powersync-web copy-assets -o public/assets/powersync",
+    "predev": "python3 ../badge/tools/package.py --mode development --allow-unconfigured && powersync-web copy-assets -o public/assets/powersync",
     "dev": "vite --host 127.0.0.1",
-    "prebuild": "python3 ../badge/tools/package.py --check && powersync-web copy-assets -o public/assets/powersync",
+    "prebuild": "python3 ../badge/tools/package.py && powersync-web copy-assets -o public/assets/powersync",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",

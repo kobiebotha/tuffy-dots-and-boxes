@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -15,12 +16,61 @@ SPEC = importlib.util.spec_from_file_location(
     "badge_package", Path(__file__).resolve().parents[1] / "tools" / "package.py")
 package = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(package)
+CLIENT_CONFIG = {"SUPABASE_URL": "https://project.supabase.co",
+                 "SUPABASE_ANON_KEY": "test-publishable-key",
+                 "POWERSYNC_URL": "https://sync.example"}
+
+
+class EnvironmentTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        (self.root / "web").mkdir()
+        patcher = patch.object(package, "REPO", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch.dict(os.environ, {}, clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_mode_local_and_process_precedence(self):
+        (self.root / "web/.env").write_text(
+            'VITE_SUPABASE_URL=https://project.supabase.co/\n'
+            'export VITE_SUPABASE_ANON_KEY="base-key" # public\n'
+            'VITE_POWERSYNC_URL=https://base.example\n')
+        (self.root / "web/.env.local").write_text('VITE_POWERSYNC_URL=https://local.example\n')
+        (self.root / "web/.env.production").write_text('VITE_POWERSYNC_URL=https://prod.example\n')
+        (self.root / "web/.env.production.local").write_text('VITE_SUPABASE_ANON_KEY=prod-key\n')
+        os.environ["VITE_POWERSYNC_URL"] = "https://environment.example/"
+        self.assertEqual(package.load_client_settings(), {
+            "SUPABASE_URL": "https://project.supabase.co",
+            "SUPABASE_ANON_KEY": "prod-key", "POWERSYNC_URL": "https://environment.example"})
+        self.assertEqual(package.load_client_settings("development")["SUPABASE_ANON_KEY"], "base-key")
+
+    def test_missing_settings_fail_and_only_explicitly_allow_empty_installer(self):
+        with self.assertRaisesRegex(SystemExit, "Missing VITE_SUPABASE_URL"):
+            package.load_client_settings()
+        self.assertEqual(package.load_client_settings(allow_unconfigured=True),
+                         dict.fromkeys(CLIENT_CONFIG, ""))
+        os.environ["VITE_SUPABASE_URL"] = "https://project.supabase.co"
+        with self.assertRaisesRegex(SystemExit, "Missing"):
+            package.load_client_settings(allow_unconfigured=True)
+
+    def test_placeholders_and_insecure_badge_urls_fail(self):
+        for key, value in CLIENT_CONFIG.items():
+            os.environ["VITE_" + key] = value
+        for value in ("https://YOUR_PROJECT.supabase.co", "http://project.supabase.co"):
+            with self.subTest(value=value):
+                os.environ["VITE_SUPABASE_URL"] = value
+                with self.assertRaises(SystemExit):
+                    package.load_client_settings()
 
 
 class PackageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.sources = package.collect()
+        cls.sources = package.collect(CLIENT_CONFIG)
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -37,6 +87,7 @@ class PackageTests(unittest.TestCase):
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(data)
         self.addCleanup(patch.stopall)
+        patch.object(package, "load_client_settings", return_value=CLIENT_CONFIG).start()
         patch.object(package, "PUBLIC", self.public).start()
         patch.object(package, "APP", self.app).start()
         patch.object(package, "SDK", self.app / "powersync").start()
@@ -76,11 +127,21 @@ class PackageTests(unittest.TestCase):
         changed = {**self.sources, "game.py": self.sources["game.py"] + b"\n"}
         updated, _ = package.release_outputs(changed)
         self.assertNotEqual(updated["version"], self.release["version"])
+
         changed = {**self.sources, "sqlite_shadow_vfs.py": self.sources["sqlite_shadow_vfs.py"] + b"\n"}
         updated, _ = package.release_outputs(changed)
         self.assertNotEqual(updated["version"], self.release["version"])
         self.assertNotEqual(updated["zipUrl"], self.release["zipUrl"])
         changed = {**self.sources, "powersync/sync.py": self.sources["powersync/sync.py"] + b"\n"}
+        updated, _ = package.release_outputs(changed)
+        self.assertNotEqual(updated["version"], self.release["version"])
+
+    def test_environment_changes_packaged_config_and_release_identity(self):
+        changed = package.collect({**CLIENT_CONFIG, "POWERSYNC_URL": "https://other.example"})
+        namespace = {"__file__": "/apps/dots_boxes/dots_config.py"}
+        exec(changed["dots_config.py"], namespace)
+        self.assertEqual(namespace["POWERSYNC_URL"], "https://other.example")
+        self.assertEqual(namespace["PAIR_URL"], CLIENT_CONFIG["SUPABASE_URL"] + "/functions/v1/badge-pair")
         updated, _ = package.release_outputs(changed)
         self.assertNotEqual(updated["version"], self.release["version"])
 

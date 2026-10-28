@@ -1,157 +1,157 @@
 {
   "schemaVersion": 1,
   "release": {
-    "version": "0.1.0-a1bcbe944a50",
+    "version": "0.1.0-4319d25397ab",
     "appId": "dots_boxes",
     "name": "Dots & Boxes",
     "board": "tufty2350",
     "runtimeMpy": 7942,
     "description": "Dots & Boxes for Tufty 2350 running Badgeware.",
-    "zipUrl": "/badge-app/0.1.0-a1bcbe944a50/app.zip",
-    "zipSha256": "4c39614354ea28f37ba2a97761d94ce732d4f9ba8b216222814c5c44cdeca03f",
-    "zipBytes": 576044,
+    "zipUrl": "/badge-app/0.1.0-4319d25397ab/app.zip",
+    "zipSha256": "79f71c9288d7c08eb36d9b15a16ff0344a10db3780cfa95401abe0d714d451f1",
+    "zipBytes": 576060,
     "files": [
       {
         "path": "__init__.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/__init__.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/__init__.py",
         "bytes": 3281,
         "sha256": "77eea22fc428e6b1c4398ef36528919d1c03ae10d3663cbfda14bd17fc645c78"
       },
       {
         "path": "ca/sectigo-r46.der",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/ca/sectigo-r46.der",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/ca/sectigo-r46.der",
         "bytes": 1422,
         "sha256": "7bb647a62aeeac88bf257aa522d01ffea395e0ab45c73f93f65654ec38f25a06"
       },
       {
         "path": "controls.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/controls.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/controls.py",
         "bytes": 6068,
         "sha256": "88eba637c396ed77bad34919c31eddc06e6385aa3b362499bcea517d49a422b8"
       },
       {
         "path": "dots_client.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_client.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_client.py",
         "bytes": 13841,
         "sha256": "b1dca15eebd24350fa604e192e5086763983a95f5854f581b29f22f7c051daf8"
       },
       {
         "path": "dots_codec.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_codec.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_codec.py",
         "bytes": 1869,
         "sha256": "80b6a099d3832a42393c1714375a2749bad1c8b6ebca9fb03e578fa092442e89"
       },
       {
         "path": "dots_config.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_config.py",
-        "bytes": 614,
-        "sha256": "610700813ab0afad4c8c0d4fea3c6fab7c03217526b0d1aba9be2ae2ea3f3890"
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_config.py",
+        "bytes": 623,
+        "sha256": "30d3cab6cd039b04cbd3fa0a2c9ed0c6aa064b3bba2b081652c230d8b0078376"
       },
       {
         "path": "dots_pairing.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_pairing.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_pairing.py",
         "bytes": 1086,
         "sha256": "32d448fcb07f94890dc3d303fa1bda35e1acf08dd359a71da95fd19fab954331"
       },
       {
         "path": "dots_session.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_session.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_session.py",
         "bytes": 7408,
         "sha256": "924d935b4e980c33c1c97724b3f951927b78ebefb222d23d038c26ecede4b12b"
       },
       {
         "path": "dots_storage.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_storage.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_storage.py",
         "bytes": 8052,
         "sha256": "6e6054e69e8e6a263267f32922732b052d60aef3f018b98ac18b24d5108337d8"
       },
       {
         "path": "dots_sync.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/dots_sync.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/dots_sync.py",
         "bytes": 5364,
         "sha256": "4659261eb22090415caa3e32fd4c4e1847211822d32dd114fe336529969e5399"
       },
       {
         "path": "game.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/game.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/game.py",
         "bytes": 3927,
         "sha256": "760661f95be01aaf9fafa02da1013dcae4433b7cbd17306606a26ffe9a6a9bc0"
       },
       {
         "path": "icon.png",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/icon.png",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/icon.png",
         "bytes": 149,
         "sha256": "ca9f4c67cc3c0d2e921979ad7b916585bdf927e50c89cd8940f8cd02656cf17b"
       },
       {
         "path": "logos.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/logos.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/logos.py",
         "bytes": 2625,
         "sha256": "f9ffbe34a9a5c154a8420136ede3ec026cb225e6c3be2c2b97301adcbae764e7"
       },
       {
         "path": "powersync/__init__.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/__init__.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/__init__.py",
         "bytes": 232,
         "sha256": "310ab6af2b0093506ab464cdfef584ac308096e2fcb1b5e5d9eb21b0b575a601"
       },
       {
         "path": "powersync/bounded_dns.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/bounded_dns.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/bounded_dns.py",
         "bytes": 7685,
         "sha256": "84d110fad9a0f1dae04ece104f87f3273493a578eeee5415ed33b01d5d9c929e"
       },
       {
         "path": "powersync/database.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/database.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/database.py",
         "bytes": 19326,
         "sha256": "a7cd5b7348dc3a79a0ee47c14f07a2d9102936e13272c266494b56746d6081ee"
       },
       {
         "path": "powersync/http.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/http.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/http.py",
         "bytes": 13692,
         "sha256": "b597b2c88cfd57e27f9f2602b303d34a813d3326bb52c454637065d0d86c4007"
       },
       {
         "path": "powersync/native_sqlite.LICENSE.txt",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/native_sqlite.LICENSE.txt",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/native_sqlite.LICENSE.txt",
         "bytes": 14420,
         "sha256": "40195d993172ef3ba8731ba633d342e53d8052b7637e910c5219fc7f5a7ef716"
       },
       {
         "path": "powersync/native_sqlite.mpy",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/native_sqlite.mpy",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/native_sqlite.mpy",
         "bytes": 737192,
         "sha256": "359c1f5e619357c20d777414165540b55d290af63994ddb44d0d3a210cbcb9d5"
       },
       {
         "path": "powersync/runtime.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/runtime.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/runtime.py",
         "bytes": 2114,
         "sha256": "b9fb14b40d2c3bdd46f017bd8ea5a9283de60724c2f323971e97c072719082a5"
       },
       {
         "path": "powersync/stream.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/stream.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/stream.py",
         "bytes": 12155,
         "sha256": "a33073941e5d7c6deb37466d033daaaed6572bf061b308805268d5ef8baeffd3"
       },
       {
         "path": "powersync/sync.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/powersync/sync.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/powersync/sync.py",
         "bytes": 17632,
         "sha256": "462eb4b8ad2be702ae3f4b5f15bf512b7102b80c339a3926e2de4907196042a9"
       },
       {
         "path": "sqlite_shadow_vfs.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/sqlite_shadow_vfs.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/sqlite_shadow_vfs.py",
         "bytes": 10299,
         "sha256": "56f8966e6e326c27770a5b59cb87093578484a6c8b6e6be8de2a1447b4b07720"
       },
       {
         "path": "view.py",
-        "url": "/badge-app/0.1.0-a1bcbe944a50/files/view.py",
+        "url": "/badge-app/0.1.0-4319d25397ab/files/view.py",
         "bytes": 11621,
         "sha256": "476f49cfa1ad5dde9cdf23bcaf28098fb105f36cbc321a7d72eb51fbaebfd95d"
       }

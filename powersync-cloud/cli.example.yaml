@@ -1,0 +1,4 @@
+type: cloud
+instance_id: YOUR_POWERSYNC_INSTANCE_ID
+org_id: YOUR_POWERSYNC_ORG_ID
+project_id: YOUR_POWERSYNC_PROJECT_ID

@@ -9,7 +9,7 @@ function json(body: Record<string, unknown>, status: number): Response {
   return Response.json(body, { status, headers });
 }
 
-export function createHandler(makeDeps: () => PairDeps, powersyncUrl: string) {
+export function createHandler(makeDeps: () => PairDeps, powersyncUrl: string | (() => string)) {
   return async (request: Request): Promise<Response> => {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
@@ -29,8 +29,9 @@ export function createHandler(makeDeps: () => PairDeps, powersyncUrl: string) {
     if ("error" in validated) return json({ error: validated.error }, 400);
 
     try {
+      const endpoint = typeof powersyncUrl === "function" ? powersyncUrl() : powersyncUrl;
       const result = await pairBadge(payload, makeDeps());
-      return json({ ...result.body, powersync_url: powersyncUrl }, result.status);
+      return json({ ...result.body, powersync_url: endpoint }, result.status);
     } catch (error) {
       if (error instanceof ConfigurationError) return json({ error: "misconfigured" }, 500);
       return json({ error: "unavailable" }, 503);

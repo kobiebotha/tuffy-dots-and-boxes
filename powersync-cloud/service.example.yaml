@@ -24,13 +24,13 @@ replication:
   connections:
     - type: postgresql
       password:
-        secret_ref: supabase_6ad7f3527bead53b5dbb112d_password
+        secret_ref: YOUR_DATABASE_PASSWORD_SECRET_REF
         #secret: !env POWERSYNC_DATABASE_PASSWORD
       # [optional] Alternative to uri: individual connection parameters.
-      hostname: db.rjjvtmqicwtikbveofyq.supabase.co
+      hostname: db.YOUR_SUPABASE_PROJECT_REF.supabase.co
       port: 5432
       database: postgres
-      username: powersync_dbbb9f370607ca2fe2a8629b
+      username: YOUR_REPLICATION_USERNAME
       id: default
       name: Default
       # [optional] TLS mode. Options: verify-full | verify-ca. Default: verify-full. Use verify-full for production.
